@@ -6,7 +6,7 @@ import 'package:audio_session/audio_session.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:just_audio/just_audio.dart';
 
-import '../../../../core/database/app_database.dart';
+import '../../../../core/database/app_database.dart' hide PlaybackState;
 import '../../../../core/logging/app_logger.dart';
 import '../../../../core/services/connectivity_service.dart';
 import '../../../cache/domain/entities/cache_entry.dart';
@@ -85,6 +85,9 @@ class MusiiAudioHandler extends BaseAudioHandler
       artist: track.artistName ?? 'Unknown Artist',
       duration: Duration(milliseconds: track.durationMs),
       artUri: artUri,
+      displayTitle: track.title,
+      displaySubtitle: track.artistName ?? 'Unknown Artist',
+      displayDescription: track.albumName ?? 'Unknown Album',
     );
   }
 
@@ -92,56 +95,71 @@ class MusiiAudioHandler extends BaseAudioHandler
     queue.add(_currentQueue.map(_toMediaItem).toList());
   }
 
+  void _broadcastPlaybackState() {
+    final isPlaying = _player.playing;
+    final processing = _player.processingState;
+
+    final audioProcessing = switch (processing) {
+      ProcessingState.idle => AudioProcessingState.idle,
+      ProcessingState.loading => AudioProcessingState.loading,
+      ProcessingState.buffering => AudioProcessingState.buffering,
+      ProcessingState.ready => AudioProcessingState.ready,
+      ProcessingState.completed => AudioProcessingState.completed,
+    };
+
+    playbackState.add(
+      PlaybackState(
+        controls: [
+          MediaControl.skipToPrevious,
+          if (isPlaying) MediaControl.pause else MediaControl.play,
+          MediaControl.skipToNext,
+          MediaControl.stop,
+        ],
+        systemActions: const {
+          MediaAction.seek,
+          MediaAction.seekForward,
+          MediaAction.seekBackward,
+          MediaAction.setShuffleMode,
+          MediaAction.setRepeatMode,
+          MediaAction.skipToQueueItem,
+        },
+        androidCompactActionIndices: const [0, 1, 2],
+        processingState: audioProcessing,
+        playing: isPlaying,
+        updatePosition: _player.position,
+        bufferedPosition: _player.bufferedPosition,
+        speed: _player.speed,
+        queueIndex: _currentIndex,
+        updateTime: DateTime.now(),
+      ),
+    );
+  }
+
   void _listenToPlayerEvents() {
     _player.playbackEventStream.listen((PlaybackEvent event) {
-      final isPlaying = _player.playing;
-      final processing = _player.processingState;
-
-      playbackState.add(
-        playbackState.value.copyWith(
-          controls: [
-            MediaControl.skipToPrevious,
-            if (isPlaying) MediaControl.pause else MediaControl.play,
-            MediaControl.skipToNext,
-            MediaControl.stop,
-          ],
-          systemActions: const {
-            MediaAction.seek,
-            MediaAction.seekForward,
-            MediaAction.seekBackward,
-            MediaAction.setShuffleMode,
-            MediaAction.setRepeatMode,
-            MediaAction.skipToQueueItem,
-          },
-          androidCompactActionIndices: const [0, 1, 2],
-          processingState: switch (processing) {
-            ProcessingState.idle => AudioProcessingState.idle,
-            ProcessingState.loading => AudioProcessingState.loading,
-            ProcessingState.buffering => AudioProcessingState.buffering,
-            ProcessingState.ready => AudioProcessingState.ready,
-            ProcessingState.completed => AudioProcessingState.completed,
-          },
-          playing: isPlaying,
-          updatePosition: _player.position,
-          bufferedPosition: _player.bufferedPosition,
-          speed: _player.speed,
-          queueIndex: _currentIndex,
-        ),
-      );
-
+      _broadcastPlaybackState();
       _emitSnapshot(
         _snapshot.copyWith(
           position: _player.position,
           duration: _player.duration ?? _snapshot.duration,
-          isPlaying: isPlaying,
+          isPlaying: _player.playing,
           isBuffering:
-              processing == ProcessingState.buffering ||
-              processing == ProcessingState.loading,
+              _player.processingState == ProcessingState.buffering ||
+              _player.processingState == ProcessingState.loading,
         ),
       );
     });
 
     _player.playerStateStream.listen((state) {
+      _broadcastPlaybackState();
+      _emitSnapshot(
+        _snapshot.copyWith(
+          isPlaying: state.playing,
+          isBuffering:
+              state.processingState == ProcessingState.buffering ||
+              state.processingState == ProcessingState.loading,
+        ),
+      );
       if (state.processingState == ProcessingState.completed) {
         _onTrackCompleted();
       }
@@ -232,10 +250,38 @@ class MusiiAudioHandler extends BaseAudioHandler
     // Update MediaItem for system notification
     mediaItem.add(_toMediaItem(targetTrack));
 
+    // Immediately post loading playback state with active notification controls
+    playbackState.add(
+      PlaybackState(
+        controls: [
+          MediaControl.skipToPrevious,
+          MediaControl.pause,
+          MediaControl.skipToNext,
+          MediaControl.stop,
+        ],
+        systemActions: const {
+          MediaAction.seek,
+          MediaAction.seekForward,
+          MediaAction.seekBackward,
+          MediaAction.setShuffleMode,
+          MediaAction.setRepeatMode,
+          MediaAction.skipToQueueItem,
+        },
+        androidCompactActionIndices: const [0, 1, 2],
+        processingState: AudioProcessingState.loading,
+        playing: true,
+        updatePosition: Duration.zero,
+        bufferedPosition: Duration.zero,
+        speed: 1.0,
+        queueIndex: _currentIndex,
+        updateTime: DateTime.now(),
+      ),
+    );
+
     final currentGen = ++_loadGeneration;
 
-    // Immediately stop old audio to prevent ghost playback during download
-    await _player.stop();
+    // Pause audio without dropping the Android foreground service
+    await _player.pause();
 
     try {
       AppLogger.info(
@@ -293,8 +339,7 @@ class MusiiAudioHandler extends BaseAudioHandler
       final isWifi = await _connectivityService.isWifiConnected();
       if (!isWifi) return;
 
-      final nextTracks =
-          _currentQueue.skip(_currentIndex + 1).take(3).toList();
+      final nextTracks = _currentQueue.skip(_currentIndex + 1).take(3).toList();
 
       for (final track in nextTracks) {
         if (!await _cacheRepository.isTrackCached(track.id)) {
@@ -320,12 +365,14 @@ class MusiiAudioHandler extends BaseAudioHandler
       await seek(Duration.zero);
     }
     await _player.play();
+    _broadcastPlaybackState();
     await _persistState();
   }
 
   @override
   Future<void> pause() async {
     await _player.pause();
+    _broadcastPlaybackState();
     final current = _snapshot.currentTrack;
     if (current != null) {
       await _recentlyPlayedRepository.recordPlayback(
@@ -341,6 +388,7 @@ class MusiiAudioHandler extends BaseAudioHandler
   Future<void> stop() async {
     await _player.stop();
     _cacheRepository.setCurrentlyPlayingTrackId(null);
+    _broadcastPlaybackState();
     _emitSnapshot(_snapshot.copyWith(isPlaying: false, isBuffering: false));
     await _persistState();
   }
@@ -348,6 +396,7 @@ class MusiiAudioHandler extends BaseAudioHandler
   @override
   Future<void> seek(Duration position) async {
     await _player.seek(position);
+    _broadcastPlaybackState();
   }
 
   @override

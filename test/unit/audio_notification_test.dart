@@ -66,7 +66,8 @@ void main() {
         (_) async => const Result.failure(CacheFailure('mock test failure')),
       );
       when(() => mockCache.isTrackCached(any())).thenAnswer((_) async => false);
-      when(() => mockConnectivity.isWifiConnected()).thenAnswer((_) async => true);
+      when(() => mockConnectivity.isWifiConnected())
+          .thenAnswer((_) async => true);
       handler = MusiiAudioHandler(
         cacheRepository: mockCache,
         recentlyPlayedRepository: mockRecents,
@@ -145,22 +146,28 @@ void main() {
       expect(handler.currentSnapshot.shuffleMode, isFalse);
     });
 
-    test('loadAndPlayTrack sets current track and initiates audio retrieval', () async {
-      const testTrack = Track(
-        id: 'track_1',
-        driveFileId: 'df1',
-        sourceId: 's1',
-        title: 'Song Title',
-        normalizedTitle: 'song title',
-        durationMs: 210000,
-      );
+    test(
+      'loadAndPlayTrack sets current track and initiates audio retrieval',
+      () async {
+        const testTrack = Track(
+          id: 'track_1',
+          driveFileId: 'df1',
+          sourceId: 's1',
+          title: 'Song Title',
+          normalizedTitle: 'song title',
+          durationMs: 210000,
+        );
 
-      await handler.loadAndPlayTrack(testTrack);
+        await handler.loadAndPlayTrack(testTrack);
 
-      expect(handler.currentSnapshot.currentTrack?.id, equals('track_1'));
-      expect(handler.currentSnapshot.currentTrack?.title, equals('Song Title'));
-      verify(() => mockCache.setCurrentlyPlayingTrackId('track_1')).called(1);
-      verify(() => mockCache.getOrDownloadTrack(any())).called(1);
-    });
+        expect(handler.currentSnapshot.currentTrack?.id, equals('track_1'));
+        expect(
+          handler.currentSnapshot.currentTrack?.title,
+          equals('Song Title'),
+        );
+        verify(() => mockCache.setCurrentlyPlayingTrackId('track_1')).called(1);
+        verify(() => mockCache.getOrDownloadTrack(any())).called(1);
+      },
+    );
   });
 }

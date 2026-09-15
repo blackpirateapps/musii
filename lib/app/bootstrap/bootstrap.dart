@@ -14,7 +14,8 @@ Future<void> bootstrap() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Configure high-performance in-memory image cache for smooth fast-scrolling
-  PaintingBinding.instance.imageCache.maximumSizeBytes = 256 * 1024 * 1024; // 256 MB
+  PaintingBinding.instance.imageCache.maximumSizeBytes =
+      256 * 1024 * 1024; // 256 MB
   PaintingBinding.instance.imageCache.maximumSize = 2000;
 
   // 2. Initialize logging
@@ -49,8 +50,8 @@ Future<void> bootstrap() async {
         androidNotificationChannelDescription:
             'Musii music playback controls and media notification',
         androidNotificationIcon: 'drawable/ic_stat_music',
-        androidNotificationOngoing: true,
-        androidStopForegroundOnPause: true,
+        androidNotificationOngoing: false,
+        androidStopForegroundOnPause: false,
         androidShowNotificationBadge: true,
         androidNotificationClickStartsActivity: true,
       ),
