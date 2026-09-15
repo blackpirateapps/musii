@@ -43,12 +43,10 @@ jobs:
           if [ -n "$KEYSTORE_BASE64" ]; then
             echo "Release keystore detected in repository secrets."
             echo "$KEYSTORE_BASE64" | base64 --decode > android/app/upload-keystore.jks
-            cat <<EOF > android/key.properties
-            storePassword=$KEYSTORE_PASSWORD
-            keyPassword=$KEY_PASSWORD
-            keyAlias=$KEY_ALIAS
-            storeFile=upload-keystore.jks
-            EOF
+            echo "storePassword=$KEYSTORE_PASSWORD" > android/key.properties
+            echo "keyPassword=$KEY_PASSWORD" >> android/key.properties
+            echo "keyAlias=$KEY_ALIAS" >> android/key.properties
+            echo "storeFile=upload-keystore.jks" >> android/key.properties
             echo "CUSTOM_KEYSTORE_PRESENT=true" >> $GITHUB_ENV
           else
             echo "No release keystore secret found. Reporting default debug signing."
