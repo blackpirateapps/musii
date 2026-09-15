@@ -92,9 +92,3 @@ abstract final class AppGreeting {
     }
   }
 }
-
-abstract final class AppAuthConfig {
-  static const String googleClientId =
-      '236496211668-mm4ng8he91k52htu7vej05pvjqnobmfa.apps.googleusercontent.com';
-}
-
