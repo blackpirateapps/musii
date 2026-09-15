@@ -283,3 +283,16 @@ class LyricLines extends Table {
   @override
   Set<Column> get primaryKey => {id};
 }
+
+@DataClassName('LyricWordRow')
+class LyricWords extends Table {
+  TextColumn get id => text()();
+  TextColumn get lineId => text()();
+  IntColumn get wordIndex => integer()();
+  TextColumn get content => text().named('text')();
+  IntColumn get startMs => integer()();
+  IntColumn get endMs => integer()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}

@@ -31,13 +31,14 @@ part 'app_database.g.dart';
     PlaybackStates,
     Lyrics,
     LyricLines,
+    LyricWords,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? e]) : super(e ?? _openConnection());
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration {
@@ -66,6 +67,9 @@ class AppDatabase extends _$AppDatabase {
         await customStatement(
           'CREATE INDEX IF NOT EXISTS idx_lyric_lines_lyrics ON lyric_lines(lyrics_id, sequence);',
         );
+        await customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_lyric_words_line ON lyric_words(line_id, word_index);',
+        );
       },
       onUpgrade: (Migrator m, int from, int to) async {
         if (from < 2) {
@@ -76,6 +80,12 @@ class AppDatabase extends _$AppDatabase {
           );
           await customStatement(
             'CREATE INDEX IF NOT EXISTS idx_lyric_lines_lyrics ON lyric_lines(lyrics_id, sequence);',
+          );
+        }
+        if (from < 3) {
+          await m.createTable(lyricWords);
+          await customStatement(
+            'CREATE INDEX IF NOT EXISTS idx_lyric_words_line ON lyric_words(line_id, word_index);',
           );
         }
       },

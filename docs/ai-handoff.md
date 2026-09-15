@@ -1,10 +1,10 @@
 # Musii — AI Engineering Handoff Document
 
-> **Document Version**: 1.3.0  
+> **Document Version**: 1.4.0  
 > **Target Audience**: Incoming AI Coding Assistants & Human Software Engineers  
 > **Last Verified**: September 2026  
 > **App Identifier**: `com.blackpirateapps.musii`  
-> **Test Status**: 68 / 68 Passing (`flutter test`), 0 Analyzer Warnings (`flutter analyze`)
+> **Test Status**: 81 / 81 Passing (`flutter test`), 0 Analyzer Warnings (`flutter analyze`)
 
 ---
 
@@ -36,9 +36,9 @@ The codebase strictly adheres to standard four-layer Clean Architecture:
    - `logging/app_logger.dart`: Structured categorical logging with OAuth token redaction.
    - `constants/app_constants.dart`: Design tokens (`AppRadii`, `AppSpacing`, `AppAudioConstants`, `AppGreeting`).
    - `filesystem/app_file_system.dart`: Centralized cache directory management, `.partial` file staging, and atomic commits.
-   - `database/`: Drift SQLite setup, 20 tables with `@DataClassName` annotations and schema v2 migration.
+   - `database/`: Drift SQLite setup, 21 tables with `@DataClassName` annotations and schema v3 migration.
 2. **Domain (`lib/features/*/domain/`)**:
-   - Pure Dart entities (`Track`, `Album`, `Artist`, `Genre`, `Playlist`, `CacheEntry`, `PlayerStateSnapshot`, `TrackLyrics`, `LyricLine`, `LyricSource`).
+   - Pure Dart entities (`Track`, `Album`, `Artist`, `Genre`, `Playlist`, `CacheEntry`, `PlayerStateSnapshot`, `TrackLyrics`, `LyricLine`, `LyricWord`, `LyricSource`).
    - Repository interfaces declaring business contracts.
    - Domain services (`MetadataNormalizationService`, `LrcParser`).
 3. **Data (`lib/features/*/data/`)**:
@@ -74,32 +74,39 @@ Located in `lib/features/playback/presentation/pages/now_playing_page.dart`:
   - Lyrics icon (`quote_bubble`) opening synchronized `LyricsSheet`.
   - Queue icon (`text_badge_plus`) opening the dynamic playback queue sheet.
 
-### 2. Lyrics Engine & Synchronization (Phase 1 & Phase 2 Upgraded)
+### 2. Lyrics Engine & Synchronization (Word-Level & Line-Level Upgraded)
 Located in `lib/features/lyrics/`:
-- **LRC Parser (`LrcParser`)**:
-  - Millisecond precision (`[mm:ss.xxx]`) and centisecond precision (`[mm:ss.xx]`).
-  - Multi-timestamps on a single line (e.g., `[00:10.00][00:20.00] Chorus line`).
+- **Parser (`LrcParser`)**:
+  - Millisecond precision (`[mm:ss.xxx]` and `<mm:ss.xxx>`) and centisecond precision (`[mm:ss.xx]` and `<mm:ss.xx>`).
+  - **`v1:<timestamp>word` Format Parsing**: Recognizes `v1:` prefixes and word-level angle bracket timestamps (`<00:18.812>Look <00:19.063>in...`), reconstructing clean human-readable line text without raw markup.
+  - Retains punctuation, apostrophes (`I'm`, `Don't`), and whitespace naturally.
   - Offset tag parsing (`[offset:+/-ms]`).
-  - Strict range validation skipping invalid lines (`seconds >= 60`, `minutes >= 60`).
+  - Multi-timestamps on a single line (e.g., `[00:10.00][00:20.00] Chorus line`).
+  - Strict range validation and graceful fallback for malformed or out-of-order tokens without runtime exceptions.
   - Plain text fallback for unsynchronized lyrics.
 - **Deterministic Lyric Priority**:
   1. `LyricSource.embeddedSynced` (ID3 SYLT/SLT/synced tags)
   2. `LyricSource.embeddedPlain` (ID3 USLT/plain lyrics)
   3. `LyricSource.sidecarLrc` (Discovered `.lrc` sidecar file with matching base name)
   4. `LyricSource.none`
-- **Database Schema v2**:
-  - `Lyrics` table (`@DataClassName('LyricRow')`) with track foreign key and cascade deletion.
+- **Database Schema v3**:
+  - `Lyrics` table (`@DataClassName('LyricRow')`) with track foreign key.
   - `LyricLines` table (`@DataClassName('LyricLineRow')`) with millisecond timestamp and sequential index.
-- **Domain Active-Line Synchronization (`TrackLyrics`)**:
-  - Pure domain method `findActiveIndex(Duration currentPosition)` / `calculateActiveIndex(lines, currentPosition)` providing canonical single source of truth for active line derivation.
+  - `LyricWords` table (`@DataClassName('LyricWordRow')`) with `lineId`, `wordIndex`, `startMs`, `endMs`, and index `idx_lyric_words_line`.
+- **Domain Synchronization (`TrackLyrics`, `LyricLine`, `LyricWord`)**:
+  - `TrackLyrics.findActiveIndex(Duration position)` / `calculateActiveIndex(lines, position)`: Canonical line-level active index derivation.
+  - `LyricLine.findActiveWordIndex(Duration position)`: Returns the active word index for word-synced lines.
+  - `LyricWord.progressAt(Duration position)`: Computes normalized `[0.0, 1.0]` progress for in-place highlighting.
+- **Word-Level Highlight Renderer (`WordSyncedLyricText`, `LyricLineWidget`)**:
+  - **In-Place Progressive Highlighting**: Completed words remain 100% active, current word progressively reveals active text via `_HorizontalFractionClipper`, future words remain muted (38% opacity). Zero text shifting and pixel-perfect glyph alignment.
+  - **Fallback to Line-Level Sync**: Standard LRC lines without word timestamps render clean line-level highlighting.
+  - **Symmetric Active/Inactive Line Transitions**: 280ms `Curves.easeOutCubic` animations via `AnimatedScale` (1.0 vs 0.97) and `AnimatedDefaultTextStyle`.
 - **Cupertino Lyrics Sheet (`LyricsSheet`)**:
-  - **45% Viewport Focal Alignment**: Uses dynamic sheet geometry (`LayoutBuilder`) with top padding (40% viewport height) and bottom padding (55% viewport height), positioning the active line deliberately in the ~45% focal region.
-  - **Exact Item Geometry Positioning**: Calculates target scroll offsets via `RenderBox.localToGlobal` relative to the lyrics viewport, gracefully accommodating variable height and multi-line lyrics.
-  - **Cold Start & Mid-Playback Initial Positioning**: When opening the sheet during playback, immediately renders and jumps to the active line on the first post-frame callback without distracting long animated scrolls.
-  - **Smooth Viewport Transitions**: 300ms `Curves.easeOutCubic` animated scrolling triggered strictly on `activeIndex` change, eliminating jitter and unnecessary animations during intra-line playback position ticks.
-  - **Symmetric Active/Inactive Line Animations (`LyricLineRow`)**: Bidirectional 280ms `Curves.easeOutCubic` transitions via `AnimatedScale` (1.0 active vs 0.97 inactive) and `AnimatedDefaultTextStyle` (23px w700 bold full contrast vs 19px w500 38% opacity).
+  - **45% Viewport Focal Alignment**: Uses dynamic sheet geometry (`LayoutBuilder`) with top padding (40% viewport height) and bottom padding (55% viewport height).
+  - **Exact Item Geometry Positioning**: Calculates target scroll offsets via `RenderBox.localToGlobal` relative to the lyrics viewport.
+  - **Cold Start & Mid-Playback Initial Positioning**: Immediate zero-duration frame jump to current line upon sheet opening part-way through playback.
+  - **Smooth Viewport Movement**: 300ms `Curves.easeOutCubic` animated scrolling triggered on `activeIndex` changes.
   - **Manual Scroll Recovery & Tap-to-Seek**: User drag notifications pause auto-scroll and animate in the floating "Current line" button. Tapping "Current line" or tapping any lyric line seeks playback, snaps to the 45% focal position, and restores auto-following.
-  - **Unsynchronized & Empty Fallbacks**: Clean Cupertino typography for plain lyrics and elegant empty state for tracks lacking lyrics.
 
 ### 3. Google Drive Integration & Recursive Sync
 Located in `lib/features/google_drive/` and `lib/features/library/`:

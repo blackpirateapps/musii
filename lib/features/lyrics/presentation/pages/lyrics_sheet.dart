@@ -10,6 +10,7 @@ import '../../../../core/constants/app_constants.dart';
 import '../../../library/domain/entities/music_entities.dart';
 import '../../../playback/domain/entities/playback_state.dart';
 import '../../domain/entities/lyric_model.dart';
+import '../widgets/lyric_line_widget.dart';
 
 void showLyricsSheet(BuildContext context, Track track) {
   showCupertinoModalPopup<void>(
@@ -143,6 +144,9 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet> {
   @override
   Widget build(BuildContext context) {
     final track = widget.track;
+    final playerSnapshot = ref.watch(playerStateProvider).value;
+    final position = playerSnapshot?.position ?? Duration.zero;
+
     final lyricsAsync = ref.watch(trackLyricsProvider(track.id));
     final lyrics = lyricsAsync.value;
 
@@ -432,9 +436,10 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet> {
                                 final line = data.lines[i];
                                 final isActive = (i == _activeIndex);
 
-                                return LyricLineRow(
+                                return LyricLineWidget(
                                   key: _getKeyForIndex(i),
                                   line: line,
+                                  position: position,
                                   isActive: isActive,
                                   isDark: isDark,
                                   onTap: () {
@@ -539,55 +544,6 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet> {
               ),
             ),
         ],
-      ),
-    );
-  }
-}
-
-class LyricLineRow extends StatelessWidget {
-  final LyricLine line;
-  final bool isActive;
-  final bool isDark;
-  final VoidCallback onTap;
-
-  const LyricLineRow({
-    super.key,
-    required this.line,
-    required this.isActive,
-    required this.isDark,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final activeColor = isDark ? CupertinoColors.white : CupertinoColors.black;
-    final inactiveColor = isDark
-        ? CupertinoColors.white.withOpacity(0.38)
-        : CupertinoColors.black.withOpacity(0.38);
-
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12.0),
-        child: AnimatedScale(
-          scale: isActive ? 1.0 : 0.97,
-          alignment: Alignment.centerLeft,
-          duration: const Duration(milliseconds: 280),
-          curve: Curves.easeOutCubic,
-          child: AnimatedDefaultTextStyle(
-            duration: const Duration(milliseconds: 280),
-            curve: Curves.easeOutCubic,
-            style: TextStyle(
-              fontSize: isActive ? 23 : 19,
-              fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-              letterSpacing: isActive ? -0.3 : -0.2,
-              height: 1.4,
-              color: isActive ? activeColor : inactiveColor,
-            ),
-            child: Text(line.text.isNotEmpty ? line.text : '♪'),
-          ),
-        ),
       ),
     );
   }

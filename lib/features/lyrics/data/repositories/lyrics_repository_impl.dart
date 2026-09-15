@@ -12,6 +12,50 @@ class LyricsRepositoryImpl implements LyricsRepository {
 
   LyricsRepositoryImpl({required AppDatabase database}) : _database = database;
 
+  Future<List<LyricLine>> _loadLinesWithWords(String lyricsId) async {
+    final linesQuery = (_database.select(_database.lyricLines)
+      ..where((tbl) => tbl.lyricsId.equals(lyricsId))
+      ..orderBy([(tbl) => OrderingTerm.asc(tbl.sequence)]));
+
+    final lineRows = await linesQuery.get();
+    if (lineRows.isEmpty) return const [];
+
+    final lineIds = lineRows.map((lr) => lr.id).toList();
+
+    final wordsQuery = (_database.select(_database.lyricWords)
+      ..where((tbl) => tbl.lineId.isIn(lineIds))
+      ..orderBy([
+        (tbl) => OrderingTerm.asc(tbl.lineId),
+        (tbl) => OrderingTerm.asc(tbl.wordIndex),
+      ]));
+
+    final wordRows = await wordsQuery.get();
+    final Map<String, List<LyricWord>> wordsByLineId = {};
+    for (final wr in wordRows) {
+      wordsByLineId
+          .putIfAbsent(wr.lineId, () => [])
+          .add(
+            LyricWord(
+              index: wr.wordIndex,
+              text: wr.content,
+              startMs: wr.startMs,
+              endMs: wr.endMs,
+            ),
+          );
+    }
+
+    return lineRows
+        .map(
+          (lr) => LyricLine(
+            timestampMs: lr.timestampMs,
+            text: lr.content,
+            sequence: lr.sequence,
+            words: wordsByLineId[lr.id] ?? const [],
+          ),
+        )
+        .toList();
+  }
+
   @override
   Stream<TrackLyrics?> watchLyricsForTrack(String trackId) {
     final query = (_database.select(_database.lyrics)
@@ -20,11 +64,7 @@ class LyricsRepositoryImpl implements LyricsRepository {
     return query.watchSingleOrNull().asyncMap((row) async {
       if (row == null) return null;
 
-      final linesQuery = (_database.select(_database.lyricLines)
-        ..where((tbl) => tbl.lyricsId.equals(row.id))
-        ..orderBy([(tbl) => OrderingTerm.asc(tbl.sequence)]));
-
-      final lineRows = await linesQuery.get();
+      final lines = await _loadLinesWithWords(row.id);
 
       return TrackLyrics(
         id: row.id,
@@ -33,15 +73,7 @@ class LyricsRepositoryImpl implements LyricsRepository {
         isSynchronized: row.isSynchronized,
         rawText: row.rawText,
         offsetMs: row.offsetMs,
-        lines: lineRows
-            .map(
-              (lr) => LyricLine(
-                timestampMs: lr.timestampMs,
-                text: lr.content,
-                sequence: lr.sequence,
-              ),
-            )
-            .toList(),
+        lines: lines,
       );
     });
   }
@@ -55,11 +87,7 @@ class LyricsRepositoryImpl implements LyricsRepository {
 
       if (row == null) return null;
 
-      final lineRows =
-          await (_database.select(_database.lyricLines)
-                ..where((tbl) => tbl.lyricsId.equals(row.id))
-                ..orderBy([(tbl) => OrderingTerm.asc(tbl.sequence)]))
-              .get();
+      final lines = await _loadLinesWithWords(row.id);
 
       return TrackLyrics(
         id: row.id,
@@ -68,15 +96,7 @@ class LyricsRepositoryImpl implements LyricsRepository {
         isSynchronized: row.isSynchronized,
         rawText: row.rawText,
         offsetMs: row.offsetMs,
-        lines: lineRows
-            .map(
-              (lr) => LyricLine(
-                timestampMs: lr.timestampMs,
-                text: lr.content,
-                sequence: lr.sequence,
-              ),
-            )
-            .toList(),
+        lines: lines,
       );
     } catch (e, st) {
       AppLogger.error(
@@ -117,25 +137,52 @@ class LyricsRepositoryImpl implements LyricsRepository {
             ),
           );
 
-      // 2. Clear old lines for this lyric
+      // 2. Clear old words & lines for this lyric
+      final existingLineRows = await (_database.select(
+        _database.lyricLines,
+      )..where((tbl) => tbl.lyricsId.equals(lyricsId))).get();
+      if (existingLineRows.isNotEmpty) {
+        final existingLineIds = existingLineRows.map((lr) => lr.id).toList();
+        await (_database.delete(
+          _database.lyricWords,
+        )..where((tbl) => tbl.lineId.isIn(existingLineIds))).go();
+      }
       await (_database.delete(
         _database.lyricLines,
       )..where((tbl) => tbl.lyricsId.equals(lyricsId))).go();
 
-      // 3. Batch insert new lines
+      // 3. Batch insert new lines and words
       for (int i = 0; i < lines.length; i++) {
         final line = lines[i];
+        final lineId = 'll_${lyricsId}_$i';
+
         await _database
             .into(_database.lyricLines)
             .insert(
               LyricLinesCompanion(
-                id: Value('ll_${lyricsId}_$i'),
+                id: Value(lineId),
                 lyricsId: Value(lyricsId),
                 timestampMs: Value(line.timestampMs),
                 content: Value(line.text),
                 sequence: Value(i),
               ),
             );
+
+        for (int w = 0; w < line.words.length; w++) {
+          final word = line.words[w];
+          await _database
+              .into(_database.lyricWords)
+              .insert(
+                LyricWordsCompanion(
+                  id: Value('lw_${lineId}_$w'),
+                  lineId: Value(lineId),
+                  wordIndex: Value(w),
+                  content: Value(word.text),
+                  startMs: Value(word.startMs),
+                  endMs: Value(word.endMs),
+                ),
+              );
+        }
       }
     });
 
@@ -149,6 +196,15 @@ class LyricsRepositoryImpl implements LyricsRepository {
   Future<void> deleteLyricsForTrack(String trackId) async {
     final lyricsId = 'lyric_$trackId';
     await _database.transaction(() async {
+      final existingLineRows = await (_database.select(
+        _database.lyricLines,
+      )..where((tbl) => tbl.lyricsId.equals(lyricsId))).get();
+      if (existingLineRows.isNotEmpty) {
+        final existingLineIds = existingLineRows.map((lr) => lr.id).toList();
+        await (_database.delete(
+          _database.lyricWords,
+        )..where((tbl) => tbl.lineId.isIn(existingLineIds))).go();
+      }
       await (_database.delete(
         _database.lyricLines,
       )..where((tbl) => tbl.lyricsId.equals(lyricsId))).go();

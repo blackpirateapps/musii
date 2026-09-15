@@ -78,6 +78,76 @@ void main() {
       expect(retrieved.lines[1].timestampMs, equals(20000));
     });
 
+    test(
+      'saves and retrieves word-synchronized lyrics with LyricWords table',
+      () async {
+        await db
+            .into(db.tracks)
+            .insert(
+              TracksCompanion.insert(
+                id: 'track_words_102',
+                driveFileId: 'df_words_102',
+                sourceId: 'source_gdrive',
+                title: 'Look In My Eyes',
+                normalizedTitle: 'look in my eyes',
+                createdAt: DateTime.now(),
+                updatedAt: DateTime.now(),
+              ),
+            );
+
+        const word0 = LyricWord(
+          index: 0,
+          text: 'Look',
+          startMs: 18812,
+          endMs: 19063,
+        );
+        const word1 = LyricWord(
+          index: 1,
+          text: 'in',
+          startMs: 19063,
+          endMs: 19228,
+        );
+        const word2 = LyricWord(
+          index: 2,
+          text: 'my',
+          startMs: 19228,
+          endMs: 19413,
+        );
+        const word3 = LyricWord(
+          index: 3,
+          text: 'eyes',
+          startMs: 19413,
+          endMs: 20185,
+        );
+
+        await lyricsRepo.saveLyrics(
+          trackId: 'track_words_102',
+          source: LyricSource.embeddedSynced,
+          isSynchronized: true,
+          rawText: 'v1:<00:18.812>Look <00:19.063>in <00:19.228>my <00:19.413>eyes <00:20.185>',
+          offsetMs: 0,
+          lines: const [
+            LyricLine(
+              timestampMs: 18812,
+              text: 'Look in my eyes',
+              sequence: 0,
+              words: [word0, word1, word2, word3],
+            ),
+          ],
+        );
+
+        final retrieved = await lyricsRepo.getLyricsForTrack('track_words_102');
+        expect(retrieved, isNotNull);
+        expect(retrieved!.hasWordTiming, isTrue);
+        expect(retrieved.lines.first.hasWords, isTrue);
+        expect(retrieved.lines.first.words.length, equals(4));
+        expect(retrieved.lines.first.words[0].text, equals('Look'));
+        expect(retrieved.lines.first.words[0].startMs, equals(18812));
+        expect(retrieved.lines.first.words[3].text, equals('eyes'));
+        expect(retrieved.lines.first.words[3].endMs, equals(20185));
+      },
+    );
+
     test('favorites toggling flow persists and updates correctly', () async {
       const trackId = 'track_fav_1';
 

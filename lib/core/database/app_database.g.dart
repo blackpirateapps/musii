@@ -9954,6 +9954,412 @@ class LyricLinesCompanion extends UpdateCompanion<LyricLineRow> {
   }
 }
 
+class $LyricWordsTable extends LyricWords
+    with TableInfo<$LyricWordsTable, LyricWordRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $LyricWordsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _lineIdMeta = const VerificationMeta('lineId');
+  @override
+  late final GeneratedColumn<String> lineId = GeneratedColumn<String>(
+    'line_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _wordIndexMeta = const VerificationMeta(
+    'wordIndex',
+  );
+  @override
+  late final GeneratedColumn<int> wordIndex = GeneratedColumn<int>(
+    'word_index',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _contentMeta = const VerificationMeta(
+    'content',
+  );
+  @override
+  late final GeneratedColumn<String> content = GeneratedColumn<String>(
+    'text',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _startMsMeta = const VerificationMeta(
+    'startMs',
+  );
+  @override
+  late final GeneratedColumn<int> startMs = GeneratedColumn<int>(
+    'start_ms',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _endMsMeta = const VerificationMeta('endMs');
+  @override
+  late final GeneratedColumn<int> endMs = GeneratedColumn<int>(
+    'end_ms',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    lineId,
+    wordIndex,
+    content,
+    startMs,
+    endMs,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'lyric_words';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<LyricWordRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('line_id')) {
+      context.handle(
+        _lineIdMeta,
+        lineId.isAcceptableOrUnknown(data['line_id']!, _lineIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_lineIdMeta);
+    }
+    if (data.containsKey('word_index')) {
+      context.handle(
+        _wordIndexMeta,
+        wordIndex.isAcceptableOrUnknown(data['word_index']!, _wordIndexMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_wordIndexMeta);
+    }
+    if (data.containsKey('text')) {
+      context.handle(
+        _contentMeta,
+        content.isAcceptableOrUnknown(data['text']!, _contentMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_contentMeta);
+    }
+    if (data.containsKey('start_ms')) {
+      context.handle(
+        _startMsMeta,
+        startMs.isAcceptableOrUnknown(data['start_ms']!, _startMsMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_startMsMeta);
+    }
+    if (data.containsKey('end_ms')) {
+      context.handle(
+        _endMsMeta,
+        endMs.isAcceptableOrUnknown(data['end_ms']!, _endMsMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_endMsMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  LyricWordRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return LyricWordRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      lineId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}line_id'],
+      )!,
+      wordIndex: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}word_index'],
+      )!,
+      content: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}text'],
+      )!,
+      startMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}start_ms'],
+      )!,
+      endMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}end_ms'],
+      )!,
+    );
+  }
+
+  @override
+  $LyricWordsTable createAlias(String alias) {
+    return $LyricWordsTable(attachedDatabase, alias);
+  }
+}
+
+class LyricWordRow extends DataClass implements Insertable<LyricWordRow> {
+  final String id;
+  final String lineId;
+  final int wordIndex;
+  final String content;
+  final int startMs;
+  final int endMs;
+  const LyricWordRow({
+    required this.id,
+    required this.lineId,
+    required this.wordIndex,
+    required this.content,
+    required this.startMs,
+    required this.endMs,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['line_id'] = Variable<String>(lineId);
+    map['word_index'] = Variable<int>(wordIndex);
+    map['text'] = Variable<String>(content);
+    map['start_ms'] = Variable<int>(startMs);
+    map['end_ms'] = Variable<int>(endMs);
+    return map;
+  }
+
+  LyricWordsCompanion toCompanion(bool nullToAbsent) {
+    return LyricWordsCompanion(
+      id: Value(id),
+      lineId: Value(lineId),
+      wordIndex: Value(wordIndex),
+      content: Value(content),
+      startMs: Value(startMs),
+      endMs: Value(endMs),
+    );
+  }
+
+  factory LyricWordRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return LyricWordRow(
+      id: serializer.fromJson<String>(json['id']),
+      lineId: serializer.fromJson<String>(json['lineId']),
+      wordIndex: serializer.fromJson<int>(json['wordIndex']),
+      content: serializer.fromJson<String>(json['content']),
+      startMs: serializer.fromJson<int>(json['startMs']),
+      endMs: serializer.fromJson<int>(json['endMs']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'lineId': serializer.toJson<String>(lineId),
+      'wordIndex': serializer.toJson<int>(wordIndex),
+      'content': serializer.toJson<String>(content),
+      'startMs': serializer.toJson<int>(startMs),
+      'endMs': serializer.toJson<int>(endMs),
+    };
+  }
+
+  LyricWordRow copyWith({
+    String? id,
+    String? lineId,
+    int? wordIndex,
+    String? content,
+    int? startMs,
+    int? endMs,
+  }) => LyricWordRow(
+    id: id ?? this.id,
+    lineId: lineId ?? this.lineId,
+    wordIndex: wordIndex ?? this.wordIndex,
+    content: content ?? this.content,
+    startMs: startMs ?? this.startMs,
+    endMs: endMs ?? this.endMs,
+  );
+  LyricWordRow copyWithCompanion(LyricWordsCompanion data) {
+    return LyricWordRow(
+      id: data.id.present ? data.id.value : this.id,
+      lineId: data.lineId.present ? data.lineId.value : this.lineId,
+      wordIndex: data.wordIndex.present ? data.wordIndex.value : this.wordIndex,
+      content: data.content.present ? data.content.value : this.content,
+      startMs: data.startMs.present ? data.startMs.value : this.startMs,
+      endMs: data.endMs.present ? data.endMs.value : this.endMs,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LyricWordRow(')
+          ..write('id: $id, ')
+          ..write('lineId: $lineId, ')
+          ..write('wordIndex: $wordIndex, ')
+          ..write('content: $content, ')
+          ..write('startMs: $startMs, ')
+          ..write('endMs: $endMs')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, lineId, wordIndex, content, startMs, endMs);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is LyricWordRow &&
+          other.id == this.id &&
+          other.lineId == this.lineId &&
+          other.wordIndex == this.wordIndex &&
+          other.content == this.content &&
+          other.startMs == this.startMs &&
+          other.endMs == this.endMs);
+}
+
+class LyricWordsCompanion extends UpdateCompanion<LyricWordRow> {
+  final Value<String> id;
+  final Value<String> lineId;
+  final Value<int> wordIndex;
+  final Value<String> content;
+  final Value<int> startMs;
+  final Value<int> endMs;
+  final Value<int> rowid;
+  const LyricWordsCompanion({
+    this.id = const Value.absent(),
+    this.lineId = const Value.absent(),
+    this.wordIndex = const Value.absent(),
+    this.content = const Value.absent(),
+    this.startMs = const Value.absent(),
+    this.endMs = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  LyricWordsCompanion.insert({
+    required String id,
+    required String lineId,
+    required int wordIndex,
+    required String content,
+    required int startMs,
+    required int endMs,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       lineId = Value(lineId),
+       wordIndex = Value(wordIndex),
+       content = Value(content),
+       startMs = Value(startMs),
+       endMs = Value(endMs);
+  static Insertable<LyricWordRow> custom({
+    Expression<String>? id,
+    Expression<String>? lineId,
+    Expression<int>? wordIndex,
+    Expression<String>? content,
+    Expression<int>? startMs,
+    Expression<int>? endMs,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (lineId != null) 'line_id': lineId,
+      if (wordIndex != null) 'word_index': wordIndex,
+      if (content != null) 'text': content,
+      if (startMs != null) 'start_ms': startMs,
+      if (endMs != null) 'end_ms': endMs,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  LyricWordsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? lineId,
+    Value<int>? wordIndex,
+    Value<String>? content,
+    Value<int>? startMs,
+    Value<int>? endMs,
+    Value<int>? rowid,
+  }) {
+    return LyricWordsCompanion(
+      id: id ?? this.id,
+      lineId: lineId ?? this.lineId,
+      wordIndex: wordIndex ?? this.wordIndex,
+      content: content ?? this.content,
+      startMs: startMs ?? this.startMs,
+      endMs: endMs ?? this.endMs,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (lineId.present) {
+      map['line_id'] = Variable<String>(lineId.value);
+    }
+    if (wordIndex.present) {
+      map['word_index'] = Variable<int>(wordIndex.value);
+    }
+    if (content.present) {
+      map['text'] = Variable<String>(content.value);
+    }
+    if (startMs.present) {
+      map['start_ms'] = Variable<int>(startMs.value);
+    }
+    if (endMs.present) {
+      map['end_ms'] = Variable<int>(endMs.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LyricWordsCompanion(')
+          ..write('id: $id, ')
+          ..write('lineId: $lineId, ')
+          ..write('wordIndex: $wordIndex, ')
+          ..write('content: $content, ')
+          ..write('startMs: $startMs, ')
+          ..write('endMs: $endMs, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -9977,6 +10383,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $PlaybackStatesTable playbackStates = $PlaybackStatesTable(this);
   late final $LyricsTable lyrics = $LyricsTable(this);
   late final $LyricLinesTable lyricLines = $LyricLinesTable(this);
+  late final $LyricWordsTable lyricWords = $LyricWordsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -10002,6 +10409,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     playbackStates,
     lyrics,
     lyricLines,
+    lyricWords,
   ];
 }
 
@@ -15195,6 +15603,232 @@ typedef $$LyricLinesTableProcessedTableManager =
       LyricLineRow,
       PrefetchHooks Function()
     >;
+typedef $$LyricWordsTableCreateCompanionBuilder = LyricWordsCompanion Function({
+  required String id,
+  required String lineId,
+  required int wordIndex,
+  required String content,
+  required int startMs,
+  required int endMs,
+  Value<int> rowid,
+});
+typedef $$LyricWordsTableUpdateCompanionBuilder = LyricWordsCompanion Function({
+  Value<String> id,
+  Value<String> lineId,
+  Value<int> wordIndex,
+  Value<String> content,
+  Value<int> startMs,
+  Value<int> endMs,
+  Value<int> rowid,
+});
+
+class $$LyricWordsTableFilterComposer
+    extends Composer<_$AppDatabase, $LyricWordsTable> {
+  $$LyricWordsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get lineId => $composableBuilder(
+    column: $table.lineId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get wordIndex => $composableBuilder(
+    column: $table.wordIndex,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get content => $composableBuilder(
+    column: $table.content,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get startMs => $composableBuilder(
+    column: $table.startMs,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get endMs => $composableBuilder(
+    column: $table.endMs,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$LyricWordsTableOrderingComposer
+    extends Composer<_$AppDatabase, $LyricWordsTable> {
+  $$LyricWordsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get lineId => $composableBuilder(
+    column: $table.lineId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get wordIndex => $composableBuilder(
+    column: $table.wordIndex,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get content => $composableBuilder(
+    column: $table.content,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get startMs => $composableBuilder(
+    column: $table.startMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get endMs => $composableBuilder(
+    column: $table.endMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$LyricWordsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $LyricWordsTable> {
+  $$LyricWordsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get lineId =>
+      $composableBuilder(column: $table.lineId, builder: (column) => column);
+
+  GeneratedColumn<int> get wordIndex =>
+      $composableBuilder(column: $table.wordIndex, builder: (column) => column);
+
+  GeneratedColumn<String> get content =>
+      $composableBuilder(column: $table.content, builder: (column) => column);
+
+  GeneratedColumn<int> get startMs =>
+      $composableBuilder(column: $table.startMs, builder: (column) => column);
+
+  GeneratedColumn<int> get endMs =>
+      $composableBuilder(column: $table.endMs, builder: (column) => column);
+}
+
+class $$LyricWordsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $LyricWordsTable,
+          LyricWordRow,
+          $$LyricWordsTableFilterComposer,
+          $$LyricWordsTableOrderingComposer,
+          $$LyricWordsTableAnnotationComposer,
+          $$LyricWordsTableCreateCompanionBuilder,
+          $$LyricWordsTableUpdateCompanionBuilder,
+          (
+            LyricWordRow,
+            BaseReferences<_$AppDatabase, $LyricWordsTable, LyricWordRow>,
+          ),
+          LyricWordRow,
+          PrefetchHooks Function()
+        > {
+  $$LyricWordsTableTableManager(_$AppDatabase db, $LyricWordsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$LyricWordsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$LyricWordsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$LyricWordsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> lineId = const Value.absent(),
+                Value<int> wordIndex = const Value.absent(),
+                Value<String> content = const Value.absent(),
+                Value<int> startMs = const Value.absent(),
+                Value<int> endMs = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => LyricWordsCompanion(
+                id: id,
+                lineId: lineId,
+                wordIndex: wordIndex,
+                content: content,
+                startMs: startMs,
+                endMs: endMs,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String lineId,
+                required int wordIndex,
+                required String content,
+                required int startMs,
+                required int endMs,
+                Value<int> rowid = const Value.absent(),
+              }) => LyricWordsCompanion.insert(
+                id: id,
+                lineId: lineId,
+                wordIndex: wordIndex,
+                content: content,
+                startMs: startMs,
+                endMs: endMs,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$LyricWordsTable, LyricWordRow>(table),
+                  BaseReferences<_$AppDatabase, $LyricWordsTable, LyricWordRow>(
+                    db,
+                    table,
+                    e,
+                  ),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$LyricWordsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $LyricWordsTable,
+      LyricWordRow,
+      $$LyricWordsTableFilterComposer,
+      $$LyricWordsTableOrderingComposer,
+      $$LyricWordsTableAnnotationComposer,
+      $$LyricWordsTableCreateCompanionBuilder,
+      $$LyricWordsTableUpdateCompanionBuilder,
+      (
+        LyricWordRow,
+        BaseReferences<_$AppDatabase, $LyricWordsTable, LyricWordRow>,
+      ),
+      LyricWordRow,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -15239,4 +15873,6 @@ class $AppDatabaseManager {
       $$LyricsTableTableManager(_db, _db.lyrics);
   $$LyricLinesTableTableManager get lyricLines =>
       $$LyricLinesTableTableManager(_db, _db.lyricLines);
+  $$LyricWordsTableTableManager get lyricWords =>
+      $$LyricWordsTableTableManager(_db, _db.lyricWords);
 }

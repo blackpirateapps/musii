@@ -6,7 +6,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:musii/app/bootstrap/providers.dart';
 import 'package:musii/features/library/domain/entities/music_entities.dart';
 import 'package:musii/features/lyrics/domain/entities/lyric_model.dart';
+import 'package:musii/features/lyrics/domain/services/lrc_parser.dart';
 import 'package:musii/features/lyrics/presentation/pages/lyrics_sheet.dart';
+import 'package:musii/features/lyrics/presentation/widgets/lyric_line_widget.dart';
+import 'package:musii/features/lyrics/presentation/widgets/word_synced_lyric_text.dart';
 import 'package:musii/features/playback/domain/entities/playback_repository.dart';
 import 'package:musii/features/playback/domain/entities/playback_state.dart';
 import 'package:musii/features/playlists/domain/entities/playlist_entities.dart';
@@ -148,14 +151,14 @@ void main() {
       expect(find.text('Stay with me...'), findsOneWidget);
       expect(find.text('Mayonaka no door o tataki'), findsOneWidget);
 
-      final rowFinder = find.byType(LyricLineRow);
+      final rowFinder = find.byType(LyricLineWidget);
       expect(rowFinder, findsWidgets);
 
       // Verify line 1 is active
-      final activeRow = tester.widget<LyricLineRow>(rowFinder.at(1));
+      final activeRow = tester.widget<LyricLineWidget>(rowFinder.at(1));
       expect(activeRow.isActive, isTrue);
 
-      final inactiveRow = tester.widget<LyricLineRow>(rowFinder.at(0));
+      final inactiveRow = tester.widget<LyricLineWidget>(rowFinder.at(0));
       expect(inactiveRow.isActive, isFalse);
     },
   );
@@ -182,11 +185,11 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      final rowFinder = find.byType(LyricLineRow);
+      final rowFinder = find.byType(LyricLineWidget);
       expect(rowFinder, findsWidgets);
 
       // Line 4 ("Ano kisetsu ga ima me no mae") should be active
-      final activeRow = tester.widget<LyricLineRow>(rowFinder.at(4));
+      final activeRow = tester.widget<LyricLineWidget>(rowFinder.at(4));
       expect(activeRow.isActive, isTrue);
       expect(activeRow.line.text, equals('Ano kisetsu ga ima me no mae'));
     },
@@ -215,9 +218,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      var rows = find.byType(LyricLineRow);
-      expect(tester.widget<LyricLineRow>(rows.at(0)).isActive, isTrue);
-      expect(tester.widget<LyricLineRow>(rows.at(1)).isActive, isFalse);
+      var rows = find.byType(LyricLineWidget);
+      expect(tester.widget<LyricLineWidget>(rows.at(0)).isActive, isTrue);
+      expect(tester.widget<LyricLineWidget>(rows.at(1)).isActive, isFalse);
 
       // Advance playback to 7 seconds (Line 1 active)
       playerController.add(
@@ -227,11 +230,68 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
       await tester.pumpAndSettle();
 
-      rows = find.byType(LyricLineRow);
-      expect(tester.widget<LyricLineRow>(rows.at(0)).isActive, isFalse);
-      expect(tester.widget<LyricLineRow>(rows.at(1)).isActive, isTrue);
+      rows = find.byType(LyricLineWidget);
+      expect(tester.widget<LyricLineWidget>(rows.at(0)).isActive, isFalse);
+      expect(tester.widget<LyricLineWidget>(rows.at(1)).isActive, isTrue);
 
       await playerController.close();
+    },
+  );
+
+  testWidgets(
+    'LyricsSheet renders v1 word-synced lyrics cleanly without markup and highlights words',
+    (tester) async {
+      const rawWordSynced = '''
+v1:<00:18.812>Look <00:19.063>in <00:19.228>my <00:19.413>eyes <00:20.185>
+v1:<00:20.282>Searching <00:20.554>is <00:20.802>so <00:21.119>wrong <00:21.748>
+''';
+
+      final parsed = LrcParser.parse(rawWordSynced);
+      final wordLyrics = TrackLyrics(
+        id: 'lyric_ws',
+        trackId: 'track_1',
+        source: LyricSource.embeddedSynced,
+        isSynchronized: true,
+        lines: parsed.lines,
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            trackLyricsProvider('track_1')
+                .overrideWith((ref) => Stream.value(wordLyrics)),
+            playerStateProvider.overrideWith(
+              (ref) => Stream.value(
+                const PlayerStateSnapshot(
+                  position: Duration(
+                    milliseconds: 19100,
+                  ), // Inside word 1 ("in")
+                ),
+              ),
+            ),
+          ],
+          child: const CupertinoApp(home: LyricsSheet(track: testTrack)),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Ensure raw markup is NOT rendered
+      expect(find.textContaining('v1:'), findsNothing);
+      expect(find.textContaining('<00:'), findsNothing);
+
+      // Line widgets are rendered
+      final lineWidgets = find.byType(LyricLineWidget);
+      expect(lineWidgets, findsNWidgets(2));
+
+      // Line 0 is active
+      final activeLine = tester.widget<LyricLineWidget>(lineWidgets.at(0));
+      expect(activeLine.isActive, isTrue);
+      expect(activeLine.line.hasWords, isTrue);
+      expect(activeLine.line.words.length, equals(4));
+
+      // WordSyncedLyricText widget is used
+      expect(find.byType(WordSyncedLyricText), findsWidgets);
     },
   );
 
@@ -276,8 +336,8 @@ void main() {
       await tester.pumpAndSettle();
 
       // Active state updates internally
-      final rows = find.byType(LyricLineRow);
-      expect(tester.widget<LyricLineRow>(rows.at(2)).isActive, isTrue);
+      final rows = find.byType(LyricLineWidget);
+      expect(tester.widget<LyricLineWidget>(rows.at(2)).isActive, isTrue);
 
       // Button is still visible since user has not returned
       expect(find.text('Current line'), findsOneWidget);
@@ -359,8 +419,8 @@ void main() {
 
     expect(find.text('First unsynced line'), findsOneWidget);
     expect(find.text('Second unsynced line'), findsOneWidget);
-    // Plain lyrics should not render LyricLineRow widgets
-    expect(find.byType(LyricLineRow), findsNothing);
+    // Plain lyrics should not render LyricLineWidget widgets
+    expect(find.byType(LyricLineWidget), findsNothing);
   });
 
   testWidgets(
@@ -415,8 +475,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      var rows = find.byType(LyricLineRow);
-      expect(tester.widget<LyricLineRow>(rows.at(1)).isActive, isTrue);
+      var rows = find.byType(LyricLineWidget);
+      expect(tester.widget<LyricLineWidget>(rows.at(1)).isActive, isTrue);
 
       // Playback paused at 5.5 seconds (line 1 remains active)
       playerController.add(
@@ -427,8 +487,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      rows = find.byType(LyricLineRow);
-      expect(tester.widget<LyricLineRow>(rows.at(1)).isActive, isTrue);
+      rows = find.byType(LyricLineWidget);
+      expect(tester.widget<LyricLineWidget>(rows.at(1)).isActive, isTrue);
 
       // Playback resumed and advances to 10.5 seconds (line 2 active)
       playerController.add(
@@ -439,9 +499,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      rows = find.byType(LyricLineRow);
-      expect(tester.widget<LyricLineRow>(rows.at(1)).isActive, isFalse);
-      expect(tester.widget<LyricLineRow>(rows.at(2)).isActive, isTrue);
+      rows = find.byType(LyricLineWidget);
+      expect(tester.widget<LyricLineWidget>(rows.at(1)).isActive, isFalse);
+      expect(tester.widget<LyricLineWidget>(rows.at(2)).isActive, isTrue);
 
       await playerController.close();
     },

@@ -167,4 +167,126 @@ void main() {
       },
     );
   });
+
+  group('LyricWord and Word-Level Synchronization', () {
+    const word0 = LyricWord(
+      index: 0,
+      text: 'Look',
+      startMs: 18812,
+      endMs: 19063,
+    );
+    const word1 = LyricWord(index: 1, text: 'in', startMs: 19063, endMs: 19228);
+    const word2 = LyricWord(index: 2, text: 'my', startMs: 19228, endMs: 19413);
+    const word3 = LyricWord(
+      index: 3,
+      text: 'eyes',
+      startMs: 19413,
+      endMs: 20185,
+    );
+
+    const wordSyncedLine = LyricLine(
+      timestampMs: 18812,
+      text: 'Look in my eyes',
+      sequence: 0,
+      words: [word0, word1, word2, word3],
+    );
+
+    test('progressAt returns 0.0 before word start', () {
+      expect(
+        word0.progressAt(const Duration(milliseconds: 18000)),
+        equals(0.0),
+      );
+      expect(
+        word0.progressAt(const Duration(milliseconds: 18812)),
+        equals(0.0),
+      );
+    });
+
+    test('progressAt returns 1.0 at or after word end', () {
+      expect(
+        word0.progressAt(const Duration(milliseconds: 19063)),
+        equals(1.0),
+      );
+      expect(
+        word0.progressAt(const Duration(milliseconds: 19500)),
+        equals(1.0),
+      );
+    });
+
+    test(
+      'progressAt calculates proportional progress inside word duration',
+      () {
+        // Halfway through word0: (18812 + 19063) / 2 = 18937.5
+        final halfProgress = word0.progressAt(
+          const Duration(milliseconds: 18937),
+        );
+        expect(halfProgress, closeTo(0.5, 0.05));
+      },
+    );
+
+    test(
+      'findActiveWordIndex correctly identifies active word across timestamps',
+      () {
+        // Before line starts
+        expect(
+          wordSyncedLine.findActiveWordIndex(
+            const Duration(milliseconds: 18000),
+          ),
+          isNull,
+        );
+
+        // Inside word 0 ("Look")
+        expect(
+          wordSyncedLine.findActiveWordIndex(
+            const Duration(milliseconds: 18900),
+          ),
+          equals(0),
+        );
+
+        // Exactly at boundary of word 1 ("in")
+        expect(
+          wordSyncedLine.findActiveWordIndex(
+            const Duration(milliseconds: 19063),
+          ),
+          equals(1),
+        );
+
+        // Inside word 2 ("my")
+        expect(
+          wordSyncedLine.findActiveWordIndex(
+            const Duration(milliseconds: 19300),
+          ),
+          equals(2),
+        );
+
+        // Inside word 3 ("eyes")
+        expect(
+          wordSyncedLine.findActiveWordIndex(
+            const Duration(milliseconds: 19800),
+          ),
+          equals(3),
+        );
+
+        // After all words have completed
+        expect(
+          wordSyncedLine.findActiveWordIndex(
+            const Duration(milliseconds: 25000),
+          ),
+          equals(3),
+        );
+      },
+    );
+
+    test('hasWordTiming is true on TrackLyrics when lines contain words', () {
+      const lyricsWithWords = TrackLyrics(
+        id: 'l_words',
+        trackId: 't_1',
+        source: LyricSource.embeddedSynced,
+        isSynchronized: true,
+        lines: [wordSyncedLine],
+      );
+
+      expect(lyricsWithWords.hasWordTiming, isTrue);
+    });
+  });
 }
