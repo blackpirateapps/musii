@@ -4,7 +4,7 @@
 > **Target Audience**: Incoming AI Coding Assistants & Human Software Engineers  
 > **Last Verified**: September 2026  
 > **App Identifier**: `com.blackpirateapps.musii`  
-> **Test Status**: 91 / 91 Passing (`flutter test`), 0 Analyzer Warnings (`flutter analyze`)
+> **Test Status**: 94 / 94 Passing (`flutter test`), 0 Analyzer Warnings (`flutter analyze`)
 
 ---
 
@@ -162,6 +162,8 @@ Located in `lib/app/bootstrap/bootstrap.dart`, `lib/core/services/notification_p
   - Bidirectional controls for `skipToPrevious`, `play`/`pause`, `skipToNext`, `stop`, `seek`, `fastForward`, `rewind`, `skipToQueueItem`, `setShuffleMode`, and `setRepeatMode`.
   - Full queue synchronization (`queue.add`) keeping Android Auto, Wear OS, and system notification queues synchronized.
   - Safe local artwork file validation before supplying `artUri: Uri.file(...)`.
+  - **Restored State Broadcasting**: `restoreSavedState()` must call `_broadcastPlaybackState()` after restoring the queue and media item. Without this, Android has no `PlaybackState` to render and the media notification will not appear after app restart.
+  - **Artwork Resolution in Queue Restore**: `artworkPath` is not stored in the `Tracks` table — it is resolved dynamically via `MetadataNormalizationService.computeArtworkKey()` + `AppFileSystem.getArtworkCacheFile()`. The `_resolveArtworkPath()` helper in `MusiiAudioHandler` mirrors this pattern for restored tracks.
 
 ### 5. Wi-Fi Pre-Caching & In-Memory Artwork Retention
 Located in `lib/core/services/connectivity_service.dart`, `lib/features/cache/`, `lib/features/library/presentation/widgets/album_artwork.dart`, and `lib/features/playback/`:

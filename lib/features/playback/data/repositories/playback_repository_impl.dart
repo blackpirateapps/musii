@@ -7,10 +7,12 @@ import 'package:drift/drift.dart' as drift;
 import 'package:just_audio/just_audio.dart';
 
 import '../../../../core/database/app_database.dart' hide PlaybackState;
+import '../../../../core/filesystem/app_file_system.dart';
 import '../../../../core/logging/app_logger.dart';
 import '../../../../core/services/connectivity_service.dart';
 import '../../../cache/domain/entities/cache_entry.dart';
 import '../../../library/domain/entities/music_entities.dart';
+import '../../../metadata/domain/services/metadata_normalization_service.dart';
 import '../../../playlists/domain/entities/playlist_entities.dart';
 import '../../../recently_played/data/repositories/recently_played_repository_impl.dart';
 import '../../domain/entities/playback_repository.dart';
@@ -89,6 +91,13 @@ class MusiiAudioHandler extends BaseAudioHandler
       displaySubtitle: track.artistName ?? 'Unknown Artist',
       displayDescription: track.albumName ?? 'Unknown Album',
     );
+  }
+
+  String? _resolveArtworkPath(String? album, String? artist) {
+    if (album == null && artist == null) return null;
+    final key = MetadataNormalizationService.computeArtworkKey(album, artist);
+    final file = AppFileSystem.instance.getArtworkCacheFile(key);
+    return file.existsSync() ? file.path : null;
   }
 
   void _syncMediaQueue() {
@@ -680,11 +689,24 @@ class MusiiAudioHandler extends BaseAudioHandler
             artistName: t.artistName,
             albumId: t.albumId,
             albumName: t.albumName,
+            albumArtist: t.albumArtist,
+            genre: t.genre,
+            trackNumber: t.trackNumber,
+            discNumber: t.discNumber,
+            year: t.year,
             format: t.format,
             durationMs: t.durationMs,
+            bitrate: t.bitrate,
+            sampleRate: t.sampleRate,
+            bitDepth: t.bitDepth,
+            channels: t.channels,
             fileSize: t.fileSize,
+            mimeType: t.mimeType,
+            driveModifiedAt: t.driveModifiedAt,
             isCached: t.isCached,
+            isPinnedOffline: t.isPinnedOffline,
             localPath: t.localPath,
+            artworkPath: _resolveArtworkPath(t.albumName, t.artistName),
           );
         }).toList();
 
@@ -699,6 +721,7 @@ class MusiiAudioHandler extends BaseAudioHandler
         );
 
         _syncMediaQueue();
+        _broadcastPlaybackState();
 
         final current = _currentTrack;
         if (current != null) {
