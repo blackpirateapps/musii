@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/bootstrap/providers.dart';
@@ -8,12 +9,27 @@ import '../pages/album_detail_page.dart';
 import '../pages/artist_detail_page.dart';
 import 'audio_info_sheet.dart';
 
-void showTrackActionSheet({
+enum TrackActionContext {
+  queue,
+  nowPlaying,
+  library,
+  album,
+  artist,
+  playlist,
+  search,
+  favorites,
+}
+
+Future<void> showTrackActionSheet({
   required BuildContext context,
   required Track track,
   required WidgetRef ref,
+  TrackActionContext trackContext = TrackActionContext.library,
+  String? queueItemId,
+  int? queueIndex,
+  VoidCallback? onRemovedFromQueue,
 }) async {
-  final isFav = await ref.read(isTrackFavoriteProvider(track.id).future);
+  final isFav = ref.read(isTrackFavoriteProvider(track.id)).value ?? false;
 
   if (!context.mounted) return;
 
@@ -28,42 +44,108 @@ void showTrackActionSheet({
         '${track.artistName ?? 'Unknown Artist'} · ${track.albumName ?? 'Unknown Album'}',
       ),
       actions: [
-        CupertinoActionSheetAction(
-          onPressed: () {
-            Navigator.pop(ctx);
-            ref.read(playbackRepositoryProvider).playTrack(track);
-          },
-          child: const Text('Play'),
-        ),
-        CupertinoActionSheetAction(
-          onPressed: () {
-            Navigator.pop(ctx);
-            ref.read(playbackRepositoryProvider).playNext(track);
-          },
-          child: const Text('Play Next'),
-        ),
-        CupertinoActionSheetAction(
-          onPressed: () {
-            Navigator.pop(ctx);
-            ref.read(playbackRepositoryProvider).playLast(track);
-          },
-          child: const Text('Add to Queue'),
-        ),
+        if (trackContext == TrackActionContext.queue) ...[
+          CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.pop(ctx);
+              HapticFeedback.lightImpact();
+              if (queueItemId != null) {
+                ref
+                    .read(playbackRepositoryProvider)
+                    .skipToQueueItemById(queueItemId);
+              } else if (queueIndex != null) {
+                ref
+                    .read(playbackRepositoryProvider)
+                    .skipToQueueItem(queueIndex);
+              } else {
+                ref.read(playbackRepositoryProvider).playTrack(track);
+              }
+            },
+            child: const Text('Play Now'),
+          ),
+          CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.pop(ctx);
+              HapticFeedback.lightImpact();
+              ref.read(playbackRepositoryProvider).playNext(track);
+            },
+            child: const Text('Play Next'),
+          ),
+          CupertinoActionSheetAction(
+            isDestructiveAction: true,
+            onPressed: () {
+              Navigator.pop(ctx);
+              HapticFeedback.mediumImpact();
+              if (queueItemId != null) {
+                ref
+                    .read(playbackRepositoryProvider)
+                    .removeQueueItem(queueItemId);
+              } else if (queueIndex != null) {
+                ref
+                    .read(playbackRepositoryProvider)
+                    .removeFromQueue(queueIndex);
+              }
+              onRemovedFromQueue?.call();
+            },
+            child: const Text('Remove from Queue'),
+          ),
+        ] else if (trackContext == TrackActionContext.nowPlaying) ...[
+          CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.pop(ctx);
+              HapticFeedback.lightImpact();
+              ref.read(playbackRepositoryProvider).playNext(track);
+            },
+            child: const Text('Play Next'),
+          ),
+          CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.pop(ctx);
+              HapticFeedback.lightImpact();
+              ref.read(playbackRepositoryProvider).playLast(track);
+            },
+            child: const Text('Add to Queue'),
+          ),
+        ] else ...[
+          CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.pop(ctx);
+              HapticFeedback.lightImpact();
+              ref.read(playbackRepositoryProvider).playTrack(track);
+            },
+            child: const Text('Play'),
+          ),
+          CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.pop(ctx);
+              HapticFeedback.lightImpact();
+              ref.read(playbackRepositoryProvider).playNext(track);
+            },
+            child: const Text('Play Next'),
+          ),
+          CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.pop(ctx);
+              HapticFeedback.lightImpact();
+              ref.read(playbackRepositoryProvider).playLast(track);
+            },
+            child: const Text('Add to Queue'),
+          ),
+        ],
         CupertinoActionSheetAction(
           onPressed: () async {
             Navigator.pop(ctx);
-            final res = await ref
+            await HapticFeedback.lightImpact();
+            await ref
                 .read(favoriteRepositoryProvider)
                 .toggleFavorite(track.id);
-            if (context.mounted && res.isSuccess) {
-              // Updated reactively
-            }
           },
           child: Text(isFav ? 'Remove from Favorites' : 'Favorite'),
         ),
         CupertinoActionSheetAction(
           onPressed: () {
             Navigator.pop(ctx);
+            HapticFeedback.lightImpact();
             _showAddToPlaylistDialog(context, track, ref);
           },
           child: const Text('Add to Playlist...'),
@@ -71,6 +153,7 @@ void showTrackActionSheet({
         CupertinoActionSheetAction(
           onPressed: () async {
             Navigator.pop(ctx);
+            await HapticFeedback.lightImpact();
             final cacheRepo = ref.read(cacheRepositoryProvider);
             if (track.isPinnedOffline) {
               await cacheRepo.unpinTrackOffline(track.id);
@@ -84,10 +167,12 @@ void showTrackActionSheet({
                 : 'Download for Offline',
           ),
         ),
-        if (track.albumId != null)
+        if (track.albumId != null &&
+            trackContext != TrackActionContext.album)
           CupertinoActionSheetAction(
             onPressed: () {
               Navigator.pop(ctx);
+              HapticFeedback.lightImpact();
               Navigator.of(context).push(
                 CupertinoPageRoute(
                   builder: (_) => AlbumDetailPage(albumId: track.albumId!),
@@ -96,10 +181,12 @@ void showTrackActionSheet({
             },
             child: const Text('View Album'),
           ),
-        if (track.artistId != null)
+        if (track.artistId != null &&
+            trackContext != TrackActionContext.artist)
           CupertinoActionSheetAction(
             onPressed: () {
               Navigator.pop(ctx);
+              HapticFeedback.lightImpact();
               Navigator.of(context).push(
                 CupertinoPageRoute(
                   builder: (_) => ArtistDetailPage(artistId: track.artistId!),
@@ -111,6 +198,7 @@ void showTrackActionSheet({
         CupertinoActionSheetAction(
           onPressed: () {
             Navigator.pop(ctx);
+            HapticFeedback.lightImpact();
             showLyricsSheet(context, track);
           },
           child: const Text('Lyrics'),
@@ -118,6 +206,7 @@ void showTrackActionSheet({
         CupertinoActionSheetAction(
           onPressed: () {
             Navigator.pop(ctx);
+            HapticFeedback.lightImpact();
             showAudioInfoSheet(context, track);
           },
           child: const Text('Audio Information'),
@@ -149,6 +238,7 @@ void _showAddToPlaylistDialog(
             (pl) => CupertinoActionSheetAction(
               onPressed: () async {
                 Navigator.pop(ctx);
+                await HapticFeedback.lightImpact();
                 await ref
                     .read(playlistRepositoryProvider)
                     .addTrackToPlaylist(pl.id, track.id);
@@ -160,6 +250,7 @@ void _showAddToPlaylistDialog(
             isDestructiveAction: false,
             onPressed: () {
               Navigator.pop(ctx);
+              HapticFeedback.lightImpact();
               _showCreatePlaylistDialog(context, track, ref);
             },
             child: const Text('New Playlist...'),
@@ -204,6 +295,7 @@ void _showCreatePlaylistDialog(
             final name = controller.text.trim();
             if (name.isNotEmpty) {
               Navigator.pop(ctx);
+              await HapticFeedback.lightImpact();
               final createRes = await ref
                   .read(playlistRepositoryProvider)
                   .createPlaylist(name);

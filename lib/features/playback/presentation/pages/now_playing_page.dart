@@ -361,6 +361,8 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
                                           context: context,
                                           track: track,
                                           ref: ref,
+                                          trackContext:
+                                              TrackActionContext.nowPlaying,
                                         );
                                       }
                                     },

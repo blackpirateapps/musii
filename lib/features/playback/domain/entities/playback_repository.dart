@@ -26,8 +26,13 @@ abstract class PlaybackRepository {
   Future<void> playNext(Track track);
   Future<void> playLast(Track track);
   Future<void> reorderQueue(int oldIndex, int newIndex);
+  Future<void> moveQueueItem(String queueItemId, int destinationIndex);
   Future<void> removeFromQueue(int index);
+  Future<void> removeQueueItem(String queueItemId);
   Future<void> clearQueue();
+  Future<void> clearUpNext();
+  Future<void> skipToQueueItem(int index);
+  Future<void> skipToQueueItemById(String queueItemId);
 
   Future<void> restoreSavedState();
 }

@@ -26,11 +26,12 @@ class MusiiAudioHandler extends BaseAudioHandler
   final AppDatabase _database;
   final ConnectivityService _connectivityService;
 
-  List<Track> _currentQueue = [];
+  List<QueueItem> _currentQueue = [];
   int _currentIndex = 0;
   AudioRepeatMode _repeatMode = AudioRepeatMode.off;
   bool _shuffleMode = false;
-  List<Track> _unshuffledQueue = [];
+  List<QueueItem> _unshuffledQueue = [];
+  int _playNextCount = 0;
   int _loadGeneration = 0;
   String? _loadedTrackId;
   String? _loadingTrackId;
@@ -103,7 +104,7 @@ class MusiiAudioHandler extends BaseAudioHandler
   }
 
   void _syncMediaQueue() {
-    queue.add(_currentQueue.map(_toMediaItem).toList());
+    queue.add(_currentQueue.map((item) => _toMediaItem(item.track)).toList());
   }
 
   void _broadcastPlaybackState() {
@@ -230,26 +231,50 @@ class MusiiAudioHandler extends BaseAudioHandler
       (_currentQueue.isNotEmpty &&
           _currentIndex >= 0 &&
           _currentIndex < _currentQueue.length)
+      ? _currentQueue[_currentIndex].track
+      : null;
+
+  QueueItem? get _currentQueueItem =>
+      (_currentQueue.isNotEmpty &&
+          _currentIndex >= 0 &&
+          _currentIndex < _currentQueue.length)
       ? _currentQueue[_currentIndex]
       : null;
 
   Future<void> loadAndPlayTrack(
     Track track, {
     List<Track>? queue,
+    List<QueueItem>? queueItems,
     int? queueIndex,
   }) async {
-    if (queue != null) {
-      _currentQueue = List.from(queue);
-      _unshuffledQueue = List.from(queue);
+    if (queueItems != null) {
+      _currentQueue = List.from(queueItems);
+      _unshuffledQueue = List.from(queueItems);
       _currentIndex =
-          queueIndex ?? _currentQueue.indexWhere((t) => t.id == track.id);
+          queueIndex ?? _currentQueue.indexWhere((q) => q.track.id == track.id);
       if (_currentIndex == -1) _currentIndex = 0;
-    } else if (!_currentQueue.any((t) => t.id == track.id)) {
-      _currentQueue = [track];
-      _unshuffledQueue = [track];
+      _playNextCount = 0;
+    } else if (queue != null) {
+      _currentQueue = queue
+          .asMap()
+          .entries
+          .map((e) => QueueItem(id: 'q_${e.key}_${e.value.id}', track: e.value))
+          .toList();
+      _unshuffledQueue = List.from(_currentQueue);
+      _currentIndex =
+          queueIndex ?? _currentQueue.indexWhere((q) => q.track.id == track.id);
+      if (_currentIndex == -1) _currentIndex = 0;
+      _playNextCount = 0;
+    } else if (!_currentQueue.any((q) => q.track.id == track.id)) {
+      final item = QueueItem.fromTrack(track);
+      _currentQueue = [item];
+      _unshuffledQueue = [item];
       _currentIndex = 0;
+      _playNextCount = 0;
     } else {
-      _currentIndex = _currentQueue.indexWhere((t) => t.id == track.id);
+      _currentIndex = _currentQueue.indexWhere((q) => q.track.id == track.id);
+      if (_currentIndex == -1) _currentIndex = 0;
+      _playNextCount = 0;
     }
 
     final targetTrack = _currentTrack ?? track;
@@ -257,6 +282,8 @@ class MusiiAudioHandler extends BaseAudioHandler
 
     // Sync media session queue immediately
     _syncMediaQueue();
+    unawaited(_persistQueue());
+    unawaited(_persistState());
 
     _loadingTrackId = targetTrack.id;
 
@@ -266,7 +293,7 @@ class MusiiAudioHandler extends BaseAudioHandler
         currentTrack: targetTrack,
         isBuffering: true,
         isPlaying: false,
-        queue: _currentQueue,
+        queueItems: _currentQueue,
         queueIndex: _currentIndex,
         position: Duration.zero,
         duration: Duration(milliseconds: targetTrack.durationMs),
@@ -370,7 +397,11 @@ class MusiiAudioHandler extends BaseAudioHandler
       final isWifi = await _connectivityService.isWifiConnected();
       if (!isWifi) return;
 
-      final nextTracks = _currentQueue.skip(_currentIndex + 1).take(3).toList();
+      final nextTracks = _currentQueue
+          .skip(_currentIndex + 1)
+          .take(3)
+          .map((item) => item.track)
+          .toList();
 
       for (final track in nextTracks) {
         if (!await _cacheRepository.isTrackCached(track.id)) {
@@ -447,19 +478,21 @@ class MusiiAudioHandler extends BaseAudioHandler
 
   @override
   Future<void> skipToNext() async {
+    _playNextCount = 0;
     if (_currentQueue.isEmpty) return;
 
     if (_currentIndex < _currentQueue.length - 1) {
       _currentIndex++;
-      await loadAndPlayTrack(_currentQueue[_currentIndex]);
+      await loadAndPlayTrack(_currentQueue[_currentIndex].track);
     } else if (_repeatMode == AudioRepeatMode.all) {
       _currentIndex = 0;
-      await loadAndPlayTrack(_currentQueue[_currentIndex]);
+      await loadAndPlayTrack(_currentQueue[_currentIndex].track);
     }
   }
 
   @override
   Future<void> skipToPrevious() async {
+    _playNextCount = 0;
     if (_player.position.inSeconds > 3) {
       await seek(Duration.zero);
       return;
@@ -467,7 +500,7 @@ class MusiiAudioHandler extends BaseAudioHandler
 
     if (_currentIndex > 0) {
       _currentIndex--;
-      await loadAndPlayTrack(_currentQueue[_currentIndex]);
+      await loadAndPlayTrack(_currentQueue[_currentIndex].track);
     } else {
       await seek(Duration.zero);
     }
@@ -475,9 +508,18 @@ class MusiiAudioHandler extends BaseAudioHandler
 
   @override
   Future<void> skipToQueueItem(int index) async {
+    _playNextCount = 0;
     if (index >= 0 && index < _currentQueue.length) {
       _currentIndex = index;
-      await loadAndPlayTrack(_currentQueue[_currentIndex]);
+      await loadAndPlayTrack(_currentQueue[_currentIndex].track);
+    }
+  }
+
+  Future<void> skipToQueueItemById(String queueItemId) async {
+    _playNextCount = 0;
+    final index = _currentQueue.indexWhere((q) => q.id == queueItemId);
+    if (index != -1) {
+      await skipToQueueItem(index);
     }
   }
 
@@ -529,26 +571,27 @@ class MusiiAudioHandler extends BaseAudioHandler
   void toggleShuffle() {
     _shuffleMode = !_shuffleMode;
     if (_shuffleMode) {
-      final current = _currentTrack;
-      final copy = List<Track>.from(_unshuffledQueue);
-      if (current != null) copy.remove(current);
+      final current = _currentQueueItem;
+      final copy = List<QueueItem>.from(_unshuffledQueue);
+      if (current != null) copy.removeWhere((q) => q.id == current.id);
       copy.shuffle();
       if (current != null) copy.insert(0, current);
       _currentQueue = copy;
       _currentIndex = 0;
     } else {
-      final current = _currentTrack;
+      final current = _currentQueueItem;
       _currentQueue = List.from(_unshuffledQueue);
       if (current != null) {
-        _currentIndex = _currentQueue.indexWhere((t) => t.id == current.id);
+        _currentIndex = _currentQueue.indexWhere((q) => q.id == current.id);
         if (_currentIndex == -1) _currentIndex = 0;
       }
     }
+    _playNextCount = 0;
     _syncMediaQueue();
     _emitSnapshot(
       _snapshot.copyWith(
         shuffleMode: _shuffleMode,
-        queue: _currentQueue,
+        queueItems: _currentQueue,
         queueIndex: _currentIndex,
       ),
     );
@@ -573,22 +616,32 @@ class MusiiAudioHandler extends BaseAudioHandler
   }
 
   void playNext(Track track) {
+    AppLogger.info(LogCategory.playback, 'Queue play next: ${track.title}');
     if (_currentQueue.isEmpty) {
       loadAndPlayTrack(track);
       return;
     }
-    _currentQueue.insert(_currentIndex + 1, track);
-    _unshuffledQueue.add(track);
+    final item = QueueItem.fromTrack(track);
+    final insertIndex = (_currentIndex + 1 + _playNextCount).clamp(0, _currentQueue.length);
+    _currentQueue.insert(insertIndex, item);
+    _unshuffledQueue.add(item);
+    _playNextCount++;
     _syncMediaQueue();
-    _emitSnapshot(_snapshot.copyWith(queue: _currentQueue));
+    _emitSnapshot(_snapshot.copyWith(queueItems: _currentQueue, queueIndex: _currentIndex));
     unawaited(_persistQueue());
   }
 
   void playLast(Track track) {
-    _currentQueue.add(track);
-    _unshuffledQueue.add(track);
+    AppLogger.info(LogCategory.playback, 'Queue add to end: ${track.title}');
+    if (_currentQueue.isEmpty) {
+      loadAndPlayTrack(track);
+      return;
+    }
+    final item = QueueItem.fromTrack(track);
+    _currentQueue.add(item);
+    _unshuffledQueue.add(item);
     _syncMediaQueue();
-    _emitSnapshot(_snapshot.copyWith(queue: _currentQueue));
+    _emitSnapshot(_snapshot.copyWith(queueItems: _currentQueue, queueIndex: _currentIndex));
     unawaited(_persistQueue());
   }
 
@@ -599,27 +652,45 @@ class MusiiAudioHandler extends BaseAudioHandler
         newIndex > _currentQueue.length) {
       return;
     }
-    final current = _currentTrack;
+    final currentItem = _currentQueueItem;
     final item = _currentQueue.removeAt(oldIndex);
     final insertAt = (oldIndex < newIndex) ? newIndex - 1 : newIndex;
     _currentQueue.insert(insertAt, item);
 
-    if (current != null) {
-      _currentIndex = _currentQueue.indexWhere((t) => t.id == current.id);
-      if (_currentIndex == -1) _currentIndex = 0;
+    if (currentItem != null) {
+      final idx = _currentQueue.indexWhere((q) => q.id == currentItem.id);
+      if (idx != -1) _currentIndex = idx;
     }
 
+    _playNextCount = 0;
     _syncMediaQueue();
     _emitSnapshot(
-      _snapshot.copyWith(queue: _currentQueue, queueIndex: _currentIndex),
+      _snapshot.copyWith(queueItems: _currentQueue, queueIndex: _currentIndex),
     );
     unawaited(_persistQueue());
+    AppLogger.debug(
+      LogCategory.playback,
+      'Queue reordered: $oldIndex -> $newIndex',
+    );
+  }
+
+  void moveQueueItem(String queueItemId, int destinationIndex) {
+    final oldIndex = _currentQueue.indexWhere((q) => q.id == queueItemId);
+    if (oldIndex == -1) return;
+    reorderQueue(oldIndex, destinationIndex);
   }
 
   void removeFromQueue(int index) {
     if (index < 0 || index >= _currentQueue.length) return;
     final isCurrent = index == _currentIndex;
-    _currentQueue.removeAt(index);
+    final removedItem = _currentQueue.removeAt(index);
+    _unshuffledQueue.removeWhere((q) => q.id == removedItem.id);
+    _playNextCount = 0;
+
+    AppLogger.info(
+      LogCategory.playback,
+      'Queue item removed: ${removedItem.track.title}',
+    );
 
     if (_currentQueue.isEmpty) {
       stop();
@@ -631,16 +702,50 @@ class MusiiAudioHandler extends BaseAudioHandler
         if (_currentIndex >= _currentQueue.length) {
           _currentIndex = _currentQueue.length - 1;
         }
-        loadAndPlayTrack(_currentQueue[_currentIndex]);
+        loadAndPlayTrack(_currentQueue[_currentIndex].track);
       } else if (index < _currentIndex) {
         _currentIndex--;
         _emitSnapshot(
-          _snapshot.copyWith(queue: _currentQueue, queueIndex: _currentIndex),
+          _snapshot.copyWith(queueItems: _currentQueue, queueIndex: _currentIndex),
         );
       } else {
-        _emitSnapshot(_snapshot.copyWith(queue: _currentQueue));
+        _emitSnapshot(_snapshot.copyWith(queueItems: _currentQueue, queueIndex: _currentIndex));
       }
     }
+    unawaited(_persistQueue());
+  }
+
+  @override
+  Future<void> removeQueueItem(MediaItem mediaItem) async {
+    removeQueueItemById(mediaItem.id);
+  }
+
+  void removeQueueItemById(String queueItemId) {
+    final index = _currentQueue.indexWhere((q) => q.id == queueItemId);
+    if (index != -1) {
+      removeFromQueue(index);
+    }
+  }
+
+  void clearUpNext() {
+    if (_currentQueue.isEmpty || _currentIndex >= _currentQueue.length - 1) {
+      return;
+    }
+    final removedItems = _currentQueue.sublist(_currentIndex + 1);
+    final removedIds = removedItems.map((q) => q.id).toSet();
+    _currentQueue = _currentQueue.sublist(0, _currentIndex + 1);
+    _unshuffledQueue.removeWhere((q) => removedIds.contains(q.id));
+    _playNextCount = 0;
+
+    AppLogger.info(
+      LogCategory.playback,
+      'Cleared up next queue, remaining: ${_currentQueue.length}',
+    );
+
+    _syncMediaQueue();
+    _emitSnapshot(
+      _snapshot.copyWith(queueItems: _currentQueue, queueIndex: _currentIndex),
+    );
     unawaited(_persistQueue());
   }
 
@@ -649,6 +754,7 @@ class MusiiAudioHandler extends BaseAudioHandler
     _currentQueue.clear();
     _unshuffledQueue.clear();
     _currentIndex = 0;
+    _playNextCount = 0;
     _syncMediaQueue();
     _emitSnapshot(const PlayerStateSnapshot());
     unawaited(_persistQueue());
@@ -679,19 +785,22 @@ class MusiiAudioHandler extends BaseAudioHandler
       await _database.transaction(() async {
         await _database.delete(_database.playbackQueue).go();
         for (int i = 0; i < _currentQueue.length; i++) {
+          final item = _currentQueue[i];
           await _database
               .into(_database.playbackQueue)
               .insert(
                 PlaybackQueueCompanion(
-                  id: drift.Value('q_${i}_${_currentQueue[i].id}'),
-                  trackId: drift.Value(_currentQueue[i].id),
+                  id: drift.Value(item.id),
+                  trackId: drift.Value(item.track.id),
                   sortOrder: drift.Value(i),
                   addedAt: drift.Value(DateTime.now()),
                 ),
               );
         }
       });
-    } catch (_) {}
+    } catch (e) {
+      AppLogger.warning(LogCategory.playback, 'Failed to persist queue', e);
+    }
   }
 
   Future<void> restoreSavedState() async {
@@ -714,9 +823,10 @@ class MusiiAudioHandler extends BaseAudioHandler
               .get();
 
       if (queueEntries.isNotEmpty) {
-        final restoredTracks = queueEntries.map((row) {
+        final restoredItems = queueEntries.map((row) {
+          final qRow = row.readTable(_database.playbackQueue);
           final t = row.readTable(_database.tracks);
-          return Track(
+          final track = Track(
             id: t.id,
             driveFileId: t.driveFileId,
             sourceId: t.sourceId,
@@ -745,12 +855,14 @@ class MusiiAudioHandler extends BaseAudioHandler
             localPath: t.localPath,
             artworkPath: _resolveArtworkPath(t.albumName, t.artistName),
           );
+          return QueueItem(id: qRow.id, track: track);
         }).toList();
 
-        _currentQueue = restoredTracks;
-        _unshuffledQueue = List.from(restoredTracks);
+        _currentQueue = restoredItems;
+        _unshuffledQueue = List.from(restoredItems);
         _currentIndex = savedState?.queueIndex ?? 0;
         if (_currentIndex >= _currentQueue.length) _currentIndex = 0;
+        _playNextCount = 0;
 
         _shuffleMode = savedState?.shuffleMode ?? false;
         _repeatMode = AudioRepeatMode.fromString(
@@ -771,7 +883,7 @@ class MusiiAudioHandler extends BaseAudioHandler
               isPlaying: false,
               shuffleMode: _shuffleMode,
               repeatMode: _repeatMode,
-              queue: _currentQueue,
+              queueItems: _currentQueue,
               queueIndex: _currentIndex,
             ),
           );
@@ -875,11 +987,30 @@ class PlaybackRepositoryImpl implements PlaybackRepository {
       _audioHandler.reorderQueue(oldIndex, newIndex);
 
   @override
+  Future<void> moveQueueItem(String queueItemId, int destinationIndex) async =>
+      _audioHandler.moveQueueItem(queueItemId, destinationIndex);
+
+  @override
   Future<void> removeFromQueue(int index) async =>
       _audioHandler.removeFromQueue(index);
 
   @override
+  Future<void> removeQueueItem(String queueItemId) async =>
+      _audioHandler.removeQueueItemById(queueItemId);
+
+  @override
   Future<void> clearQueue() async => _audioHandler.clearQueue();
+
+  @override
+  Future<void> clearUpNext() async => _audioHandler.clearUpNext();
+
+  @override
+  Future<void> skipToQueueItem(int index) async =>
+      _audioHandler.skipToQueueItem(index);
+
+  @override
+  Future<void> skipToQueueItemById(String queueItemId) async =>
+      _audioHandler.skipToQueueItemById(queueItemId);
 
   @override
   Future<void> restoreSavedState() => _audioHandler.restoreSavedState();

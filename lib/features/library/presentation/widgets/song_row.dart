@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
 
 import '../../../../core/constants/app_constants.dart';
 import '../../domain/entities/music_entities.dart';
@@ -9,6 +10,7 @@ class SongRow extends StatelessWidget {
   final bool isPlaying;
   final VoidCallback onTap;
   final VoidCallback? onMore;
+  final VoidCallback? onLongPress;
   final int? trackNumber;
 
   const SongRow({
@@ -17,6 +19,7 @@ class SongRow extends StatelessWidget {
     this.isPlaying = false,
     required this.onTap,
     this.onMore,
+    this.onLongPress,
     this.trackNumber,
   });
 
@@ -32,10 +35,17 @@ class SongRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = CupertinoTheme.brightnessOf(context) == Brightness.dark;
 
-    return CupertinoButton(
-      padding: EdgeInsets.zero,
-      minSize: 0,
-      onPressed: onTap,
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      onLongPress: () {
+        HapticFeedback.mediumImpact();
+        if (onLongPress != null) {
+          onLongPress!();
+        } else if (onMore != null) {
+          onMore!();
+        }
+      },
       child: Container(
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.md,

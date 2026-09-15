@@ -1,10 +1,10 @@
 # Musii — AI Engineering Handoff Document
 
-> **Document Version**: 1.5.0  
+> **Document Version**: 1.6.0  
 > **Target Audience**: Incoming AI Coding Assistants & Human Software Engineers  
 > **Last Verified**: September 2026  
 > **App Identifier**: `com.blackpirateapps.musii`  
-> **Test Status**: 94 / 94 Passing (`flutter test`), 0 Analyzer Warnings (`flutter analyze`)
+> **Test Status**: 116 / 116 Passing (`flutter test`), 0 Analyzer Warnings (`flutter analyze`)
 
 ---
 
@@ -175,6 +175,17 @@ Located in `lib/core/services/connectivity_service.dart`, `lib/features/cache/`,
   - `PaintingBinding.instance.imageCache` is expanded to 256MB capacity (2,000 textures) to eliminate pop-in re-decoding during fast scrolling.
   - `cacheExtent: 600.0` on sliver scrollviews retains viewport boundary layouts.
 
+### 6. Playback Queue Engine & Context-Aware Reordering (Q1–Q4)
+Located in `lib/features/playback/domain/entities/playback_state.dart`, `lib/features/playback/data/repositories/playback_repository_impl.dart`, `lib/features/playback/presentation/pages/queue_page.dart`, and `lib/features/library/presentation/widgets/track_overflow_sheet.dart`:
+- **Unique QueueItem Identity**: Every item in the queue wraps a `Track` inside a `QueueItem` entity featuring a unique `id` (`qi_${timestamp}_${counter}_${trackId}`). This allows duplicate tracks to coexist in the playback queue safely without key collisions, ambiguous reordering, or inadvertent multi-item deletions.
+- **Non-Disruptive Drag-and-Drop Reordering**: `QueuePage` renders upcoming tracks via `ReorderableListView.builder` using custom drag handles (`CupertinoIcons.line_horizontal_3`). Reordering modifies the upcoming sequence instantly while the currently playing track continues playback uninterrupted.
+- **Custom Drag Proxy Decorator**: When lifting a queue item during drag, `proxyDecorator` scales the tile to `1.02` with an 8dp elevation shadow and theme-aware card backdrop (`0xFF2C2C2E` dark, `systemBackground` light), delivering iOS Apple Music tactile polish.
+- **Context-Aware Track Action Sheet (`TrackActionContext`, `showTrackActionSheet`)**: Reusable track overflow sheet adapting options based on source (`queue`, `nowPlaying`, `library`, `album`, `artist`, `playlist`, `search`, `favorites`). Queue context exposes "Play Now", "Play Next", and destructive "Remove from Queue".
+- **Long-Press Gestures & Tactile Haptics**: Long-pressing any song row or queue item triggers `HapticFeedback.mediumImpact()` and opens the contextual action sheet. Dragging, reordering, and dismissals provide subtle haptic confirmations (`lightImpact` / `selectionClick`).
+- **Sequential "Play Next" Semantics**: `MusiiAudioHandler` maintains a `_playNextCount` counter that ensures consecutive "Play Next" calls insert tracks in chronological requested order (`A -> D -> E -> B -> C`) rather than reverse stack order.
+- **Swipe-to-Remove & Safe Clear Up Next**: Swipe left on any up-next item triggers a `Dismissible` with a red destructive background and trash icon. "Clear Up Next" safely flushes upcoming tracks without stopping or resetting the currently playing song.
+- **SQLite Queue Persistence**: Queue order and item identities are durably written to the `playback_queue` Drift table and restored during app cold start (`restoreSavedState()`).
+
 ---
 
 ## 4. Important Pitfalls, Caveats & Solutions
@@ -198,6 +209,10 @@ Located in `lib/core/services/connectivity_service.dart`, `lib/features/cache/`,
    - `AudioService.init` interacts with Android native platform channels (`flutter.baseflow.com/permissions/methods`, `com.ryanheise.audioservice`). In unit and widget tests, avoid calling raw `AudioService.init` without mock platform channels; `MusiiAudioHandler` can be instantiated directly or overridden via `musiiAudioHandlerProvider.overrideWithValue(...)` or `playerStateProvider.overrideWith(...)`.
 8. **Stale Audio Prevention & Track Loading State in Playback Pipeline**:
    - When switching tracks or restoring state, `just_audio.AudioPlayer` may retain the previous audio file or be in an idle state while the new track is being fetched. `MusiiAudioHandler` maintains `_loadedTrackId` and `_loadingTrackId`. When `play()` / `resume()` is triggered from the Now Playing screen, MiniPlayer, or lock screen, it validates that `_loadedTrackId == target.id`. If not loaded (or if loading), it never calls `_player.play()` on stale audio; instead it executes `loadAndPlayTrack(target)` to ensure the currently displayed track is loaded and played. Furthermore, `_player` stream events are guarded during track transitions so stale track positions, durations, or premature `ready` states do not overwrite the loading track's snapshot.
+9. **MaterialLocalizations in Cupertino Widget Tests with ReorderableListView / Dismissible**:
+   - Material widgets such as `ReorderableListView` and `Dismissible` check for `MaterialLocalizations`. When testing Cupertino pages containing these widgets in isolated test harnesses, provide `localizationsDelegates: const [DefaultMaterialLocalizations.delegate, DefaultCupertinoLocalizations.delegate, DefaultWidgetsLocalizations.delegate]` to the test `CupertinoApp`.
+10. **Synchronous Favorite Status in Action Sheets**:
+    - Avoid `await ref.read(isTrackFavoriteProvider(id).future)` inside modal action sheet openers, as awaiting stream completion introduces an asynchronous microtask delay that delays popup rendering. Instead, query synchronous state via `ref.read(isTrackFavoriteProvider(id)).value ?? false` or pass a `Consumer` inside the dialog.
 
 ---
 

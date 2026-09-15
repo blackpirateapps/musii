@@ -77,10 +77,25 @@ class FakePlaybackRepository implements PlaybackRepository {
   Future<void> reorderQueue(int oldIndex, int newIndex) async {}
 
   @override
+  Future<void> moveQueueItem(String queueItemId, int destinationIndex) async {}
+
+  @override
   Future<void> removeFromQueue(int index) async {}
 
   @override
+  Future<void> removeQueueItem(String queueItemId) async {}
+
+  @override
   Future<void> clearQueue() async {}
+
+  @override
+  Future<void> clearUpNext() async {}
+
+  @override
+  Future<void> skipToQueueItem(int index) async {}
+
+  @override
+  Future<void> skipToQueueItemById(String queueItemId) async {}
 
   @override
   Future<void> restoreSavedState() async {}
