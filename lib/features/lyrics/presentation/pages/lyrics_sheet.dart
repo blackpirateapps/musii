@@ -89,16 +89,14 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet> {
       child: Stack(
         children: [
           // 1. Blurred Backdrop from artwork if available
-          if (track.artworkPath != null && File(track.artworkPath!).existsSync())
+          if (track.artworkPath != null &&
+              File(track.artworkPath!).existsSync())
             Positioned.fill(
               child: ClipRRect(
                 borderRadius: const BorderRadius.vertical(
                   top: Radius.circular(AppRadii.sheet),
                 ),
-                child: Image.file(
-                  File(track.artworkPath!),
-                  fit: BoxFit.cover,
-                ),
+                child: Image.file(File(track.artworkPath!), fit: BoxFit.cover),
               ),
             ),
 
@@ -257,7 +255,9 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet> {
                           itemBuilder: (ctx, i) {
                             final line = data.lines[i];
                             return Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 8.0),
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 8.0,
+                              ),
                               child: Text(
                                 line.text,
                                 style: TextStyle(
@@ -275,7 +275,10 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet> {
                       }
 
                       // Synchronized Lyrics Display
-                      final activeIndex = _findActiveIndex(data.lines, position);
+                      final activeIndex = _findActiveIndex(
+                        data.lines,
+                        position,
+                      );
 
                       if (activeIndex != _lastActiveIndex) {
                         _lastActiveIndex = activeIndex;
@@ -308,7 +311,9 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet> {
 
                             return GestureDetector(
                               onTap: () {
-                                ref.read(playbackRepositoryProvider).seek(
+                                ref
+                                    .read(playbackRepositoryProvider)
+                                    .seek(
                                       Duration(milliseconds: line.timestampMs),
                                     );
                                 setState(() {
@@ -332,13 +337,13 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet> {
                                     letterSpacing: -0.3,
                                     color: isActive
                                         ? (isDark
-                                            ? CupertinoColors.white
-                                            : CupertinoColors.black)
+                                              ? CupertinoColors.white
+                                              : CupertinoColors.black)
                                         : (isDark
-                                            ? CupertinoColors.white
-                                                .withOpacity(0.38)
-                                            : CupertinoColors.black
-                                                .withOpacity(0.38)),
+                                              ? CupertinoColors.white
+                                                    .withOpacity(0.38)
+                                              : CupertinoColors.black
+                                                    .withOpacity(0.38)),
                                   ),
                                 ),
                               ),

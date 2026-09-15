@@ -45,17 +45,20 @@ bool matchesLrcSidecar({
 
 void main() {
   group('Lyric Priority Rules (Section 14)', () {
-    test('embedded synchronized lyrics takes top priority over sidecar LRC', () {
-      const embedded = '[00:10.00]Embedded synced line';
-      const sidecar = '[00:12.00]Sidecar line';
+    test(
+      'embedded synchronized lyrics takes top priority over sidecar LRC',
+      () {
+        const embedded = '[00:10.00]Embedded synced line';
+        const sidecar = '[00:12.00]Sidecar line';
 
-      final source = determineLyricPriority(
-        embeddedLyrics: embedded,
-        sidecarLrcContent: sidecar,
-      );
+        final source = determineLyricPriority(
+          embeddedLyrics: embedded,
+          sidecarLrcContent: sidecar,
+        );
 
-      expect(source, equals(LyricSource.embeddedSynced));
-    });
+        expect(source, equals(LyricSource.embeddedSynced));
+      },
+    );
 
     test('embedded plain lyrics takes priority over sidecar LRC', () {
       const embedded = 'Plain embedded lyrics\nNo timestamps';
@@ -80,16 +83,19 @@ void main() {
       expect(source, equals(LyricSource.sidecarLrc));
     });
 
-    test('falls back to sidecar LRC if embedded lyrics are empty/whitespace', () {
-      const sidecar = '[00:12.00]Sidecar line';
+    test(
+      'falls back to sidecar LRC if embedded lyrics are empty/whitespace',
+      () {
+        const sidecar = '[00:12.00]Sidecar line';
 
-      final source = determineLyricPriority(
-        embeddedLyrics: '   \n  \n',
-        sidecarLrcContent: sidecar,
-      );
+        final source = determineLyricPriority(
+          embeddedLyrics: '   \n  \n',
+          sidecarLrcContent: sidecar,
+        );
 
-      expect(source, equals(LyricSource.sidecarLrc));
-    });
+        expect(source, equals(LyricSource.sidecarLrc));
+      },
+    );
 
     test('returns none if neither embedded nor sidecar is present', () {
       final source = determineLyricPriority(
@@ -102,27 +108,30 @@ void main() {
   });
 
   group('LRC Filename Matching Rules (Section 13)', () {
-    test('matches same base filename in same folder regardless of extension case', () {
-      expect(
-        matchesLrcSidecar(
-          audioFolderId: 'folder_1',
-          audioFilename: '01 - Mayonaka no Door.flac',
-          lrcFolderId: 'folder_1',
-          lrcFilename: '01 - Mayonaka no Door.lrc',
-        ),
-        isTrue,
-      );
+    test(
+      'matches same base filename in same folder regardless of extension case',
+      () {
+        expect(
+          matchesLrcSidecar(
+            audioFolderId: 'folder_1',
+            audioFilename: '01 - Mayonaka no Door.flac',
+            lrcFolderId: 'folder_1',
+            lrcFilename: '01 - Mayonaka no Door.lrc',
+          ),
+          isTrue,
+        );
 
-      expect(
-        matchesLrcSidecar(
-          audioFolderId: 'folder_1',
-          audioFilename: 'Track01.MP3',
-          lrcFolderId: 'folder_1',
-          lrcFilename: 'track01.LRC',
-        ),
-        isTrue,
-      );
-    });
+        expect(
+          matchesLrcSidecar(
+            audioFolderId: 'folder_1',
+            audioFilename: 'Track01.MP3',
+            lrcFolderId: 'folder_1',
+            lrcFilename: 'track01.LRC',
+          ),
+          isTrue,
+        );
+      },
+    );
 
     test('normalizes insignificant whitespace in base filename', () {
       expect(

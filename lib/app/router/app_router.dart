@@ -15,8 +15,9 @@ import '../../features/playlists/presentation/pages/playlist_detail_page.dart';
 import '../../features/search/presentation/pages/search_page.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
 
-final GlobalKey<NavigatorState> rootNavigatorKey =
-    GlobalKey<NavigatorState>(debugLabel: 'root');
+final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>(
+  debugLabel: 'root',
+);
 
 final appRouter = GoRouter(
   navigatorKey: rootNavigatorKey,
@@ -26,10 +27,8 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/now-playing',
       parentNavigatorKey: rootNavigatorKey,
-      pageBuilder: (context, state) => const CupertinoPage(
-        fullscreenDialog: true,
-        child: NowPlayingPage(),
-      ),
+      pageBuilder: (context, state) =>
+          const CupertinoPage(fullscreenDialog: true, child: NowPlayingPage()),
     ),
 
     // Stateful Nested Shell for 4 primary tabs
@@ -57,15 +56,13 @@ final appRouter = GoRouter(
               routes: [
                 GoRoute(
                   path: 'album/:id',
-                  builder: (context, state) => AlbumDetailPage(
-                    albumId: state.pathParameters['id']!,
-                  ),
+                  builder: (context, state) =>
+                      AlbumDetailPage(albumId: state.pathParameters['id']!),
                 ),
                 GoRoute(
                   path: 'artist/:id',
-                  builder: (context, state) => ArtistDetailPage(
-                    artistId: state.pathParameters['id']!,
-                  ),
+                  builder: (context, state) =>
+                      ArtistDetailPage(artistId: state.pathParameters['id']!),
                 ),
                 GoRoute(
                   path: 'playlist/:id',

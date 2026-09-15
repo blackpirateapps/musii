@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/bootstrap/providers.dart';
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/services/notification_permission_service.dart';
 import '../../../google_drive/presentation/pages/drive_connect_page.dart';
 import '../../../google_drive/presentation/pages/drive_folder_picker_page.dart';
 import '../../../library/presentation/widgets/sync_progress_sheet.dart';
@@ -18,6 +19,7 @@ class SettingsPage extends ConsumerStatefulWidget {
 class _SettingsPageState extends ConsumerState<SettingsPage> {
   bool _gapless = true;
   int _cacheLimitBytes = AppAudioConstants.defaultCacheSizeBytes;
+  bool _notificationsEnabled = true;
 
   @override
   void initState() {
@@ -29,10 +31,13 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     final settings = ref.read(settingsRepositoryProvider);
     final gapless = await settings.getGaplessPlayback();
     final limit = await settings.getCacheLimitBytes();
+    final notifs =
+        await NotificationPermissionService.isNotificationPermissionGranted();
     if (mounted) {
       setState(() {
         _gapless = gapless;
         _cacheLimitBytes = limit;
+        _notificationsEnabled = notifs;
       });
     }
   }
@@ -213,6 +218,29 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                         await ref
                             .read(settingsRepositoryProvider)
                             .setGaplessPlayback(val);
+                      },
+                    ),
+                  ),
+                  CupertinoListTile(
+                    title: const Text('Playback Notifications'),
+                    subtitle: const Text('Lock screen and media notification'),
+                    trailing: CupertinoSwitch(
+                      value: _notificationsEnabled,
+                      onChanged: (val) async {
+                        if (val) {
+                          final granted =
+                              await NotificationPermissionService.requestNotificationPermissionIfNeeded();
+                          if (!granted && mounted) {
+                            await NotificationPermissionService.openSettings();
+                          }
+                        } else {
+                          await NotificationPermissionService.openSettings();
+                        }
+                        final finalStatus =
+                            await NotificationPermissionService.isNotificationPermissionGranted();
+                        if (mounted) {
+                          setState(() => _notificationsEnabled = finalStatus);
+                        }
                       },
                     ),
                   ),

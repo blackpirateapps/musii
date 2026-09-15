@@ -38,13 +38,10 @@ void main() {
               ),
             ),
           ),
-          isTrackFavoriteProvider('track_test_1').overrideWith(
-            (ref) => Stream.value(false),
-          ),
+          isTrackFavoriteProvider('track_test_1')
+              .overrideWith((ref) => Stream.value(false)),
         ],
-        child: const CupertinoApp(
-          home: NowPlayingPage(),
-        ),
+        child: const CupertinoApp(home: NowPlayingPage()),
       ),
     );
 
@@ -100,13 +97,10 @@ void main() {
               ),
             ),
           ),
-          isTrackFavoriteProvider('track_test_1').overrideWith(
-            (ref) => Stream.value(false),
-          ),
+          isTrackFavoriteProvider('track_test_1')
+              .overrideWith((ref) => Stream.value(false)),
         ],
-        child: const CupertinoApp(
-          home: NowPlayingPage(),
-        ),
+        child: const CupertinoApp(home: NowPlayingPage()),
       ),
     );
 

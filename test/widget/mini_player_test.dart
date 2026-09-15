@@ -64,9 +64,7 @@ void main() {
           ),
         ],
         child: const CupertinoApp(
-          home: CupertinoPageScaffold(
-            child: MiniPlayer(),
-          ),
+          home: CupertinoPageScaffold(child: MiniPlayer()),
         ),
       ),
     );

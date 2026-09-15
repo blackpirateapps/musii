@@ -1,10 +1,10 @@
 # Musii — AI Engineering Handoff Document
 
-> **Document Version**: 1.1.0  
+> **Document Version**: 1.2.0  
 > **Target Audience**: Incoming AI Coding Assistants & Human Software Engineers  
 > **Last Verified**: September 2026  
 > **App Identifier**: `com.blackpirateapps.musii`  
-> **Test Status**: 46 / 46 Passing (`flutter test`), 0 Analyzer Warnings (`flutter analyze`)
+> **Test Status**: 51 / 51 Passing (`flutter test`), 0 Analyzer Warnings (`flutter analyze`)
 
 ---
 
@@ -102,6 +102,20 @@ Located in `lib/features/google_drive/` and `lib/features/library/`:
 - Atomic sync transaction diffing local SQLite database with cloud state.
 - Offline audio caching with LRU eviction and atomic temporary file staging (`.partial` -> destination).
 
+### 4. Android Media Notifications & Lock Screen Playback Controls
+Located in `lib/app/bootstrap/bootstrap.dart`, `lib/core/services/notification_permission_service.dart`, and `lib/features/playback/data/repositories/playback_repository_impl.dart`:
+- **AudioService Registration (`AudioService.init`)**:
+  - Initializes background foreground service with `AudioServiceConfig` (channel `com.blackpirateapps.musii.channel.audio`, small icon `drawable/ic_stat_music`).
+  - Graceful fallback for test/desktop runtime where native host channel is not present.
+- **Android 13+ Notification Permission (`POST_NOTIFICATIONS`)**:
+  - `<uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>` declared in `AndroidManifest.xml`.
+  - Proactive request during bootstrap via `NotificationPermissionService.requestNotificationPermissionIfNeeded()`.
+  - Toggle & settings shortcut available in `SettingsPage` under `PLAYBACK`.
+- **MediaSession & Lock Screen Controls**:
+  - Bidirectional controls for `skipToPrevious`, `play`/`pause`, `skipToNext`, `stop`, `seek`, `fastForward`, `rewind`, `skipToQueueItem`, `setShuffleMode`, and `setRepeatMode`.
+  - Full queue synchronization (`queue.add`) keeping Android Auto, Wear OS, and system notification queues synchronized.
+  - Safe local artwork file validation before supplying `artUri: Uri.file(...)`.
+
 ---
 
 ## 4. Important Pitfalls, Caveats & Solutions
@@ -121,6 +135,8 @@ Located in `lib/features/google_drive/` and `lib/features/library/`:
    - When moving items in `PlaylistRepositoryImpl.reorderPlaylistTracks(playlistId, oldIndex, newIndex)`, do not apply an off-by-one decrement in the repository layer; the repository operates on target index slots directly.
 6. **Auth Stream Cold Start — Broadcast Stream Initial Value**:
    - `GoogleAuthRepository._userStreamController` is a broadcast `StreamController` that only emits on sign-in/sign-out events. On cold app start, `watchCurrentUser()` must first yield the current user (via `getCurrentUser()` which calls `signInSilently()` + DB fallback) before forwarding the stream. Without this, `currentUserProvider` stays `null` and the homepage shows the "Connect Google Drive" empty state even when already signed in.
+7. **AudioService Platform Channel Binding in Tests**:
+   - `AudioService.init` interacts with Android native platform channels (`flutter.baseflow.com/permissions/methods`, `com.ryanheise.audioservice`). In unit and widget tests, avoid calling raw `AudioService.init` without mock platform channels; `MusiiAudioHandler` can be instantiated directly or overridden via `musiiAudioHandlerProvider.overrideWithValue(...)` or `playerStateProvider.overrideWith(...)`.
 
 ---
 

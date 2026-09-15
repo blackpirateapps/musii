@@ -30,7 +30,9 @@ void main() {
   group('Library, Lyrics, and User Activity Flow', () {
     test('inserts tracks, saves synchronized lyrics, and retrieves them in sequence', () async {
       // 1. Insert track into Drift database
-      await db.into(db.tracks).insert(
+      await db
+          .into(db.tracks)
+          .insert(
             TracksCompanion.insert(
               id: 'track_test_101',
               driveFileId: 'drive_file_101',
@@ -53,8 +55,16 @@ void main() {
         rawText: '[00:10.00]Line 1\n[00:20.00]Line 2',
         offsetMs: 0,
         lines: const [
-          LyricLine(timestampMs: 10000, text: 'To you, yes, my love to you', sequence: 0),
-          LyricLine(timestampMs: 20000, text: 'Watashi wa watashi anata wa anata to', sequence: 1),
+          LyricLine(
+            timestampMs: 10000,
+            text: 'To you, yes, my love to you',
+            sequence: 0,
+          ),
+          LyricLine(
+            timestampMs: 20000,
+            text: 'Watashi wa watashi anata wa anata to',
+            sequence: 1,
+          ),
         ],
       );
 
@@ -72,7 +82,9 @@ void main() {
       const trackId = 'track_fav_1';
 
       // Insert track
-      await db.into(db.tracks).insert(
+      await db
+          .into(db.tracks)
+          .insert(
             TracksCompanion.insert(
               id: trackId,
               driveFileId: 'drive_fav_1',
@@ -108,7 +120,9 @@ void main() {
       final plId = plResult.dataOrNull!;
 
       // Insert tracks
-      await db.into(db.tracks).insert(
+      await db
+          .into(db.tracks)
+          .insert(
             TracksCompanion.insert(
               id: 't1',
               driveFileId: 'df1',
@@ -119,7 +133,9 @@ void main() {
               updatedAt: DateTime.now(),
             ),
           );
-      await db.into(db.tracks).insert(
+      await db
+          .into(db.tracks)
+          .insert(
             TracksCompanion.insert(
               id: 't2',
               driveFileId: 'df2',
@@ -149,7 +165,9 @@ void main() {
 
     test('recently played records actual playback above threshold', () async {
       const trackId = 't_recent';
-      await db.into(db.tracks).insert(
+      await db
+          .into(db.tracks)
+          .insert(
             TracksCompanion.insert(
               id: trackId,
               driveFileId: 'df_recent',

@@ -65,7 +65,8 @@ class TrackLyrics {
     this.lines = const [],
   });
 
-  bool get hasLyrics => lines.isNotEmpty || (rawText != null && rawText!.trim().isNotEmpty);
+  bool get hasLyrics =>
+      lines.isNotEmpty || (rawText != null && rawText!.trim().isNotEmpty);
 
   @override
   bool operator ==(Object other) =>

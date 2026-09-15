@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:audio_service/audio_service.dart';
 import 'package:audio_session/audio_session.dart';
@@ -63,6 +64,29 @@ class MusiiAudioHandler extends BaseAudioHandler
     }
   }
 
+  MediaItem _toMediaItem(Track track) {
+    Uri? artUri;
+    if (track.artworkPath != null && track.artworkPath!.isNotEmpty) {
+      final file = File(track.artworkPath!);
+      if (file.existsSync()) {
+        artUri = Uri.file(file.path);
+      }
+    }
+
+    return MediaItem(
+      id: track.id,
+      album: track.albumName ?? 'Unknown Album',
+      title: track.title,
+      artist: track.artistName ?? 'Unknown Artist',
+      duration: Duration(milliseconds: track.durationMs),
+      artUri: artUri,
+    );
+  }
+
+  void _syncMediaQueue() {
+    queue.add(_currentQueue.map(_toMediaItem).toList());
+  }
+
   void _listenToPlayerEvents() {
     _player.playbackEventStream.listen((PlaybackEvent event) {
       final isPlaying = _player.playing;
@@ -74,11 +98,15 @@ class MusiiAudioHandler extends BaseAudioHandler
             MediaControl.skipToPrevious,
             if (isPlaying) MediaControl.pause else MediaControl.play,
             MediaControl.skipToNext,
+            MediaControl.stop,
           ],
           systemActions: const {
             MediaAction.seek,
             MediaAction.seekForward,
             MediaAction.seekBackward,
+            MediaAction.setShuffleMode,
+            MediaAction.setRepeatMode,
+            MediaAction.skipToQueueItem,
           },
           androidCompactActionIndices: const [0, 1, 2],
           processingState: switch (processing) {
@@ -180,6 +208,9 @@ class MusiiAudioHandler extends BaseAudioHandler
     final targetTrack = _currentTrack ?? track;
     _cacheRepository.setCurrentlyPlayingTrackId(targetTrack.id);
 
+    // Sync media session queue
+    _syncMediaQueue();
+
     // Emit loading state immediately
     _emitSnapshot(
       _snapshot.copyWith(
@@ -193,18 +224,7 @@ class MusiiAudioHandler extends BaseAudioHandler
     );
 
     // Update MediaItem for system notification
-    mediaItem.add(
-      MediaItem(
-        id: targetTrack.id,
-        album: targetTrack.albumName ?? 'Unknown Album',
-        title: targetTrack.title,
-        artist: targetTrack.artistName ?? 'Unknown Artist',
-        duration: Duration(milliseconds: targetTrack.durationMs),
-        artUri: targetTrack.artworkPath != null
-            ? Uri.file(targetTrack.artworkPath!)
-            : null,
-      ),
-    );
+    mediaItem.add(_toMediaItem(targetTrack));
 
     try {
       AppLogger.info(
@@ -303,6 +323,59 @@ class MusiiAudioHandler extends BaseAudioHandler
     }
   }
 
+  @override
+  Future<void> skipToQueueItem(int index) async {
+    if (index >= 0 && index < _currentQueue.length) {
+      _currentIndex = index;
+      await loadAndPlayTrack(_currentQueue[_currentIndex]);
+    }
+  }
+
+  @override
+  Future<void> fastForward([
+    Duration interval = const Duration(seconds: 10),
+  ]) async {
+    final target = _player.position + interval;
+    final duration = _player.duration ?? _snapshot.duration;
+    await seek(target > duration ? duration : target);
+  }
+
+  @override
+  Future<void> rewind([Duration interval = const Duration(seconds: 10)]) async {
+    final target = _player.position - interval;
+    await seek(target < Duration.zero ? Duration.zero : target);
+  }
+
+  @override
+  Future<void> onNotificationDeleted() async {
+    await stop();
+  }
+
+  @override
+  Future<void> setShuffleMode(AudioServiceShuffleMode shuffleMode) async {
+    final enable =
+        shuffleMode == AudioServiceShuffleMode.all ||
+        shuffleMode == AudioServiceShuffleMode.group;
+    if (_shuffleMode != enable) {
+      toggleShuffle();
+    }
+  }
+
+  @override
+  Future<void> setRepeatMode(AudioServiceRepeatMode repeatMode) async {
+    final target = switch (repeatMode) {
+      AudioServiceRepeatMode.none => AudioRepeatMode.off,
+      AudioServiceRepeatMode.all => AudioRepeatMode.all,
+      AudioServiceRepeatMode.one => AudioRepeatMode.one,
+      AudioServiceRepeatMode.group => AudioRepeatMode.all,
+    };
+    if (_repeatMode != target) {
+      _repeatMode = target;
+      _emitSnapshot(_snapshot.copyWith(repeatMode: _repeatMode));
+      unawaited(_persistState());
+    }
+  }
+
   void toggleShuffle() {
     _shuffleMode = !_shuffleMode;
     if (_shuffleMode) {
@@ -321,6 +394,7 @@ class MusiiAudioHandler extends BaseAudioHandler
         if (_currentIndex == -1) _currentIndex = 0;
       }
     }
+    _syncMediaQueue();
     _emitSnapshot(
       _snapshot.copyWith(
         shuffleMode: _shuffleMode,
@@ -355,6 +429,7 @@ class MusiiAudioHandler extends BaseAudioHandler
     }
     _currentQueue.insert(_currentIndex + 1, track);
     _unshuffledQueue.add(track);
+    _syncMediaQueue();
     _emitSnapshot(_snapshot.copyWith(queue: _currentQueue));
     unawaited(_persistQueue());
   }
@@ -362,6 +437,7 @@ class MusiiAudioHandler extends BaseAudioHandler
   void playLast(Track track) {
     _currentQueue.add(track);
     _unshuffledQueue.add(track);
+    _syncMediaQueue();
     _emitSnapshot(_snapshot.copyWith(queue: _currentQueue));
     unawaited(_persistQueue());
   }
@@ -383,6 +459,7 @@ class MusiiAudioHandler extends BaseAudioHandler
       if (_currentIndex == -1) _currentIndex = 0;
     }
 
+    _syncMediaQueue();
     _emitSnapshot(
       _snapshot.copyWith(queue: _currentQueue, queueIndex: _currentIndex),
     );
@@ -396,8 +473,10 @@ class MusiiAudioHandler extends BaseAudioHandler
 
     if (_currentQueue.isEmpty) {
       stop();
+      _syncMediaQueue();
       _emitSnapshot(const PlayerStateSnapshot());
     } else {
+      _syncMediaQueue();
       if (isCurrent) {
         if (_currentIndex >= _currentQueue.length) {
           _currentIndex = _currentQueue.length - 1;
@@ -420,6 +499,7 @@ class MusiiAudioHandler extends BaseAudioHandler
     _currentQueue.clear();
     _unshuffledQueue.clear();
     _currentIndex = 0;
+    _syncMediaQueue();
     _emitSnapshot(const PlayerStateSnapshot());
     unawaited(_persistQueue());
   }
@@ -514,8 +594,11 @@ class MusiiAudioHandler extends BaseAudioHandler
           savedState?.repeatMode ?? 'off',
         );
 
+        _syncMediaQueue();
+
         final current = _currentTrack;
         if (current != null) {
+          mediaItem.add(_toMediaItem(current));
           _emitSnapshot(
             PlayerStateSnapshot(
               currentTrack: current,

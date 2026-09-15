@@ -49,16 +49,17 @@ class LyricsRepositoryImpl implements LyricsRepository {
   @override
   Future<TrackLyrics?> getLyricsForTrack(String trackId) async {
     try {
-      final row = await (_database.select(_database.lyrics)
-            ..where((tbl) => tbl.trackId.equals(trackId)))
-          .getSingleOrNull();
+      final row = await (_database.select(
+        _database.lyrics,
+      )..where((tbl) => tbl.trackId.equals(trackId))).getSingleOrNull();
 
       if (row == null) return null;
 
-      final lineRows = await (_database.select(_database.lyricLines)
-            ..where((tbl) => tbl.lyricsId.equals(row.id))
-            ..orderBy([(tbl) => OrderingTerm.asc(tbl.sequence)]))
-          .get();
+      final lineRows =
+          await (_database.select(_database.lyricLines)
+                ..where((tbl) => tbl.lyricsId.equals(row.id))
+                ..orderBy([(tbl) => OrderingTerm.asc(tbl.sequence)]))
+              .get();
 
       return TrackLyrics(
         id: row.id,
@@ -101,7 +102,9 @@ class LyricsRepositoryImpl implements LyricsRepository {
 
     await _database.transaction(() async {
       // 1. Upsert lyrics header record
-      await _database.into(_database.lyrics).insertOnConflictUpdate(
+      await _database
+          .into(_database.lyrics)
+          .insertOnConflictUpdate(
             LyricsCompanion(
               id: Value(lyricsId),
               trackId: Value(trackId),
@@ -115,14 +118,16 @@ class LyricsRepositoryImpl implements LyricsRepository {
           );
 
       // 2. Clear old lines for this lyric
-      await (_database.delete(_database.lyricLines)
-            ..where((tbl) => tbl.lyricsId.equals(lyricsId)))
-          .go();
+      await (_database.delete(
+        _database.lyricLines,
+      )..where((tbl) => tbl.lyricsId.equals(lyricsId))).go();
 
       // 3. Batch insert new lines
       for (int i = 0; i < lines.length; i++) {
         final line = lines[i];
-        await _database.into(_database.lyricLines).insert(
+        await _database
+            .into(_database.lyricLines)
+            .insert(
               LyricLinesCompanion(
                 id: Value('ll_${lyricsId}_$i'),
                 lyricsId: Value(lyricsId),
@@ -144,12 +149,12 @@ class LyricsRepositoryImpl implements LyricsRepository {
   Future<void> deleteLyricsForTrack(String trackId) async {
     final lyricsId = 'lyric_$trackId';
     await _database.transaction(() async {
-      await (_database.delete(_database.lyricLines)
-            ..where((tbl) => tbl.lyricsId.equals(lyricsId)))
-          .go();
-      await (_database.delete(_database.lyrics)
-            ..where((tbl) => tbl.id.equals(lyricsId)))
-          .go();
+      await (_database.delete(
+        _database.lyricLines,
+      )..where((tbl) => tbl.lyricsId.equals(lyricsId))).go();
+      await (_database.delete(
+        _database.lyrics,
+      )..where((tbl) => tbl.id.equals(lyricsId))).go();
     });
   }
 }

@@ -106,8 +106,10 @@ void main() {
       expect(result.lines.length, equals(1));
     });
 
-    test('handles malformed lines and empty lines gracefully without crashing', () {
-      const lrc = '''
+    test(
+      'handles malformed lines and empty lines gracefully without crashing',
+      () {
+        const lrc = '''
 [ti:Test]
 
 [invalid-tag:unknown]
@@ -118,15 +120,16 @@ This is random text without timestamps
 [00:10.00]Valid line 2
 ''';
 
-      final result = LrcParser.parse(lrc);
+        final result = LrcParser.parse(lrc);
 
-      expect(result.isSynchronized, isTrue);
-      expect(result.lines.length, equals(2));
-      expect(result.lines[0].timestampMs, equals(5000));
-      expect(result.lines[0].text, equals('Valid line 1'));
-      expect(result.lines[1].timestampMs, equals(10000));
-      expect(result.lines[1].text, equals('Valid line 2'));
-    });
+        expect(result.isSynchronized, isTrue);
+        expect(result.lines.length, equals(2));
+        expect(result.lines[0].timestampMs, equals(5000));
+        expect(result.lines[0].text, equals('Valid line 1'));
+        expect(result.lines[1].timestampMs, equals(10000));
+        expect(result.lines[1].text, equals('Valid line 2'));
+      },
+    );
 
     test('treats text with no timestamps as plain unsynchronized lyrics', () {
       const plain = '''
@@ -158,7 +161,10 @@ Third stanza line
     test('hasTimestamps helper correctly detects presence of timestamps', () {
       expect(LrcParser.hasTimestamps('[01:23.45]Hello'), isTrue);
       expect(LrcParser.hasTimestamps('[01:23]Hello'), isTrue);
-      expect(LrcParser.hasTimestamps('Plain lyric line with no bracket'), isFalse);
+      expect(
+        LrcParser.hasTimestamps('Plain lyric line with no bracket'),
+        isFalse,
+      );
       expect(LrcParser.hasTimestamps('[ti:Title only]'), isFalse);
     });
   });

@@ -29,14 +29,13 @@ class LrcParser {
   );
 
   // Metadata tags e.g. [offset:+500] or [ar:Artist] or [ti:Title]
-  static final RegExp _tagPattern = RegExp(
-    r'^\[([a-zA-Z]+)\s*:\s*(.*)\]$',
-  );
+  static final RegExp _tagPattern = RegExp(r'^\[([a-zA-Z]+)\s*:\s*(.*)\]$');
 
   /// Checks whether a text contains valid synchronized timestamps.
   static bool hasTimestamps(String text) {
     if (text.isEmpty) return false;
-    return _timestampPattern.hasMatch(text) || _hourTimestampPattern.hasMatch(text);
+    return _timestampPattern.hasMatch(text) ||
+        _hourTimestampPattern.hasMatch(text);
   }
 
   /// Parses an LRC string or plain text lyrics.
@@ -83,7 +82,10 @@ class LrcParser {
       if (matches.isNotEmpty) {
         foundAnyTimestamp = true;
         // Strip all leading timestamp tags to get the lyric text
-        final lyricText = trimmed.replaceAll(_timestampPattern, '').replaceAll(_hourTimestampPattern, '').trim();
+        final lyricText = trimmed
+            .replaceAll(_timestampPattern, '')
+            .replaceAll(_hourTimestampPattern, '')
+            .trim();
 
         for (final timeMs in matches) {
           timedLines.add(_RawLineWithTime(timeMs, lyricText));
@@ -104,11 +106,7 @@ class LrcParser {
         final item = timedLines[i];
         final adjustedTime = max(0, item.timestampMs + offsetMs);
         finalLines.add(
-          LyricLine(
-            timestampMs: adjustedTime,
-            text: item.text,
-            sequence: i,
-          ),
+          LyricLine(timestampMs: adjustedTime, text: item.text, sequence: i),
         );
       }
 
@@ -124,11 +122,7 @@ class LrcParser {
       final List<LyricLine> finalLines = [];
       for (int i = 0; i < plainLines.length; i++) {
         finalLines.add(
-          LyricLine(
-            timestampMs: 0,
-            text: plainLines[i],
-            sequence: i,
-          ),
+          LyricLine(timestampMs: 0, text: plainLines[i], sequence: i),
         );
       }
 
@@ -188,7 +182,8 @@ class LrcParser {
         }
       }
 
-      final totalMs = (hours * 3600 + minutes * 60 + seconds) * 1000 + fractionMs;
+      final totalMs =
+          (hours * 3600 + minutes * 60 + seconds) * 1000 + fractionMs;
       results.add(totalMs);
     }
 
