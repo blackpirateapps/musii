@@ -77,7 +77,7 @@ void main() {
 
     // Bottom Secondary Controls (Favorite, Lyrics, Queue)
     expect(find.byIcon(CupertinoIcons.heart), findsOneWidget);
-    expect(find.byIcon(CupertinoIcons.square_arrow_up), findsOneWidget);
+    expect(find.byIcon(CupertinoIcons.quote_bubble), findsOneWidget);
     expect(find.byIcon(CupertinoIcons.text_badge_plus), findsOneWidget);
   });
 

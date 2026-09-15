@@ -60,7 +60,7 @@ Located in `lib/features/playback/presentation/pages/now_playing_page.dart`:
 - **Vibrant Blurred Artwork Aesthetic**: Real-time blurred album artwork backdrop with a lighter translucent gradient overlay (`0x40`/`0x80`/`0xB3` opacity) so album art colors bleed through vividly.
 - **Proportional Artwork Presentation**: Floating artwork sized responsively (`min(width * 0.62, height * 0.32)`) with rounded corners and subtle drop shadow.
 - **Left-Aligned Track Metadata**: Song title, artist name, and album name with Cupertino typography and ellipsis truncation.
-- **Technical Pill Badge**: Displays exact audio format and bitrate (e.g., `FLAC · 706 kbps`, `MP3 · 320 kbps`) in a translucent rounded pill container.
+- **Technical Pill Badge**: Displays exact audio format and bitrate (e.g., `FLAC · 706 kbps`, `MP3 · 320 kbps`) in a translucent rounded pill container with adaptive background contrast (`isDarkBackground`).
 - **More Actions Button**: Circular translucent Cupertino button (`...`) opening a contextual action sheet (Album, Artist, Lyrics, Share, Favorite).
 - **Apple Music-Style Scrubber**: Custom Material `SliderTheme` + `Slider` with thin 4px track, small 6px thumb radius, white active track, and semi-transparent gray inactive track. Uses selective Material import (`show Slider, SliderTheme, SliderThemeData, ...`).
 - **5-Control Playback Cluster**:
@@ -71,7 +71,7 @@ Located in `lib/features/playback/presentation/pages/now_playing_page.dart`:
   - Repeat mode toggle (off, all, one).
 - **Bottom Action Bar** (border-outlined circular buttons with translucent fill):
   - Heart icon for instant favorites toggling.
-  - Lyrics icon (`square_arrow_up`) opening synchronized `LyricsSheet`.
+  - Lyrics icon (`quote_bubble`) opening synchronized `LyricsSheet`.
   - Queue icon (`text_badge_plus`) opening the dynamic playback queue sheet.
 
 ### 2. Lyrics Engine & Synchronization
@@ -115,6 +115,16 @@ Located in `lib/app/bootstrap/bootstrap.dart`, `lib/core/services/notification_p
   - Bidirectional controls for `skipToPrevious`, `play`/`pause`, `skipToNext`, `stop`, `seek`, `fastForward`, `rewind`, `skipToQueueItem`, `setShuffleMode`, and `setRepeatMode`.
   - Full queue synchronization (`queue.add`) keeping Android Auto, Wear OS, and system notification queues synchronized.
   - Safe local artwork file validation before supplying `artUri: Uri.file(...)`.
+
+### 5. Wi-Fi Pre-Caching & In-Memory Artwork Retention
+Located in `lib/core/services/connectivity_service.dart`, `lib/features/cache/`, `lib/features/library/presentation/widgets/album_artwork.dart`, and `lib/features/playback/`:
+- **Wi-Fi Pre-Caching Engine**:
+  - When connected to Wi-Fi/Ethernet, automatically pre-fetches the next up to 3 upcoming queue tracks sequentially in background without interrupting playback.
+  - In-flight download deduplication (`_inFlightDownloads`) in `CacheRepositoryImpl` prevents duplicate network downloads and concurrency race conditions.
+- **In-Memory Artwork Retention**:
+  - `AlbumArtwork` calculates target thumbnail dimensions via `cacheWidth` and `cacheHeight` (clamped to 64–800px) with `gaplessPlayback: true`.
+  - `PaintingBinding.instance.imageCache` is expanded to 256MB capacity (2,000 textures) to eliminate pop-in re-decoding during fast scrolling.
+  - `cacheExtent: 600.0` on sliver scrollviews retains viewport boundary layouts.
 
 ---
 

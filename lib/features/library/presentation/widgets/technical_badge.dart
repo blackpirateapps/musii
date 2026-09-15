@@ -6,8 +6,14 @@ import '../../domain/entities/music_entities.dart';
 class TechnicalBadge extends StatelessWidget {
   final Track track;
   final VoidCallback? onTap;
+  final bool? isDarkBackground;
 
-  const TechnicalBadge({super.key, required this.track, this.onTap});
+  const TechnicalBadge({
+    super.key,
+    required this.track,
+    this.onTap,
+    this.isDarkBackground,
+  });
 
   String _formatBadgeText() {
     final parts = <String>[];
@@ -35,7 +41,9 @@ class TechnicalBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final text = _formatBadgeText();
-    final isDark = CupertinoTheme.brightnessOf(context) == Brightness.dark;
+    final effectiveDark =
+        isDarkBackground ??
+        (CupertinoTheme.brightnessOf(context) == Brightness.dark);
 
     return CupertinoButton(
       padding: EdgeInsets.zero,
@@ -44,9 +52,9 @@ class TechnicalBadge extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 3.0),
         decoration: BoxDecoration(
-          color: isDark
-              ? CupertinoColors.white.withOpacity(0.12)
-              : CupertinoColors.black.withOpacity(0.06),
+          color: effectiveDark
+              ? CupertinoColors.white.withOpacity(0.14)
+              : CupertinoColors.black.withOpacity(0.08),
           borderRadius: BorderRadius.circular(AppRadii.small),
         ),
         child: Text(
@@ -55,9 +63,9 @@ class TechnicalBadge extends StatelessWidget {
             fontSize: 11,
             fontWeight: FontWeight.w600,
             letterSpacing: 0.2,
-            color: isDark
-                ? CupertinoColors.white.withOpacity(0.8)
-                : CupertinoColors.black.withOpacity(0.7),
+            color: effectiveDark
+                ? CupertinoColors.white.withOpacity(0.85)
+                : CupertinoColors.black.withOpacity(0.75),
           ),
         ),
       ),

@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:musii/core/constants/app_constants.dart';
+import 'package:musii/core/services/connectivity_service.dart';
 import 'package:musii/features/library/domain/entities/music_entities.dart';
 import 'package:musii/features/playback/domain/entities/playback_state.dart';
 
@@ -59,6 +60,12 @@ void main() {
         AudioRepeatMode.fromString('invalid'),
         equals(AudioRepeatMode.off),
       );
+    });
+
+    test('ConnectivityService evaluates wifi status gracefully', () async {
+      final service = ConnectivityService();
+      final isWifi = await service.isWifiConnected();
+      expect(isWifi, isA<bool>());
     });
   });
 }

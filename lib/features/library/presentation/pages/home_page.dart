@@ -49,6 +49,7 @@ class HomePage extends ConsumerWidget {
     return CupertinoPageScaffold(
       child: CustomScrollView(
         physics: const BouncingScrollPhysics(),
+        cacheExtent: 600.0,
         slivers: [
           CupertinoSliverNavigationBar(
             largeTitle: Text(greeting),

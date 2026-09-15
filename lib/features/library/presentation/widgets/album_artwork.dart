@@ -25,13 +25,20 @@ class AlbumArtwork extends StatelessWidget {
     if (artworkPath != null && artworkPath!.isNotEmpty) {
       final file = File(artworkPath!);
       if (file.existsSync()) {
+        final dpr = MediaQuery.maybeDevicePixelRatioOf(context) ?? 2.0;
+        final targetCacheDim = (size * dpr).round().clamp(64, 800);
+
         return ClipRRect(
           borderRadius: BorderRadius.circular(borderRadius),
           child: Image.file(
             file,
             width: size,
             height: size,
+            cacheWidth: targetCacheDim,
+            cacheHeight: targetCacheDim,
             fit: BoxFit.cover,
+            gaplessPlayback: true,
+            filterQuality: FilterQuality.medium,
             errorBuilder: (_, _, _) => _buildFallback(),
           ),
         );

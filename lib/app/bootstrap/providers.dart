@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/database/app_database.dart';
 import '../../core/filesystem/app_file_system.dart';
+import '../../core/services/connectivity_service.dart';
 import '../../features/authentication/data/repositories/google_auth_repository.dart';
 import '../../features/authentication/domain/entities/auth_user.dart';
 import '../../features/cache/data/repositories/cache_repository_impl.dart';
@@ -137,16 +138,23 @@ final settingsRepositoryProvider = Provider<SettingsRepository>((ref) {
   return SettingsRepositoryImpl(database: db);
 });
 
+// Connectivity
+final connectivityServiceProvider = Provider<ConnectivityService>((ref) {
+  return ConnectivityService();
+});
+
 // Playback & AudioHandler
 final musiiAudioHandlerProvider = Provider<MusiiAudioHandler>((ref) {
   final cache = ref.watch(cacheRepositoryProvider);
   final recents = ref.watch(recentlyPlayedRepositoryProvider);
   final db = ref.watch(appDatabaseProvider);
+  final connectivity = ref.watch(connectivityServiceProvider);
 
   final handler = MusiiAudioHandler(
     cacheRepository: cache,
     recentlyPlayedRepository: recents,
     database: db,
+    connectivityService: connectivity,
   );
   return handler;
 });

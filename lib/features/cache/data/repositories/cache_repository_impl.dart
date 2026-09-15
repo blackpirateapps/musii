@@ -20,6 +20,7 @@ class CacheRepositoryImpl implements CacheRepository {
 
   String? _currentlyPlayingTrackId;
   final Map<String, StreamController<double?>> _progressControllers = {};
+  final Map<String, Future<Result<File, AppFailure>>> _inFlightDownloads = {};
 
   CacheRepositoryImpl({
     required AppDatabase database,
@@ -80,6 +81,24 @@ class CacheRepositoryImpl implements CacheRepository {
 
   @override
   Future<Result<File, AppFailure>> getOrDownloadTrack(
+    Track track, {
+    void Function(double progress)? onProgress,
+  }) async {
+    final existingFuture = _inFlightDownloads[track.id];
+    if (existingFuture != null) {
+      return existingFuture;
+    }
+
+    final future = _executeGetOrDownloadTrack(track, onProgress: onProgress);
+    _inFlightDownloads[track.id] = future;
+    try {
+      return await future;
+    } finally {
+      unawaited(_inFlightDownloads.remove(track.id));
+    }
+  }
+
+  Future<Result<File, AppFailure>> _executeGetOrDownloadTrack(
     Track track, {
     void Function(double progress)? onProgress,
   }) async {

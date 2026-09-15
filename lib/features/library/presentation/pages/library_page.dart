@@ -70,6 +70,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
     return CupertinoPageScaffold(
       child: CustomScrollView(
         physics: const BouncingScrollPhysics(),
+        cacheExtent: 600.0,
         slivers: [
           CupertinoSliverNavigationBar(
             largeTitle: const Text('Library'),

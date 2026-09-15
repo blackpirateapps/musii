@@ -13,6 +13,10 @@ Future<void> bootstrap() async {
   // 1. Initialize Flutter bindings
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Configure high-performance in-memory image cache for smooth fast-scrolling
+  PaintingBinding.instance.imageCache.maximumSizeBytes = 256 * 1024 * 1024; // 256 MB
+  PaintingBinding.instance.imageCache.maximumSize = 2000;
+
   // 2. Initialize logging
   AppLogger.info(LogCategory.ui, 'Musii bootstrap starting...');
 
@@ -35,6 +39,9 @@ Future<void> bootstrap() async {
           recentlyPlayedRepositoryProvider,
         ),
         database: preflightContainer.read(appDatabaseProvider),
+        connectivityService: preflightContainer.read(
+          connectivityServiceProvider,
+        ),
       ),
       config: const AudioServiceConfig(
         androidNotificationChannelId: 'com.blackpirateapps.musii.channel.audio',
@@ -65,6 +72,7 @@ Future<void> bootstrap() async {
         recentlyPlayedRepositoryProvider,
       ),
       database: preflightContainer.read(appDatabaseProvider),
+      connectivityService: preflightContainer.read(connectivityServiceProvider),
     );
   }
 

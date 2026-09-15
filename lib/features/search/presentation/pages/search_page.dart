@@ -51,6 +51,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     return CupertinoPageScaffold(
       child: CustomScrollView(
         physics: const BouncingScrollPhysics(),
+        cacheExtent: 600.0,
         slivers: [
           const CupertinoSliverNavigationBar(
             largeTitle: Text('Search'),

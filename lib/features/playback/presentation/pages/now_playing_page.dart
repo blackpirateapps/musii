@@ -257,6 +257,7 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage> {
                                           const SizedBox(height: 8),
                                           TechnicalBadge(
                                             track: track,
+                                            isDarkBackground: true,
                                             onTap: () => showAudioInfoSheet(
                                               context,
                                               track,
@@ -580,7 +581,7 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage> {
                                         ),
                                       ),
                                       child: const Icon(
-                                        CupertinoIcons.square_arrow_up,
+                                        CupertinoIcons.quote_bubble,
                                         size: 22,
                                         color: CupertinoColors.white,
                                       ),

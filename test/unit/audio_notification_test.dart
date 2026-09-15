@@ -10,6 +10,7 @@ import 'package:musii/features/playback/domain/entities/playback_state.dart';
 import 'package:musii/features/recently_played/data/repositories/recently_played_repository_impl.dart';
 import 'package:mocktail/mocktail.dart';
 
+import 'package:musii/core/services/connectivity_service.dart';
 import 'package:musii/core/error/failures.dart';
 import 'package:musii/core/result/result.dart';
 
@@ -17,6 +18,8 @@ class MockCacheRepository extends Mock implements CacheRepository {}
 
 class MockRecentlyPlayedRepository extends Mock
     implements RecentlyPlayedRepository {}
+
+class MockConnectivityService extends Mock implements ConnectivityService {}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -50,20 +53,25 @@ void main() {
     late AppDatabase db;
     late MockCacheRepository mockCache;
     late MockRecentlyPlayedRepository mockRecents;
+    late MockConnectivityService mockConnectivity;
     late MusiiAudioHandler handler;
 
     setUp(() {
       db = AppDatabase(NativeDatabase.memory());
       mockCache = MockCacheRepository();
       mockRecents = MockRecentlyPlayedRepository();
+      mockConnectivity = MockConnectivityService();
       when(() => mockCache.setCurrentlyPlayingTrackId(any())).thenReturn(null);
       when(() => mockCache.getOrDownloadTrack(any())).thenAnswer(
         (_) async => const Result.failure(CacheFailure('mock test failure')),
       );
+      when(() => mockCache.isTrackCached(any())).thenAnswer((_) async => false);
+      when(() => mockConnectivity.isWifiConnected()).thenAnswer((_) async => true);
       handler = MusiiAudioHandler(
         cacheRepository: mockCache,
         recentlyPlayedRepository: mockRecents,
         database: db,
+        connectivityService: mockConnectivity,
       );
     });
 
@@ -135,6 +143,24 @@ void main() {
 
       await handler.setShuffleMode(AudioServiceShuffleMode.none);
       expect(handler.currentSnapshot.shuffleMode, isFalse);
+    });
+
+    test('loadAndPlayTrack sets current track and initiates audio retrieval', () async {
+      const testTrack = Track(
+        id: 'track_1',
+        driveFileId: 'df1',
+        sourceId: 's1',
+        title: 'Song Title',
+        normalizedTitle: 'song title',
+        durationMs: 210000,
+      );
+
+      await handler.loadAndPlayTrack(testTrack);
+
+      expect(handler.currentSnapshot.currentTrack?.id, equals('track_1'));
+      expect(handler.currentSnapshot.currentTrack?.title, equals('Song Title'));
+      verify(() => mockCache.setCurrentlyPlayingTrackId('track_1')).called(1);
+      verify(() => mockCache.getOrDownloadTrack(any())).called(1);
     });
   });
 }

@@ -8,6 +8,7 @@ import 'package:just_audio/just_audio.dart';
 
 import '../../../../core/database/app_database.dart';
 import '../../../../core/logging/app_logger.dart';
+import '../../../../core/services/connectivity_service.dart';
 import '../../../cache/domain/entities/cache_entry.dart';
 import '../../../library/domain/entities/music_entities.dart';
 import '../../../playlists/domain/entities/playlist_entities.dart';
@@ -21,12 +22,14 @@ class MusiiAudioHandler extends BaseAudioHandler
   final CacheRepository _cacheRepository;
   final RecentlyPlayedRepository _recentlyPlayedRepository;
   final AppDatabase _database;
+  final ConnectivityService _connectivityService;
 
   List<Track> _currentQueue = [];
   int _currentIndex = 0;
   AudioRepeatMode _repeatMode = AudioRepeatMode.off;
   bool _shuffleMode = false;
   List<Track> _unshuffledQueue = [];
+  int _loadGeneration = 0;
 
   final StreamController<PlayerStateSnapshot> _stateController =
       StreamController<PlayerStateSnapshot>.broadcast();
@@ -37,9 +40,11 @@ class MusiiAudioHandler extends BaseAudioHandler
     required CacheRepository cacheRepository,
     required RecentlyPlayedRepository recentlyPlayedRepository,
     required AppDatabase database,
+    ConnectivityService? connectivityService,
   }) : _cacheRepository = cacheRepository,
        _recentlyPlayedRepository = recentlyPlayedRepository,
-       _database = database {
+       _database = database,
+       _connectivityService = connectivityService ?? ConnectivityService() {
     _initAudioSession();
     _listenToPlayerEvents();
   }
@@ -208,7 +213,7 @@ class MusiiAudioHandler extends BaseAudioHandler
     final targetTrack = _currentTrack ?? track;
     _cacheRepository.setCurrentlyPlayingTrackId(targetTrack.id);
 
-    // Sync media session queue
+    // Sync media session queue immediately
     _syncMediaQueue();
 
     // Emit loading state immediately
@@ -216,6 +221,7 @@ class MusiiAudioHandler extends BaseAudioHandler
       _snapshot.copyWith(
         currentTrack: targetTrack,
         isBuffering: true,
+        isPlaying: false,
         queue: _currentQueue,
         queueIndex: _currentIndex,
         position: Duration.zero,
@@ -226,12 +232,26 @@ class MusiiAudioHandler extends BaseAudioHandler
     // Update MediaItem for system notification
     mediaItem.add(_toMediaItem(targetTrack));
 
+    final currentGen = ++_loadGeneration;
+
+    // Immediately stop old audio to prevent ghost playback during download
+    await _player.stop();
+
     try {
       AppLogger.info(
         LogCategory.playback,
         'Fetching audio for: ${targetTrack.title}',
       );
       final fileResult = await _cacheRepository.getOrDownloadTrack(targetTrack);
+
+      // Check if a newer track load request was initiated while downloading
+      if (currentGen != _loadGeneration) {
+        AppLogger.debug(
+          LogCategory.playback,
+          'Discarding stale load for ${targetTrack.title}',
+        );
+        return;
+      }
 
       if (fileResult.isFailure) {
         AppLogger.error(
@@ -243,19 +263,54 @@ class MusiiAudioHandler extends BaseAudioHandler
       }
 
       final file = fileResult.dataOrNull!;
+      if (currentGen != _loadGeneration) return;
+
       await _player.setFilePath(file.path);
+      if (currentGen != _loadGeneration) return;
+
       await _player.play();
 
       await _persistState();
       await _persistQueue();
+
+      // Trigger automatic background Wi-Fi pre-caching for upcoming tracks
+      unawaited(_precacheUpcomingWifiTracks());
     } catch (e, st) {
-      AppLogger.error(
-        LogCategory.playback,
-        'Playback error for ${targetTrack.title}',
+      if (currentGen == _loadGeneration) {
+        AppLogger.error(
+          LogCategory.playback,
+          'Playback error for ${targetTrack.title}',
+          e,
+          st,
+        );
+        _emitSnapshot(_snapshot.copyWith(isBuffering: false, isPlaying: false));
+      }
+    }
+  }
+
+  Future<void> _precacheUpcomingWifiTracks() async {
+    try {
+      final isWifi = await _connectivityService.isWifiConnected();
+      if (!isWifi) return;
+
+      final nextTracks =
+          _currentQueue.skip(_currentIndex + 1).take(3).toList();
+
+      for (final track in nextTracks) {
+        if (!await _cacheRepository.isTrackCached(track.id)) {
+          AppLogger.debug(
+            LogCategory.cache,
+            'Wi-Fi pre-caching upcoming track: ${track.title} (${track.id})',
+          );
+          await _cacheRepository.getOrDownloadTrack(track);
+        }
+      }
+    } catch (e) {
+      AppLogger.warning(
+        LogCategory.cache,
+        'Wi-Fi pre-caching encountered an issue',
         e,
-        st,
       );
-      _emitSnapshot(_snapshot.copyWith(isBuffering: false, isPlaying: false));
     }
   }
 
