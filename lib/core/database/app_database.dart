@@ -38,7 +38,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? e]) : super(e ?? _openConnection());
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration {
@@ -70,6 +70,9 @@ class AppDatabase extends _$AppDatabase {
         await customStatement(
           'CREATE INDEX IF NOT EXISTS idx_lyric_words_line ON lyric_words(line_id, word_index);',
         );
+        await customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_sync_runs_status ON sync_runs(status, started_at);',
+        );
       },
       onUpgrade: (Migrator m, int from, int to) async {
         if (from < 2) {
@@ -86,6 +89,19 @@ class AppDatabase extends _$AppDatabase {
           await m.createTable(lyricWords);
           await customStatement(
             'CREATE INDEX IF NOT EXISTS idx_lyric_words_line ON lyric_words(line_id, word_index);',
+          );
+        }
+        if (from < 4) {
+          await m.addColumn(syncRuns, syncRuns.rootFolderId);
+          await m.addColumn(syncRuns, syncRuns.rootFolderName);
+          await m.addColumn(syncRuns, syncRuns.updatedAt);
+          await m.addColumn(syncRuns, syncRuns.lastCheckpointAt);
+          await m.addColumn(syncRuns, syncRuns.phase);
+          await m.addColumn(syncRuns, syncRuns.currentFile);
+          await m.addColumn(syncRuns, syncRuns.errorMessage);
+          await m.addColumn(syncRuns, syncRuns.progressPercent);
+          await customStatement(
+            'CREATE INDEX IF NOT EXISTS idx_sync_runs_status ON sync_runs(status, started_at);',
           );
         }
       },

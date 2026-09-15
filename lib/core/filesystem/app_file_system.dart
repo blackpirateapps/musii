@@ -11,17 +11,40 @@ class AppFileSystem {
 
   AppFileSystem._();
 
-  late final Directory _appSupportDir;
-  late final Directory _audioCacheDir;
-  late final Directory _artworkCacheDir;
-  late final Directory _tempDir;
+  late Directory _appSupportDir;
+  late Directory _audioCacheDir;
+  late Directory _artworkCacheDir;
+  late Directory _tempDir;
 
   bool _initialized = false;
   bool get isInitialized => _initialized;
 
-  Directory get audioCacheDir => _audioCacheDir;
-  Directory get artworkCacheDir => _artworkCacheDir;
-  Directory get tempDir => _tempDir;
+  void _ensureInitialized() {
+    if (_initialized) return;
+    _appSupportDir = Directory.systemTemp.createTempSync('musii_temp_');
+    _audioCacheDir = Directory(p.join(_appSupportDir.path, 'audio_cache'))
+      ..createSync(recursive: true);
+    _artworkCacheDir = Directory(p.join(_appSupportDir.path, 'artwork_cache'))
+      ..createSync(recursive: true);
+    _tempDir = Directory(p.join(_appSupportDir.path, 'temp_files'))
+      ..createSync(recursive: true);
+    _initialized = true;
+  }
+
+  Directory get audioCacheDir {
+    _ensureInitialized();
+    return _audioCacheDir;
+  }
+
+  Directory get artworkCacheDir {
+    _ensureInitialized();
+    return _artworkCacheDir;
+  }
+
+  Directory get tempDir {
+    _ensureInitialized();
+    return _tempDir;
+  }
 
   Future<void> initialize({Directory? baseDir}) async {
     if (_initialized) return;
@@ -53,20 +76,20 @@ class AppFileSystem {
 
   File getAudioCacheFile(String trackId, String extension) {
     final ext = extension.startsWith('.') ? extension : '.$extension';
-    return File(p.join(_audioCacheDir.path, '$trackId$ext'));
+    return File(p.join(audioCacheDir.path, '$trackId$ext'));
   }
 
   File getPartialAudioCacheFile(String trackId, String extension) {
     final ext = extension.startsWith('.') ? extension : '.$extension';
-    return File(p.join(_audioCacheDir.path, '$trackId$ext.partial'));
+    return File(p.join(audioCacheDir.path, '$trackId$ext.partial'));
   }
 
   File getArtworkCacheFile(String key) {
-    return File(p.join(_artworkCacheDir.path, '$key.jpg'));
+    return File(p.join(artworkCacheDir.path, '$key.jpg'));
   }
 
   File getTempMetadataFile(String filename) {
-    return File(p.join(_tempDir.path, filename));
+    return File(p.join(tempDir.path, filename));
   }
 
   Future<File> atomicCommitFile(File partialFile, File targetFile) async {
@@ -87,8 +110,8 @@ class AppFileSystem {
 
   Future<void> cleanOrphanedPartialFiles() async {
     try {
-      if (await _audioCacheDir.exists()) {
-        final entries = _audioCacheDir.listSync();
+      if (await audioCacheDir.exists()) {
+        final entries = audioCacheDir.listSync();
         for (final entry in entries) {
           if (entry is File && entry.path.endsWith('.partial')) {
             try {
@@ -108,8 +131,8 @@ class AppFileSystem {
         }
       }
 
-      if (await _tempDir.exists()) {
-        final tempEntries = _tempDir.listSync();
+      if (await tempDir.exists()) {
+        final tempEntries = tempDir.listSync();
         for (final entry in tempEntries) {
           try {
             await entry.delete(recursive: true);
@@ -126,9 +149,9 @@ class AppFileSystem {
   }
 
   Future<int> getAudioCacheSizeBytes() async {
-    if (!await _audioCacheDir.exists()) return 0;
+    if (!await audioCacheDir.exists()) return 0;
     int total = 0;
-    final entries = _audioCacheDir.listSync(recursive: true);
+    final entries = audioCacheDir.listSync(recursive: true);
     for (final entry in entries) {
       if (entry is File && !entry.path.endsWith('.partial')) {
         total += await entry.length();

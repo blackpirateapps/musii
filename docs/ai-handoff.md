@@ -1,10 +1,10 @@
 # Musii — AI Engineering Handoff Document
 
-> **Document Version**: 1.4.0  
+> **Document Version**: 1.5.0  
 > **Target Audience**: Incoming AI Coding Assistants & Human Software Engineers  
 > **Last Verified**: September 2026  
 > **App Identifier**: `com.blackpirateapps.musii`  
-> **Test Status**: 81 / 81 Passing (`flutter test`), 0 Analyzer Warnings (`flutter analyze`)
+> **Test Status**: 91 / 91 Passing (`flutter test`), 0 Analyzer Warnings (`flutter analyze`)
 
 ---
 
@@ -36,10 +36,10 @@ The codebase strictly adheres to standard four-layer Clean Architecture:
    - `logging/app_logger.dart`: Structured categorical logging with OAuth token redaction.
    - `constants/app_constants.dart`: Design tokens (`AppRadii`, `AppSpacing`, `AppAudioConstants`, `AppGreeting`).
    - `filesystem/app_file_system.dart`: Centralized cache directory management, `.partial` file staging, and atomic commits.
-   - `database/`: Drift SQLite setup, 21 tables with `@DataClassName` annotations and schema v3 migration.
+   - `database/`: Drift SQLite setup, 21 tables with `@DataClassName` annotations and schema v4 migration.
 2. **Domain (`lib/features/*/domain/`)**:
-   - Pure Dart entities (`Track`, `Album`, `Artist`, `Genre`, `Playlist`, `CacheEntry`, `PlayerStateSnapshot`, `TrackLyrics`, `LyricLine`, `LyricWord`, `LyricSource`).
-   - Repository interfaces declaring business contracts.
+   - Pure Dart entities (`Track`, `Album`, `Artist`, `Genre`, `Playlist`, `CacheEntry`, `PlayerStateSnapshot`, `TrackLyrics`, `LyricLine`, `LyricWord`, `LyricSource`, `SyncProgress`, `SyncPhase`, `SyncCancellationToken`).
+   - Repository interfaces declaring business contracts (`MusicLibraryRepository`, `GoogleDriveRepository`, `CacheRepository`, `PlaybackRepository`, `LyricsRepository`, `PlaylistRepository`, etc.).
    - Domain services (`MetadataNormalizationService`, `LrcParser`).
 3. **Data (`lib/features/*/data/`)**:
    - Concrete repository implementations (`GoogleDriveRepositoryImpl`, `MusicLibraryRepositoryImpl`, `CacheRepositoryImpl`, `PlaybackRepositoryImpl`, `LyricsRepositoryImpl`, `PlaylistRepositoryImpl`, etc.).
@@ -89,7 +89,7 @@ Located in `lib/features/lyrics/`:
   2. `LyricSource.embeddedPlain` (ID3 USLT/plain lyrics)
   3. `LyricSource.sidecarLrc` (Discovered `.lrc` sidecar file with matching base name)
   4. `LyricSource.none`
-- **Database Schema v3**:
+- **Database Schema**:
   - `Lyrics` table (`@DataClassName('LyricRow')`) with track foreign key.
   - `LyricLines` table (`@DataClassName('LyricLineRow')`) with millisecond timestamp and sequential index.
   - `LyricWords` table (`@DataClassName('LyricWordRow')`) with `lineId`, `wordIndex`, `startMs`, `endMs`, and index `idx_lyric_words_line`.
@@ -108,12 +108,43 @@ Located in `lib/features/lyrics/`:
   - **Smooth Viewport Movement**: 300ms `Curves.easeOutCubic` animated scrolling triggered on `activeIndex` changes.
   - **Manual Scroll Recovery & Tap-to-Seek**: User drag notifications pause auto-scroll and animate in the floating "Current line" button. Tapping "Current line" or tapping any lyric line seeks playback, snaps to the 45% focal position, and restores auto-following.
 
-### 3. Google Drive Integration & Recursive Sync
+### 3. Google Drive Integration & Incremental Sync Engine (Optimized & Crash-Safe)
 Located in `lib/features/google_drive/` and `lib/features/library/`:
-- OAuth 2.0 authentication via `google_sign_in: ^6.2.2`.
-- Recursive folder traversal finding audio files (`.mp3`, `.flac`, `.m4a`, `.aac`, `.wav`, `.ogg`) and sidecar `.lrc` files.
-- Atomic sync transaction diffing local SQLite database with cloud state.
-- Offline audio caching with LRU eviction and atomic temporary file staging (`.partial` -> destination).
+- **Incremental Metadata Reuse**:
+  - Stable Google Drive file identity (`driveFileId`) used as primary mapping.
+  - For each discovered remote audio file, classifies into:
+    - `UNCHANGED_COMPLETE`: Matches existing record in SQLite with matching modified timestamp (`!remote.modifiedTime.isAfter(local.driveModifiedAt)`), matching size, matching checksum, and complete metadata. **Zero audio downloads, zero metadata parsing.** Reuses all local records.
+    - `CHANGED`: Remote modification timestamp is newer, size changed, or checksum differs. Downloads temporary audio staging file, refreshes metadata, updates track and relations in SQLite.
+    - `INCOMPLETE`: Track exists in SQLite but missing vital fields (e.g., missing title, format, or zero duration). Re-fetches and repairs metadata.
+    - `NEW`: Completely new remote file. Full metadata extraction and relational upsert.
+- **Atomic Work Units & Checkpoint Storage**:
+  - Work unit: Single audio track processing with transactional SQLite commit.
+  - Single atomic database transaction wraps:
+    1. Artist upsert (`insertOnConflictUpdate`)
+    2. Album upsert (`insertOnConflictUpdate`)
+    3. Genre upsert (`insertOnConflictUpdate`)
+    4. Track upsert (`insertOnConflictUpdate`)
+    5. Lyrics saving
+    6. `SyncRun` checkpoint update (`filesProcessed`, `filesAdded`, `filesUpdated`, `errorsCount`, `progressPercent`, `lastCheckpointAt`, `updatedAt`).
+  - Temporary audio metadata extraction files (`.partial` / `temp_...`) are deleted immediately in `finally` blocks.
+- **Stop & Resume Engine**:
+  - Explicit `SyncCancellationToken` with non-blocking checks across folder scanning and item processing loops.
+  - `stopSync()` requests cooperative stop, allows the current atomic item transaction to safely finish, commits checkpoint, updates session state to `stopped` (`isResumable: true`), and exits cleanly.
+  - `resumeSync()` reads previous root folder and sync session, performs reconciliation, skips all completed items, and continues work.
+- **Crash & Force-Close Recovery**:
+  - Process death / force-stop leaves `SyncRuns` table with `status == 'running'` and accurate `lastCheckpointAt`.
+  - On app launch, `recoverInterruptedSyncIfNeeded()` automatically detects interrupted unclosed sessions and resumes without restarting from zero.
+  - Progress percentage in UI immediately reflects the actual completed tracks.
+- **Remote Deletion Reconciliation**:
+  - Full remote scan builds complete `driveFileMap`. Tracks present locally but absent on Drive are deleted from `tracks`, `cacheEntries`, and `lyrics`, and album/artist aggregates are updated.
+- **Database Schema v4**:
+  - `SyncRuns` table (`@DataClassName('SyncRunRow')`) with columns: `id`, `sourceId`, `rootFolderId`, `rootFolderName`, `startedAt`, `updatedAt`, `lastCheckpointAt`, `completedAt`, `status`, `phase`, `currentFile`, `errorMessage`, `progressPercent`, `filesDiscovered`, `filesProcessed`, `filesAdded`, `filesUpdated`, `filesRemoved`, `errorsCount`.
+  - Index: `CREATE INDEX IF NOT EXISTS idx_sync_runs_status ON sync_runs(status, started_at);`.
+- **UI Presentation (`SyncProgressSheet`)**:
+  - Running: displays progress bar, file counts, current filename, and prominent Cupertino `Stop Sync` button.
+  - Stopping: displays animated activity indicator and disables stop button.
+  - Stopped: displays "Sync Stopped", "X of Y completed", and prominent Cupertino `Resume Sync` button.
+  - Complete: displays "Library Synced" and "Done" button.
 
 ### 4. Android Media Notifications & Lock Screen Playback Controls
 Located in `lib/app/bootstrap/bootstrap.dart`, `lib/core/services/notification_permission_service.dart`, and `lib/features/playback/data/repositories/playback_repository_impl.dart`:
@@ -151,7 +182,7 @@ Located in `lib/core/services/connectivity_service.dart`, `lib/features/cache/`,
      import 'package:drift/drift.dart' hide isNotNull, isNull;
      ```
 3. **Drift Class Name Collision**:
-   - Always annotate Drift table definitions with `@DataClassName('<Entity>Row')` (e.g., `@DataClassName('TrackRow')`, `@DataClassName('LyricRow')`) to prevent clashes with pure domain entities.
+   - Always annotate Drift table definitions with `@DataClassName('<Entity>Row')` (e.g., `@DataClassName('TrackRow')`, `@DataClassName('LyricRow')`, `@DataClassName('SyncRunRow')`) to prevent clashes with pure domain entities.
 4. **Cupertino Navigation Bar Duplicate Titles**:
    - `CupertinoSliverNavigationBar` renders two `Text` widgets (collapsed and expanded large title). Use `find.text(...), findsWidgets` in widget tests rather than `findsOneWidget`.
 5. **Playlist Reordering Index**:
@@ -175,7 +206,7 @@ dart run build_runner build --delete-conflicting-outputs
 # Verify static analysis (must be 0 issues)
 flutter analyze
 
-# Run all tests (all 46 tests must pass)
+# Run all tests (all 91 tests must pass)
 flutter test
 
 # Auto-format Dart source code

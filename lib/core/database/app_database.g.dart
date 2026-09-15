@@ -6623,7 +6623,8 @@ class CacheEntriesCompanion extends UpdateCompanion<CacheEntry> {
   }
 }
 
-class $SyncRunsTable extends SyncRuns with TableInfo<$SyncRunsTable, SyncRun> {
+class $SyncRunsTable extends SyncRuns
+    with TableInfo<$SyncRunsTable, SyncRunRow> {
   @override
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
@@ -6648,6 +6649,28 @@ class $SyncRunsTable extends SyncRuns with TableInfo<$SyncRunsTable, SyncRun> {
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _rootFolderIdMeta = const VerificationMeta(
+    'rootFolderId',
+  );
+  @override
+  late final GeneratedColumn<String> rootFolderId = GeneratedColumn<String>(
+    'root_folder_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _rootFolderNameMeta = const VerificationMeta(
+    'rootFolderName',
+  );
+  @override
+  late final GeneratedColumn<String> rootFolderName = GeneratedColumn<String>(
+    'root_folder_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _startedAtMeta = const VerificationMeta(
     'startedAt',
   );
@@ -6659,6 +6682,29 @@ class $SyncRunsTable extends SyncRuns with TableInfo<$SyncRunsTable, SyncRun> {
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastCheckpointAtMeta = const VerificationMeta(
+    'lastCheckpointAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> lastCheckpointAt =
+      GeneratedColumn<DateTime>(
+        'last_checkpoint_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _completedAtMeta = const VerificationMeta(
     'completedAt',
   );
@@ -6678,6 +6724,49 @@ class $SyncRunsTable extends SyncRuns with TableInfo<$SyncRunsTable, SyncRun> {
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: true,
+  );
+  static const VerificationMeta _phaseMeta = const VerificationMeta('phase');
+  @override
+  late final GeneratedColumn<String> phase = GeneratedColumn<String>(
+    'phase',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _currentFileMeta = const VerificationMeta(
+    'currentFile',
+  );
+  @override
+  late final GeneratedColumn<String> currentFile = GeneratedColumn<String>(
+    'current_file',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _errorMessageMeta = const VerificationMeta(
+    'errorMessage',
+  );
+  @override
+  late final GeneratedColumn<String> errorMessage = GeneratedColumn<String>(
+    'error_message',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _progressPercentMeta = const VerificationMeta(
+    'progressPercent',
+  );
+  @override
+  late final GeneratedColumn<double> progressPercent = GeneratedColumn<double>(
+    'progress_percent',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0.0),
   );
   static const VerificationMeta _filesDiscoveredMeta = const VerificationMeta(
     'filesDiscovered',
@@ -6755,9 +6844,17 @@ class $SyncRunsTable extends SyncRuns with TableInfo<$SyncRunsTable, SyncRun> {
   List<GeneratedColumn> get $columns => [
     id,
     sourceId,
+    rootFolderId,
+    rootFolderName,
     startedAt,
+    updatedAt,
+    lastCheckpointAt,
     completedAt,
     status,
+    phase,
+    currentFile,
+    errorMessage,
+    progressPercent,
     filesDiscovered,
     filesProcessed,
     filesAdded,
@@ -6772,7 +6869,7 @@ class $SyncRunsTable extends SyncRuns with TableInfo<$SyncRunsTable, SyncRun> {
   static const String $name = 'sync_runs';
   @override
   VerificationContext validateIntegrity(
-    Insertable<SyncRun> instance, {
+    Insertable<SyncRunRow> instance, {
     bool isInserting = false,
   }) {
     final context = VerificationContext();
@@ -6790,6 +6887,24 @@ class $SyncRunsTable extends SyncRuns with TableInfo<$SyncRunsTable, SyncRun> {
     } else if (isInserting) {
       context.missing(_sourceIdMeta);
     }
+    if (data.containsKey('root_folder_id')) {
+      context.handle(
+        _rootFolderIdMeta,
+        rootFolderId.isAcceptableOrUnknown(
+          data['root_folder_id']!,
+          _rootFolderIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('root_folder_name')) {
+      context.handle(
+        _rootFolderNameMeta,
+        rootFolderName.isAcceptableOrUnknown(
+          data['root_folder_name']!,
+          _rootFolderNameMeta,
+        ),
+      );
+    }
     if (data.containsKey('started_at')) {
       context.handle(
         _startedAtMeta,
@@ -6797,6 +6912,21 @@ class $SyncRunsTable extends SyncRuns with TableInfo<$SyncRunsTable, SyncRun> {
       );
     } else if (isInserting) {
       context.missing(_startedAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    if (data.containsKey('last_checkpoint_at')) {
+      context.handle(
+        _lastCheckpointAtMeta,
+        lastCheckpointAt.isAcceptableOrUnknown(
+          data['last_checkpoint_at']!,
+          _lastCheckpointAtMeta,
+        ),
+      );
     }
     if (data.containsKey('completed_at')) {
       context.handle(
@@ -6814,6 +6944,39 @@ class $SyncRunsTable extends SyncRuns with TableInfo<$SyncRunsTable, SyncRun> {
       );
     } else if (isInserting) {
       context.missing(_statusMeta);
+    }
+    if (data.containsKey('phase')) {
+      context.handle(
+        _phaseMeta,
+        phase.isAcceptableOrUnknown(data['phase']!, _phaseMeta),
+      );
+    }
+    if (data.containsKey('current_file')) {
+      context.handle(
+        _currentFileMeta,
+        currentFile.isAcceptableOrUnknown(
+          data['current_file']!,
+          _currentFileMeta,
+        ),
+      );
+    }
+    if (data.containsKey('error_message')) {
+      context.handle(
+        _errorMessageMeta,
+        errorMessage.isAcceptableOrUnknown(
+          data['error_message']!,
+          _errorMessageMeta,
+        ),
+      );
+    }
+    if (data.containsKey('progress_percent')) {
+      context.handle(
+        _progressPercentMeta,
+        progressPercent.isAcceptableOrUnknown(
+          data['progress_percent']!,
+          _progressPercentMeta,
+        ),
+      );
     }
     if (data.containsKey('files_discovered')) {
       context.handle(
@@ -6872,9 +7035,9 @@ class $SyncRunsTable extends SyncRuns with TableInfo<$SyncRunsTable, SyncRun> {
   @override
   Set<GeneratedColumn> get $primaryKey => {id};
   @override
-  SyncRun map(Map<String, dynamic> data, {String? tablePrefix}) {
+  SyncRunRow map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return SyncRun(
+    return SyncRunRow(
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}id'],
@@ -6883,10 +7046,26 @@ class $SyncRunsTable extends SyncRuns with TableInfo<$SyncRunsTable, SyncRun> {
         DriftSqlType.string,
         data['${effectivePrefix}source_id'],
       )!,
+      rootFolderId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}root_folder_id'],
+      ),
+      rootFolderName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}root_folder_name'],
+      ),
       startedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}started_at'],
       )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      ),
+      lastCheckpointAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}last_checkpoint_at'],
+      ),
       completedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}completed_at'],
@@ -6894,6 +7073,22 @@ class $SyncRunsTable extends SyncRuns with TableInfo<$SyncRunsTable, SyncRun> {
       status: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}status'],
+      )!,
+      phase: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}phase'],
+      ),
+      currentFile: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}current_file'],
+      ),
+      errorMessage: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}error_message'],
+      ),
+      progressPercent: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}progress_percent'],
       )!,
       filesDiscovered: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
@@ -6928,24 +7123,40 @@ class $SyncRunsTable extends SyncRuns with TableInfo<$SyncRunsTable, SyncRun> {
   }
 }
 
-class SyncRun extends DataClass implements Insertable<SyncRun> {
+class SyncRunRow extends DataClass implements Insertable<SyncRunRow> {
   final String id;
   final String sourceId;
+  final String? rootFolderId;
+  final String? rootFolderName;
   final DateTime startedAt;
+  final DateTime? updatedAt;
+  final DateTime? lastCheckpointAt;
   final DateTime? completedAt;
   final String status;
+  final String? phase;
+  final String? currentFile;
+  final String? errorMessage;
+  final double progressPercent;
   final int filesDiscovered;
   final int filesProcessed;
   final int filesAdded;
   final int filesUpdated;
   final int filesRemoved;
   final int errorsCount;
-  const SyncRun({
+  const SyncRunRow({
     required this.id,
     required this.sourceId,
+    this.rootFolderId,
+    this.rootFolderName,
     required this.startedAt,
+    this.updatedAt,
+    this.lastCheckpointAt,
     this.completedAt,
     required this.status,
+    this.phase,
+    this.currentFile,
+    this.errorMessage,
+    required this.progressPercent,
     required this.filesDiscovered,
     required this.filesProcessed,
     required this.filesAdded,
@@ -6958,11 +7169,33 @@ class SyncRun extends DataClass implements Insertable<SyncRun> {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
     map['source_id'] = Variable<String>(sourceId);
+    if (!nullToAbsent || rootFolderId != null) {
+      map['root_folder_id'] = Variable<String>(rootFolderId);
+    }
+    if (!nullToAbsent || rootFolderName != null) {
+      map['root_folder_name'] = Variable<String>(rootFolderName);
+    }
     map['started_at'] = Variable<DateTime>(startedAt);
+    if (!nullToAbsent || updatedAt != null) {
+      map['updated_at'] = Variable<DateTime>(updatedAt);
+    }
+    if (!nullToAbsent || lastCheckpointAt != null) {
+      map['last_checkpoint_at'] = Variable<DateTime>(lastCheckpointAt);
+    }
     if (!nullToAbsent || completedAt != null) {
       map['completed_at'] = Variable<DateTime>(completedAt);
     }
     map['status'] = Variable<String>(status);
+    if (!nullToAbsent || phase != null) {
+      map['phase'] = Variable<String>(phase);
+    }
+    if (!nullToAbsent || currentFile != null) {
+      map['current_file'] = Variable<String>(currentFile);
+    }
+    if (!nullToAbsent || errorMessage != null) {
+      map['error_message'] = Variable<String>(errorMessage);
+    }
+    map['progress_percent'] = Variable<double>(progressPercent);
     map['files_discovered'] = Variable<int>(filesDiscovered);
     map['files_processed'] = Variable<int>(filesProcessed);
     map['files_added'] = Variable<int>(filesAdded);
@@ -6976,11 +7209,33 @@ class SyncRun extends DataClass implements Insertable<SyncRun> {
     return SyncRunsCompanion(
       id: Value(id),
       sourceId: Value(sourceId),
+      rootFolderId: rootFolderId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(rootFolderId),
+      rootFolderName: rootFolderName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(rootFolderName),
       startedAt: Value(startedAt),
+      updatedAt: updatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(updatedAt),
+      lastCheckpointAt: lastCheckpointAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastCheckpointAt),
       completedAt: completedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(completedAt),
       status: Value(status),
+      phase: phase == null && nullToAbsent
+          ? const Value.absent()
+          : Value(phase),
+      currentFile: currentFile == null && nullToAbsent
+          ? const Value.absent()
+          : Value(currentFile),
+      errorMessage: errorMessage == null && nullToAbsent
+          ? const Value.absent()
+          : Value(errorMessage),
+      progressPercent: Value(progressPercent),
       filesDiscovered: Value(filesDiscovered),
       filesProcessed: Value(filesProcessed),
       filesAdded: Value(filesAdded),
@@ -6990,17 +7245,27 @@ class SyncRun extends DataClass implements Insertable<SyncRun> {
     );
   }
 
-  factory SyncRun.fromJson(
+  factory SyncRunRow.fromJson(
     Map<String, dynamic> json, {
     ValueSerializer? serializer,
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
-    return SyncRun(
+    return SyncRunRow(
       id: serializer.fromJson<String>(json['id']),
       sourceId: serializer.fromJson<String>(json['sourceId']),
+      rootFolderId: serializer.fromJson<String?>(json['rootFolderId']),
+      rootFolderName: serializer.fromJson<String?>(json['rootFolderName']),
       startedAt: serializer.fromJson<DateTime>(json['startedAt']),
+      updatedAt: serializer.fromJson<DateTime?>(json['updatedAt']),
+      lastCheckpointAt: serializer.fromJson<DateTime?>(
+        json['lastCheckpointAt'],
+      ),
       completedAt: serializer.fromJson<DateTime?>(json['completedAt']),
       status: serializer.fromJson<String>(json['status']),
+      phase: serializer.fromJson<String?>(json['phase']),
+      currentFile: serializer.fromJson<String?>(json['currentFile']),
+      errorMessage: serializer.fromJson<String?>(json['errorMessage']),
+      progressPercent: serializer.fromJson<double>(json['progressPercent']),
       filesDiscovered: serializer.fromJson<int>(json['filesDiscovered']),
       filesProcessed: serializer.fromJson<int>(json['filesProcessed']),
       filesAdded: serializer.fromJson<int>(json['filesAdded']),
@@ -7015,9 +7280,17 @@ class SyncRun extends DataClass implements Insertable<SyncRun> {
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
       'sourceId': serializer.toJson<String>(sourceId),
+      'rootFolderId': serializer.toJson<String?>(rootFolderId),
+      'rootFolderName': serializer.toJson<String?>(rootFolderName),
       'startedAt': serializer.toJson<DateTime>(startedAt),
+      'updatedAt': serializer.toJson<DateTime?>(updatedAt),
+      'lastCheckpointAt': serializer.toJson<DateTime?>(lastCheckpointAt),
       'completedAt': serializer.toJson<DateTime?>(completedAt),
       'status': serializer.toJson<String>(status),
+      'phase': serializer.toJson<String?>(phase),
+      'currentFile': serializer.toJson<String?>(currentFile),
+      'errorMessage': serializer.toJson<String?>(errorMessage),
+      'progressPercent': serializer.toJson<double>(progressPercent),
       'filesDiscovered': serializer.toJson<int>(filesDiscovered),
       'filesProcessed': serializer.toJson<int>(filesProcessed),
       'filesAdded': serializer.toJson<int>(filesAdded),
@@ -7027,24 +7300,44 @@ class SyncRun extends DataClass implements Insertable<SyncRun> {
     };
   }
 
-  SyncRun copyWith({
+  SyncRunRow copyWith({
     String? id,
     String? sourceId,
+    Value<String?> rootFolderId = const Value.absent(),
+    Value<String?> rootFolderName = const Value.absent(),
     DateTime? startedAt,
+    Value<DateTime?> updatedAt = const Value.absent(),
+    Value<DateTime?> lastCheckpointAt = const Value.absent(),
     Value<DateTime?> completedAt = const Value.absent(),
     String? status,
+    Value<String?> phase = const Value.absent(),
+    Value<String?> currentFile = const Value.absent(),
+    Value<String?> errorMessage = const Value.absent(),
+    double? progressPercent,
     int? filesDiscovered,
     int? filesProcessed,
     int? filesAdded,
     int? filesUpdated,
     int? filesRemoved,
     int? errorsCount,
-  }) => SyncRun(
+  }) => SyncRunRow(
     id: id ?? this.id,
     sourceId: sourceId ?? this.sourceId,
+    rootFolderId: rootFolderId.present ? rootFolderId.value : this.rootFolderId,
+    rootFolderName: rootFolderName.present
+        ? rootFolderName.value
+        : this.rootFolderName,
     startedAt: startedAt ?? this.startedAt,
+    updatedAt: updatedAt.present ? updatedAt.value : this.updatedAt,
+    lastCheckpointAt: lastCheckpointAt.present
+        ? lastCheckpointAt.value
+        : this.lastCheckpointAt,
     completedAt: completedAt.present ? completedAt.value : this.completedAt,
     status: status ?? this.status,
+    phase: phase.present ? phase.value : this.phase,
+    currentFile: currentFile.present ? currentFile.value : this.currentFile,
+    errorMessage: errorMessage.present ? errorMessage.value : this.errorMessage,
+    progressPercent: progressPercent ?? this.progressPercent,
     filesDiscovered: filesDiscovered ?? this.filesDiscovered,
     filesProcessed: filesProcessed ?? this.filesProcessed,
     filesAdded: filesAdded ?? this.filesAdded,
@@ -7052,15 +7345,35 @@ class SyncRun extends DataClass implements Insertable<SyncRun> {
     filesRemoved: filesRemoved ?? this.filesRemoved,
     errorsCount: errorsCount ?? this.errorsCount,
   );
-  SyncRun copyWithCompanion(SyncRunsCompanion data) {
-    return SyncRun(
+  SyncRunRow copyWithCompanion(SyncRunsCompanion data) {
+    return SyncRunRow(
       id: data.id.present ? data.id.value : this.id,
       sourceId: data.sourceId.present ? data.sourceId.value : this.sourceId,
+      rootFolderId: data.rootFolderId.present
+          ? data.rootFolderId.value
+          : this.rootFolderId,
+      rootFolderName: data.rootFolderName.present
+          ? data.rootFolderName.value
+          : this.rootFolderName,
       startedAt: data.startedAt.present ? data.startedAt.value : this.startedAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      lastCheckpointAt: data.lastCheckpointAt.present
+          ? data.lastCheckpointAt.value
+          : this.lastCheckpointAt,
       completedAt: data.completedAt.present
           ? data.completedAt.value
           : this.completedAt,
       status: data.status.present ? data.status.value : this.status,
+      phase: data.phase.present ? data.phase.value : this.phase,
+      currentFile: data.currentFile.present
+          ? data.currentFile.value
+          : this.currentFile,
+      errorMessage: data.errorMessage.present
+          ? data.errorMessage.value
+          : this.errorMessage,
+      progressPercent: data.progressPercent.present
+          ? data.progressPercent.value
+          : this.progressPercent,
       filesDiscovered: data.filesDiscovered.present
           ? data.filesDiscovered.value
           : this.filesDiscovered,
@@ -7084,12 +7397,20 @@ class SyncRun extends DataClass implements Insertable<SyncRun> {
 
   @override
   String toString() {
-    return (StringBuffer('SyncRun(')
+    return (StringBuffer('SyncRunRow(')
           ..write('id: $id, ')
           ..write('sourceId: $sourceId, ')
+          ..write('rootFolderId: $rootFolderId, ')
+          ..write('rootFolderName: $rootFolderName, ')
           ..write('startedAt: $startedAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('lastCheckpointAt: $lastCheckpointAt, ')
           ..write('completedAt: $completedAt, ')
           ..write('status: $status, ')
+          ..write('phase: $phase, ')
+          ..write('currentFile: $currentFile, ')
+          ..write('errorMessage: $errorMessage, ')
+          ..write('progressPercent: $progressPercent, ')
           ..write('filesDiscovered: $filesDiscovered, ')
           ..write('filesProcessed: $filesProcessed, ')
           ..write('filesAdded: $filesAdded, ')
@@ -7104,9 +7425,17 @@ class SyncRun extends DataClass implements Insertable<SyncRun> {
   int get hashCode => Object.hash(
     id,
     sourceId,
+    rootFolderId,
+    rootFolderName,
     startedAt,
+    updatedAt,
+    lastCheckpointAt,
     completedAt,
     status,
+    phase,
+    currentFile,
+    errorMessage,
+    progressPercent,
     filesDiscovered,
     filesProcessed,
     filesAdded,
@@ -7117,12 +7446,20 @@ class SyncRun extends DataClass implements Insertable<SyncRun> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      (other is SyncRun &&
+      (other is SyncRunRow &&
           other.id == this.id &&
           other.sourceId == this.sourceId &&
+          other.rootFolderId == this.rootFolderId &&
+          other.rootFolderName == this.rootFolderName &&
           other.startedAt == this.startedAt &&
+          other.updatedAt == this.updatedAt &&
+          other.lastCheckpointAt == this.lastCheckpointAt &&
           other.completedAt == this.completedAt &&
           other.status == this.status &&
+          other.phase == this.phase &&
+          other.currentFile == this.currentFile &&
+          other.errorMessage == this.errorMessage &&
+          other.progressPercent == this.progressPercent &&
           other.filesDiscovered == this.filesDiscovered &&
           other.filesProcessed == this.filesProcessed &&
           other.filesAdded == this.filesAdded &&
@@ -7131,12 +7468,20 @@ class SyncRun extends DataClass implements Insertable<SyncRun> {
           other.errorsCount == this.errorsCount);
 }
 
-class SyncRunsCompanion extends UpdateCompanion<SyncRun> {
+class SyncRunsCompanion extends UpdateCompanion<SyncRunRow> {
   final Value<String> id;
   final Value<String> sourceId;
+  final Value<String?> rootFolderId;
+  final Value<String?> rootFolderName;
   final Value<DateTime> startedAt;
+  final Value<DateTime?> updatedAt;
+  final Value<DateTime?> lastCheckpointAt;
   final Value<DateTime?> completedAt;
   final Value<String> status;
+  final Value<String?> phase;
+  final Value<String?> currentFile;
+  final Value<String?> errorMessage;
+  final Value<double> progressPercent;
   final Value<int> filesDiscovered;
   final Value<int> filesProcessed;
   final Value<int> filesAdded;
@@ -7147,9 +7492,17 @@ class SyncRunsCompanion extends UpdateCompanion<SyncRun> {
   const SyncRunsCompanion({
     this.id = const Value.absent(),
     this.sourceId = const Value.absent(),
+    this.rootFolderId = const Value.absent(),
+    this.rootFolderName = const Value.absent(),
     this.startedAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.lastCheckpointAt = const Value.absent(),
     this.completedAt = const Value.absent(),
     this.status = const Value.absent(),
+    this.phase = const Value.absent(),
+    this.currentFile = const Value.absent(),
+    this.errorMessage = const Value.absent(),
+    this.progressPercent = const Value.absent(),
     this.filesDiscovered = const Value.absent(),
     this.filesProcessed = const Value.absent(),
     this.filesAdded = const Value.absent(),
@@ -7161,9 +7514,17 @@ class SyncRunsCompanion extends UpdateCompanion<SyncRun> {
   SyncRunsCompanion.insert({
     required String id,
     required String sourceId,
+    this.rootFolderId = const Value.absent(),
+    this.rootFolderName = const Value.absent(),
     required DateTime startedAt,
+    this.updatedAt = const Value.absent(),
+    this.lastCheckpointAt = const Value.absent(),
     this.completedAt = const Value.absent(),
     required String status,
+    this.phase = const Value.absent(),
+    this.currentFile = const Value.absent(),
+    this.errorMessage = const Value.absent(),
+    this.progressPercent = const Value.absent(),
     this.filesDiscovered = const Value.absent(),
     this.filesProcessed = const Value.absent(),
     this.filesAdded = const Value.absent(),
@@ -7175,12 +7536,20 @@ class SyncRunsCompanion extends UpdateCompanion<SyncRun> {
        sourceId = Value(sourceId),
        startedAt = Value(startedAt),
        status = Value(status);
-  static Insertable<SyncRun> custom({
+  static Insertable<SyncRunRow> custom({
     Expression<String>? id,
     Expression<String>? sourceId,
+    Expression<String>? rootFolderId,
+    Expression<String>? rootFolderName,
     Expression<DateTime>? startedAt,
+    Expression<DateTime>? updatedAt,
+    Expression<DateTime>? lastCheckpointAt,
     Expression<DateTime>? completedAt,
     Expression<String>? status,
+    Expression<String>? phase,
+    Expression<String>? currentFile,
+    Expression<String>? errorMessage,
+    Expression<double>? progressPercent,
     Expression<int>? filesDiscovered,
     Expression<int>? filesProcessed,
     Expression<int>? filesAdded,
@@ -7192,9 +7561,17 @@ class SyncRunsCompanion extends UpdateCompanion<SyncRun> {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (sourceId != null) 'source_id': sourceId,
+      if (rootFolderId != null) 'root_folder_id': rootFolderId,
+      if (rootFolderName != null) 'root_folder_name': rootFolderName,
       if (startedAt != null) 'started_at': startedAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (lastCheckpointAt != null) 'last_checkpoint_at': lastCheckpointAt,
       if (completedAt != null) 'completed_at': completedAt,
       if (status != null) 'status': status,
+      if (phase != null) 'phase': phase,
+      if (currentFile != null) 'current_file': currentFile,
+      if (errorMessage != null) 'error_message': errorMessage,
+      if (progressPercent != null) 'progress_percent': progressPercent,
       if (filesDiscovered != null) 'files_discovered': filesDiscovered,
       if (filesProcessed != null) 'files_processed': filesProcessed,
       if (filesAdded != null) 'files_added': filesAdded,
@@ -7208,9 +7585,17 @@ class SyncRunsCompanion extends UpdateCompanion<SyncRun> {
   SyncRunsCompanion copyWith({
     Value<String>? id,
     Value<String>? sourceId,
+    Value<String?>? rootFolderId,
+    Value<String?>? rootFolderName,
     Value<DateTime>? startedAt,
+    Value<DateTime?>? updatedAt,
+    Value<DateTime?>? lastCheckpointAt,
     Value<DateTime?>? completedAt,
     Value<String>? status,
+    Value<String?>? phase,
+    Value<String?>? currentFile,
+    Value<String?>? errorMessage,
+    Value<double>? progressPercent,
     Value<int>? filesDiscovered,
     Value<int>? filesProcessed,
     Value<int>? filesAdded,
@@ -7222,9 +7607,17 @@ class SyncRunsCompanion extends UpdateCompanion<SyncRun> {
     return SyncRunsCompanion(
       id: id ?? this.id,
       sourceId: sourceId ?? this.sourceId,
+      rootFolderId: rootFolderId ?? this.rootFolderId,
+      rootFolderName: rootFolderName ?? this.rootFolderName,
       startedAt: startedAt ?? this.startedAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      lastCheckpointAt: lastCheckpointAt ?? this.lastCheckpointAt,
       completedAt: completedAt ?? this.completedAt,
       status: status ?? this.status,
+      phase: phase ?? this.phase,
+      currentFile: currentFile ?? this.currentFile,
+      errorMessage: errorMessage ?? this.errorMessage,
+      progressPercent: progressPercent ?? this.progressPercent,
       filesDiscovered: filesDiscovered ?? this.filesDiscovered,
       filesProcessed: filesProcessed ?? this.filesProcessed,
       filesAdded: filesAdded ?? this.filesAdded,
@@ -7244,14 +7637,38 @@ class SyncRunsCompanion extends UpdateCompanion<SyncRun> {
     if (sourceId.present) {
       map['source_id'] = Variable<String>(sourceId.value);
     }
+    if (rootFolderId.present) {
+      map['root_folder_id'] = Variable<String>(rootFolderId.value);
+    }
+    if (rootFolderName.present) {
+      map['root_folder_name'] = Variable<String>(rootFolderName.value);
+    }
     if (startedAt.present) {
       map['started_at'] = Variable<DateTime>(startedAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (lastCheckpointAt.present) {
+      map['last_checkpoint_at'] = Variable<DateTime>(lastCheckpointAt.value);
     }
     if (completedAt.present) {
       map['completed_at'] = Variable<DateTime>(completedAt.value);
     }
     if (status.present) {
       map['status'] = Variable<String>(status.value);
+    }
+    if (phase.present) {
+      map['phase'] = Variable<String>(phase.value);
+    }
+    if (currentFile.present) {
+      map['current_file'] = Variable<String>(currentFile.value);
+    }
+    if (errorMessage.present) {
+      map['error_message'] = Variable<String>(errorMessage.value);
+    }
+    if (progressPercent.present) {
+      map['progress_percent'] = Variable<double>(progressPercent.value);
     }
     if (filesDiscovered.present) {
       map['files_discovered'] = Variable<int>(filesDiscovered.value);
@@ -7282,9 +7699,17 @@ class SyncRunsCompanion extends UpdateCompanion<SyncRun> {
     return (StringBuffer('SyncRunsCompanion(')
           ..write('id: $id, ')
           ..write('sourceId: $sourceId, ')
+          ..write('rootFolderId: $rootFolderId, ')
+          ..write('rootFolderName: $rootFolderName, ')
           ..write('startedAt: $startedAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('lastCheckpointAt: $lastCheckpointAt, ')
           ..write('completedAt: $completedAt, ')
           ..write('status: $status, ')
+          ..write('phase: $phase, ')
+          ..write('currentFile: $currentFile, ')
+          ..write('errorMessage: $errorMessage, ')
+          ..write('progressPercent: $progressPercent, ')
           ..write('filesDiscovered: $filesDiscovered, ')
           ..write('filesProcessed: $filesProcessed, ')
           ..write('filesAdded: $filesAdded, ')
@@ -13854,9 +14279,17 @@ typedef $$CacheEntriesTableProcessedTableManager =
 typedef $$SyncRunsTableCreateCompanionBuilder = SyncRunsCompanion Function({
   required String id,
   required String sourceId,
+  Value<String?> rootFolderId,
+  Value<String?> rootFolderName,
   required DateTime startedAt,
+  Value<DateTime?> updatedAt,
+  Value<DateTime?> lastCheckpointAt,
   Value<DateTime?> completedAt,
   required String status,
+  Value<String?> phase,
+  Value<String?> currentFile,
+  Value<String?> errorMessage,
+  Value<double> progressPercent,
   Value<int> filesDiscovered,
   Value<int> filesProcessed,
   Value<int> filesAdded,
@@ -13868,9 +14301,17 @@ typedef $$SyncRunsTableCreateCompanionBuilder = SyncRunsCompanion Function({
 typedef $$SyncRunsTableUpdateCompanionBuilder = SyncRunsCompanion Function({
   Value<String> id,
   Value<String> sourceId,
+  Value<String?> rootFolderId,
+  Value<String?> rootFolderName,
   Value<DateTime> startedAt,
+  Value<DateTime?> updatedAt,
+  Value<DateTime?> lastCheckpointAt,
   Value<DateTime?> completedAt,
   Value<String> status,
+  Value<String?> phase,
+  Value<String?> currentFile,
+  Value<String?> errorMessage,
+  Value<double> progressPercent,
   Value<int> filesDiscovered,
   Value<int> filesProcessed,
   Value<int> filesAdded,
@@ -13899,8 +14340,28 @@ class $$SyncRunsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get rootFolderId => $composableBuilder(
+    column: $table.rootFolderId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get rootFolderName => $composableBuilder(
+    column: $table.rootFolderName,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<DateTime> get startedAt => $composableBuilder(
     column: $table.startedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get lastCheckpointAt => $composableBuilder(
+    column: $table.lastCheckpointAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -13911,6 +14372,26 @@ class $$SyncRunsTableFilterComposer
 
   ColumnFilters<String> get status => $composableBuilder(
     column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get phase => $composableBuilder(
+    column: $table.phase,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get currentFile => $composableBuilder(
+    column: $table.currentFile,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get errorMessage => $composableBuilder(
+    column: $table.errorMessage,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get progressPercent => $composableBuilder(
+    column: $table.progressPercent,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -13964,8 +14445,28 @@ class $$SyncRunsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get rootFolderId => $composableBuilder(
+    column: $table.rootFolderId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get rootFolderName => $composableBuilder(
+    column: $table.rootFolderName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get startedAt => $composableBuilder(
     column: $table.startedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get lastCheckpointAt => $composableBuilder(
+    column: $table.lastCheckpointAt,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -13976,6 +14477,26 @@ class $$SyncRunsTableOrderingComposer
 
   ColumnOrderings<String> get status => $composableBuilder(
     column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get phase => $composableBuilder(
+    column: $table.phase,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get currentFile => $composableBuilder(
+    column: $table.currentFile,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get errorMessage => $composableBuilder(
+    column: $table.errorMessage,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get progressPercent => $composableBuilder(
+    column: $table.progressPercent,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -14025,8 +14546,26 @@ class $$SyncRunsTableAnnotationComposer
   GeneratedColumn<String> get sourceId =>
       $composableBuilder(column: $table.sourceId, builder: (column) => column);
 
+  GeneratedColumn<String> get rootFolderId => $composableBuilder(
+    column: $table.rootFolderId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get rootFolderName => $composableBuilder(
+    column: $table.rootFolderName,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<DateTime> get startedAt =>
       $composableBuilder(column: $table.startedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get lastCheckpointAt => $composableBuilder(
+    column: $table.lastCheckpointAt,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<DateTime> get completedAt => $composableBuilder(
     column: $table.completedAt,
@@ -14035,6 +14574,24 @@ class $$SyncRunsTableAnnotationComposer
 
   GeneratedColumn<String> get status =>
       $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<String> get phase =>
+      $composableBuilder(column: $table.phase, builder: (column) => column);
+
+  GeneratedColumn<String> get currentFile => $composableBuilder(
+    column: $table.currentFile,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get errorMessage => $composableBuilder(
+    column: $table.errorMessage,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get progressPercent => $composableBuilder(
+    column: $table.progressPercent,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get filesDiscovered => $composableBuilder(
     column: $table.filesDiscovered,
@@ -14072,14 +14629,17 @@ class $$SyncRunsTableTableManager
         RootTableManager<
           _$AppDatabase,
           $SyncRunsTable,
-          SyncRun,
+          SyncRunRow,
           $$SyncRunsTableFilterComposer,
           $$SyncRunsTableOrderingComposer,
           $$SyncRunsTableAnnotationComposer,
           $$SyncRunsTableCreateCompanionBuilder,
           $$SyncRunsTableUpdateCompanionBuilder,
-          (SyncRun, BaseReferences<_$AppDatabase, $SyncRunsTable, SyncRun>),
-          SyncRun,
+          (
+            SyncRunRow,
+            BaseReferences<_$AppDatabase, $SyncRunsTable, SyncRunRow>,
+          ),
+          SyncRunRow,
           PrefetchHooks Function()
         > {
   $$SyncRunsTableTableManager(_$AppDatabase db, $SyncRunsTable table)
@@ -14097,9 +14657,17 @@ class $$SyncRunsTableTableManager
               ({
                 Value<String> id = const Value.absent(),
                 Value<String> sourceId = const Value.absent(),
+                Value<String?> rootFolderId = const Value.absent(),
+                Value<String?> rootFolderName = const Value.absent(),
                 Value<DateTime> startedAt = const Value.absent(),
+                Value<DateTime?> updatedAt = const Value.absent(),
+                Value<DateTime?> lastCheckpointAt = const Value.absent(),
                 Value<DateTime?> completedAt = const Value.absent(),
                 Value<String> status = const Value.absent(),
+                Value<String?> phase = const Value.absent(),
+                Value<String?> currentFile = const Value.absent(),
+                Value<String?> errorMessage = const Value.absent(),
+                Value<double> progressPercent = const Value.absent(),
                 Value<int> filesDiscovered = const Value.absent(),
                 Value<int> filesProcessed = const Value.absent(),
                 Value<int> filesAdded = const Value.absent(),
@@ -14110,9 +14678,17 @@ class $$SyncRunsTableTableManager
               }) => SyncRunsCompanion(
                 id: id,
                 sourceId: sourceId,
+                rootFolderId: rootFolderId,
+                rootFolderName: rootFolderName,
                 startedAt: startedAt,
+                updatedAt: updatedAt,
+                lastCheckpointAt: lastCheckpointAt,
                 completedAt: completedAt,
                 status: status,
+                phase: phase,
+                currentFile: currentFile,
+                errorMessage: errorMessage,
+                progressPercent: progressPercent,
                 filesDiscovered: filesDiscovered,
                 filesProcessed: filesProcessed,
                 filesAdded: filesAdded,
@@ -14125,9 +14701,17 @@ class $$SyncRunsTableTableManager
               ({
                 required String id,
                 required String sourceId,
+                Value<String?> rootFolderId = const Value.absent(),
+                Value<String?> rootFolderName = const Value.absent(),
                 required DateTime startedAt,
+                Value<DateTime?> updatedAt = const Value.absent(),
+                Value<DateTime?> lastCheckpointAt = const Value.absent(),
                 Value<DateTime?> completedAt = const Value.absent(),
                 required String status,
+                Value<String?> phase = const Value.absent(),
+                Value<String?> currentFile = const Value.absent(),
+                Value<String?> errorMessage = const Value.absent(),
+                Value<double> progressPercent = const Value.absent(),
                 Value<int> filesDiscovered = const Value.absent(),
                 Value<int> filesProcessed = const Value.absent(),
                 Value<int> filesAdded = const Value.absent(),
@@ -14138,9 +14722,17 @@ class $$SyncRunsTableTableManager
               }) => SyncRunsCompanion.insert(
                 id: id,
                 sourceId: sourceId,
+                rootFolderId: rootFolderId,
+                rootFolderName: rootFolderName,
                 startedAt: startedAt,
+                updatedAt: updatedAt,
+                lastCheckpointAt: lastCheckpointAt,
                 completedAt: completedAt,
                 status: status,
+                phase: phase,
+                currentFile: currentFile,
+                errorMessage: errorMessage,
+                progressPercent: progressPercent,
                 filesDiscovered: filesDiscovered,
                 filesProcessed: filesProcessed,
                 filesAdded: filesAdded,
@@ -14152,8 +14744,8 @@ class $$SyncRunsTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable<$SyncRunsTable, SyncRun>(table),
-                  BaseReferences<_$AppDatabase, $SyncRunsTable, SyncRun>(
+                  e.readTable<$SyncRunsTable, SyncRunRow>(table),
+                  BaseReferences<_$AppDatabase, $SyncRunsTable, SyncRunRow>(
                     db,
                     table,
                     e,
@@ -14170,14 +14762,14 @@ typedef $$SyncRunsTableProcessedTableManager =
     ProcessedTableManager<
       _$AppDatabase,
       $SyncRunsTable,
-      SyncRun,
+      SyncRunRow,
       $$SyncRunsTableFilterComposer,
       $$SyncRunsTableOrderingComposer,
       $$SyncRunsTableAnnotationComposer,
       $$SyncRunsTableCreateCompanionBuilder,
       $$SyncRunsTableUpdateCompanionBuilder,
-      (SyncRun, BaseReferences<_$AppDatabase, $SyncRunsTable, SyncRun>),
-      SyncRun,
+      (SyncRunRow, BaseReferences<_$AppDatabase, $SyncRunsTable, SyncRunRow>),
+      SyncRunRow,
       PrefetchHooks Function()
     >;
 typedef $$SyncErrorsTableCreateCompanionBuilder = SyncErrorsCompanion Function({

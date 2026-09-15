@@ -21,10 +21,11 @@ class SyncProgressSheet extends ConsumerWidget {
         ref.watch(syncProgressProvider).value ?? const SyncProgress();
     final isDark = CupertinoTheme.brightnessOf(context) == Brightness.dark;
 
-    final isBusy =
-        syncProgress.phase == SyncPhase.scanning ||
-        syncProgress.phase == SyncPhase.extractingMetadata ||
-        syncProgress.phase == SyncPhase.updatingDatabase;
+    final isBusy = syncProgress.isBusy;
+    final isStopping = syncProgress.isStopping;
+    final isStopped = syncProgress.isStopped;
+    final isComplete = syncProgress.isComplete;
+    final isFailed = syncProgress.isFailed;
 
     return Container(
       decoration: BoxDecoration(
@@ -54,7 +55,13 @@ class SyncProgressSheet extends ConsumerWidget {
             ),
             const SizedBox(height: AppSpacing.md),
             Text(
-              'Library Synchronization',
+              isStopped
+                  ? 'Sync Stopped'
+                  : isComplete
+                  ? 'Library Synced'
+                  : isFailed
+                  ? 'Sync Interrupted'
+                  : 'Library Synchronization',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 18,
@@ -64,7 +71,9 @@ class SyncProgressSheet extends ConsumerWidget {
             ),
             const SizedBox(height: AppSpacing.sm),
             Text(
-              syncProgress.phase.displayMessage,
+              isStopped
+                  ? '${syncProgress.filesProcessed} of ${syncProgress.filesDiscovered} completed'
+                  : syncProgress.phase.displayMessage,
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 14,
@@ -73,7 +82,7 @@ class SyncProgressSheet extends ConsumerWidget {
                     : CupertinoColors.secondaryLabel,
               ),
             ),
-            if (syncProgress.currentFile != null && isBusy) ...[
+            if (syncProgress.currentFile != null && isBusy && !isStopping) ...[
               const SizedBox(height: 4),
               Text(
                 syncProgress.currentFile!,
@@ -88,22 +97,25 @@ class SyncProgressSheet extends ConsumerWidget {
               ),
             ],
             const SizedBox(height: AppSpacing.lg),
-            if (isBusy)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: SizedBox(
-                  height: 6,
-                  child: LinearProgressIndicator(
-                    value: syncProgress.progressPercent,
-                    backgroundColor: isDark
-                        ? CupertinoColors.white.withOpacity(0.1)
-                        : CupertinoColors.black.withOpacity(0.08),
-                    valueColor: const AlwaysStoppedAnimation<Color>(
-                      CupertinoColors.systemPink,
-                    ),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: SizedBox(
+                height: 6,
+                child: LinearProgressIndicator(
+                  value: isComplete ? 1.0 : syncProgress.progressPercent,
+                  backgroundColor: isDark
+                      ? CupertinoColors.white.withOpacity(0.1)
+                      : CupertinoColors.black.withOpacity(0.08),
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    isStopped
+                        ? CupertinoColors.systemOrange
+                        : isFailed
+                        ? CupertinoColors.destructiveRed
+                        : CupertinoColors.systemPink,
                   ),
                 ),
               ),
+            ),
             const SizedBox(height: AppSpacing.lg),
             CupertinoListSection.insetGrouped(
               margin: EdgeInsets.zero,
@@ -152,11 +164,81 @@ class SyncProgressSheet extends ConsumerWidget {
               ),
             ],
             const SizedBox(height: AppSpacing.lg),
-            CupertinoButton.filled(
-              borderRadius: BorderRadius.circular(AppRadii.card),
-              onPressed: () => Navigator.pop(context),
-              child: Text(isBusy ? 'Dismiss to Background' : 'Done'),
-            ),
+
+            // Control Actions
+            if (isStopping) ...[
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8),
+                  child: CupertinoActivityIndicator(radius: 12),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              CupertinoButton(
+                padding: EdgeInsets.zero,
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Dismiss to Background'),
+              ),
+            ] else if (isStopped || (isFailed && syncProgress.isResumable)) ...[
+              CupertinoButton.filled(
+                borderRadius: BorderRadius.circular(AppRadii.card),
+                onPressed: () {
+                  ref.read(musicLibraryRepositoryProvider).resumeSync();
+                },
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(CupertinoIcons.play_arrow_solid, size: 18),
+                    SizedBox(width: 8),
+                    Text('Resume Sync'),
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              CupertinoButton(
+                padding: EdgeInsets.zero,
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Dismiss'),
+              ),
+            ] else if (isBusy) ...[
+              CupertinoButton(
+                color: CupertinoColors.destructiveRed.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(AppRadii.card),
+                onPressed: () {
+                  ref.read(musicLibraryRepositoryProvider).stopSync();
+                },
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      CupertinoIcons.stop_fill,
+                      color: CupertinoColors.destructiveRed,
+                      size: 16,
+                    ),
+                    SizedBox(width: 8),
+                    Text(
+                      'Stop Sync',
+                      style: TextStyle(
+                        color: CupertinoColors.destructiveRed,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              CupertinoButton(
+                padding: EdgeInsets.zero,
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Dismiss to Background'),
+              ),
+            ] else ...[
+              CupertinoButton.filled(
+                borderRadius: BorderRadius.circular(AppRadii.card),
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Done'),
+              ),
+            ],
           ],
         ),
       ),
@@ -178,13 +260,14 @@ class LinearProgressIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final clamped = value.clamp(0.0, 1.0);
     return LayoutBuilder(
       builder: (context, constraints) {
         return Stack(
           children: [
             Container(color: backgroundColor),
             Container(
-              width: constraints.maxWidth * value,
+              width: constraints.maxWidth * clamped,
               color: valueColor.value,
             ),
           ],

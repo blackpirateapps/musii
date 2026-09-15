@@ -4,11 +4,22 @@ import '../../../../core/error/failures.dart';
 import '../../../../core/result/result.dart';
 import 'music_entities.dart';
 
+class SyncCancellationToken {
+  bool _isCancelled = false;
+  bool get isCancelled => _isCancelled;
+
+  void cancel() {
+    _isCancelled = true;
+  }
+}
+
 enum SyncPhase {
   idle('Idle'),
   scanning('Scanning Google Drive...'),
   extractingMetadata('Reading audio metadata...'),
   updatingDatabase('Updating library database...'),
+  stopping('Stopping synchronization...'),
+  stopped('Synchronization stopped'),
   complete('Synchronization complete'),
   failed('Synchronization failed');
 
@@ -18,6 +29,7 @@ enum SyncPhase {
 
 @immutable
 class SyncProgress {
+  final String? syncRunId;
   final SyncPhase phase;
   final int filesDiscovered;
   final int filesProcessed;
@@ -28,8 +40,13 @@ class SyncProgress {
   final String? currentFile;
   final String? errorMessage;
   final double progressPercent;
+  final DateTime? lastCheckpointAt;
+  final bool isResumable;
+  final String? rootFolderId;
+  final String? rootFolderName;
 
   const SyncProgress({
+    this.syncRunId,
     this.phase = SyncPhase.idle,
     this.filesDiscovered = 0,
     this.filesProcessed = 0,
@@ -40,9 +57,25 @@ class SyncProgress {
     this.currentFile,
     this.errorMessage,
     this.progressPercent = 0.0,
+    this.lastCheckpointAt,
+    this.isResumable = false,
+    this.rootFolderId,
+    this.rootFolderName,
   });
 
+  bool get isBusy =>
+      phase == SyncPhase.scanning ||
+      phase == SyncPhase.extractingMetadata ||
+      phase == SyncPhase.updatingDatabase ||
+      phase == SyncPhase.stopping;
+
+  bool get isStopping => phase == SyncPhase.stopping;
+  bool get isStopped => phase == SyncPhase.stopped;
+  bool get isComplete => phase == SyncPhase.complete;
+  bool get isFailed => phase == SyncPhase.failed;
+
   SyncProgress copyWith({
+    String? syncRunId,
     SyncPhase? phase,
     int? filesDiscovered,
     int? filesProcessed,
@@ -53,8 +86,13 @@ class SyncProgress {
     String? currentFile,
     String? errorMessage,
     double? progressPercent,
+    DateTime? lastCheckpointAt,
+    bool? isResumable,
+    String? rootFolderId,
+    String? rootFolderName,
   }) {
     return SyncProgress(
+      syncRunId: syncRunId ?? this.syncRunId,
       phase: phase ?? this.phase,
       filesDiscovered: filesDiscovered ?? this.filesDiscovered,
       filesProcessed: filesProcessed ?? this.filesProcessed,
@@ -65,6 +103,10 @@ class SyncProgress {
       currentFile: currentFile ?? this.currentFile,
       errorMessage: errorMessage ?? this.errorMessage,
       progressPercent: progressPercent ?? this.progressPercent,
+      lastCheckpointAt: lastCheckpointAt ?? this.lastCheckpointAt,
+      isResumable: isResumable ?? this.isResumable,
+      rootFolderId: rootFolderId ?? this.rootFolderId,
+      rootFolderName: rootFolderName ?? this.rootFolderName,
     );
   }
 }
@@ -82,7 +124,13 @@ abstract class MusicLibraryRepository {
     required String rootFolderId,
     required String rootFolderName,
     void Function(SyncProgress progress)? onProgress,
+    bool isResume = false,
   });
+
+  Future<Result<void, AppFailure>> stopSync();
+  Future<Result<void, AppFailure>> resumeSync();
+  Future<void> recoverInterruptedSyncIfNeeded();
+  Future<SyncProgress?> getLastSyncSession();
 
   Stream<SyncProgress> watchSyncProgress();
 }

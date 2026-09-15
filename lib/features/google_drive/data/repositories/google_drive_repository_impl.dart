@@ -100,6 +100,7 @@ class GoogleDriveRepositoryImpl implements GoogleDriveRepository {
   Future<Result<List<DriveFileItem>, AppFailure>> listAudioFilesRecursively(
     String rootFolderId, {
     void Function(int discoveredCount)? onProgress,
+    bool Function()? isCancelled,
   }) async {
     try {
       final driveApi = _getDriveApi();
@@ -113,12 +114,26 @@ class GoogleDriveRepositoryImpl implements GoogleDriveRepository {
       );
 
       while (folderQueue.isNotEmpty) {
+        if (isCancelled?.call() == true) {
+          AppLogger.info(
+            LogCategory.drive,
+            'Recursive scan stopped by cancellation token',
+          );
+          break;
+        }
         final currentFolderId = folderQueue.removeAt(0);
         if (visitedFolders.contains(currentFolderId)) continue;
         visitedFolders.add(currentFolderId);
 
         String? pageToken;
         do {
+          if (isCancelled?.call() == true) {
+            AppLogger.info(
+              LogCategory.drive,
+              'Recursive scan stopped by cancellation token',
+            );
+            break;
+          }
           final query = "'$currentFolderId' in parents and trashed = false";
           final result = await driveApi.files.list(
             q: query,

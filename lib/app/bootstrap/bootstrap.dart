@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -108,11 +110,15 @@ Future<void> bootstrap() async {
         'Restored session for ${userResult.dataOrNull!.email}',
       );
     }
+
+    // 11. Check for interrupted sync and auto-resume
+    final libraryRepo = rootContainer.read(musicLibraryRepositoryProvider);
+    unawaited(libraryRepo.recoverInterruptedSyncIfNeeded());
   } catch (e, st) {
     AppLogger.error(LogCategory.ui, 'Error during bootstrap sequence', e, st);
   }
 
-  // 11. Render application
+  // 12. Render application
   runApp(
     UncontrolledProviderScope(
       container: rootContainer,

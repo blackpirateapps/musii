@@ -72,6 +72,7 @@ abstract class GoogleDriveRepository {
   Future<Result<List<DriveFileItem>, AppFailure>> listAudioFilesRecursively(
     String rootFolderId, {
     void Function(int discoveredCount)? onProgress,
+    bool Function()? isCancelled,
   });
 
   Future<Result<File, AppFailure>> downloadFile({

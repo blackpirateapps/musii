@@ -188,12 +188,21 @@ class CacheEntries extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+@DataClassName('SyncRunRow')
 class SyncRuns extends Table {
   TextColumn get id => text()();
   TextColumn get sourceId => text()();
+  TextColumn get rootFolderId => text().nullable()();
+  TextColumn get rootFolderName => text().nullable()();
   DateTimeColumn get startedAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime().nullable()();
+  DateTimeColumn get lastCheckpointAt => dateTime().nullable()();
   DateTimeColumn get completedAt => dateTime().nullable()();
-  TextColumn get status => text()(); // 'running', 'completed', 'failed'
+  TextColumn get status => text()(); // 'running', 'stopping', 'stopped', 'completed', 'failed', 'interrupted'
+  TextColumn get phase => text().nullable()(); // 'scanning', 'extractingMetadata', 'updatingDatabase', 'complete', 'failed', 'stopped'
+  TextColumn get currentFile => text().nullable()();
+  TextColumn get errorMessage => text().nullable()();
+  RealColumn get progressPercent => real().withDefault(const Constant(0.0))();
   IntColumn get filesDiscovered => integer().withDefault(const Constant(0))();
   IntColumn get filesProcessed => integer().withDefault(const Constant(0))();
   IntColumn get filesAdded => integer().withDefault(const Constant(0))();
