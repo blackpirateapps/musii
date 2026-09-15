@@ -1,10 +1,10 @@
 # Musii — AI Engineering Handoff Document
 
-> **Document Version**: 1.2.0  
+> **Document Version**: 1.3.0  
 > **Target Audience**: Incoming AI Coding Assistants & Human Software Engineers  
 > **Last Verified**: September 2026  
 > **App Identifier**: `com.blackpirateapps.musii`  
-> **Test Status**: 53 / 53 Passing (`flutter test`), 0 Analyzer Warnings (`flutter analyze`)
+> **Test Status**: 68 / 68 Passing (`flutter test`), 0 Analyzer Warnings (`flutter analyze`)
 
 ---
 
@@ -74,7 +74,7 @@ Located in `lib/features/playback/presentation/pages/now_playing_page.dart`:
   - Lyrics icon (`quote_bubble`) opening synchronized `LyricsSheet`.
   - Queue icon (`text_badge_plus`) opening the dynamic playback queue sheet.
 
-### 2. Lyrics Engine & Synchronization
+### 2. Lyrics Engine & Synchronization (Phase 1 & Phase 2 Upgraded)
 Located in `lib/features/lyrics/`:
 - **LRC Parser (`LrcParser`)**:
   - Millisecond precision (`[mm:ss.xxx]`) and centisecond precision (`[mm:ss.xx]`).
@@ -90,10 +90,16 @@ Located in `lib/features/lyrics/`:
 - **Database Schema v2**:
   - `Lyrics` table (`@DataClassName('LyricRow')`) with track foreign key and cascade deletion.
   - `LyricLines` table (`@DataClassName('LyricLineRow')`) with millisecond timestamp and sequential index.
+- **Domain Active-Line Synchronization (`TrackLyrics`)**:
+  - Pure domain method `findActiveIndex(Duration currentPosition)` / `calculateActiveIndex(lines, currentPosition)` providing canonical single source of truth for active line derivation.
 - **Cupertino Lyrics Sheet (`LyricsSheet`)**:
-  - Synchronized auto-scrolling highlighting active line with translucent inactive lines.
-  - Tap-to-seek: Tapping any lyric line instantly seeks audio playback.
-  - Manual scroll detection with "Return to current line" button.
+  - **45% Viewport Focal Alignment**: Uses dynamic sheet geometry (`LayoutBuilder`) with top padding (40% viewport height) and bottom padding (55% viewport height), positioning the active line deliberately in the ~45% focal region.
+  - **Exact Item Geometry Positioning**: Calculates target scroll offsets via `RenderBox.localToGlobal` relative to the lyrics viewport, gracefully accommodating variable height and multi-line lyrics.
+  - **Cold Start & Mid-Playback Initial Positioning**: When opening the sheet during playback, immediately renders and jumps to the active line on the first post-frame callback without distracting long animated scrolls.
+  - **Smooth Viewport Transitions**: 300ms `Curves.easeOutCubic` animated scrolling triggered strictly on `activeIndex` change, eliminating jitter and unnecessary animations during intra-line playback position ticks.
+  - **Symmetric Active/Inactive Line Animations (`LyricLineRow`)**: Bidirectional 280ms `Curves.easeOutCubic` transitions via `AnimatedScale` (1.0 active vs 0.97 inactive) and `AnimatedDefaultTextStyle` (23px w700 bold full contrast vs 19px w500 38% opacity).
+  - **Manual Scroll Recovery & Tap-to-Seek**: User drag notifications pause auto-scroll and animate in the floating "Current line" button. Tapping "Current line" or tapping any lyric line seeks playback, snaps to the 45% focal position, and restores auto-following.
+  - **Unsynchronized & Empty Fallbacks**: Clean Cupertino typography for plain lyrics and elegant empty state for tracks lacking lyrics.
 
 ### 3. Google Drive Integration & Recursive Sync
 Located in `lib/features/google_drive/` and `lib/features/library/`:

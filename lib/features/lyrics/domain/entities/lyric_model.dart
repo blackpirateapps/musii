@@ -68,6 +68,30 @@ class TrackLyrics {
   bool get hasLyrics =>
       lines.isNotEmpty || (rawText != null && rawText!.trim().isNotEmpty);
 
+  /// Calculates the active lyric line index for a given playback position.
+  int findActiveIndex(Duration currentPosition) {
+    if (!isSynchronized || lines.isEmpty) return -1;
+    return calculateActiveIndex(lines, currentPosition);
+  }
+
+  /// Calculates the active lyric line index given a list of [lines] and [currentPosition].
+  static int calculateActiveIndex(
+    List<LyricLine> lines,
+    Duration currentPosition,
+  ) {
+    if (lines.isEmpty) return -1;
+    final curMs = currentPosition.inMilliseconds;
+    int activeIndex = -1;
+    for (int i = 0; i < lines.length; i++) {
+      if (lines[i].timestampMs <= curMs) {
+        activeIndex = i;
+      } else {
+        break;
+      }
+    }
+    return activeIndex;
+  }
+
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
