@@ -162,9 +162,16 @@ dart format .
 
 ---
 
-## 7. CI/CD & Build Workflow
+## 7. CI/CD & Build Workflows
 
-- **CI File**: `.github/workflows/build-apk.yml`
-- **Build Step**: Triggered on push to `main` or manually via `workflow_dispatch`.
-- **Artifact**: `musii-release-apk` (`build/app/outputs/flutter-apk/app-release.apk`).
-- **Signing**: Configured in `android/app/build.gradle.kts` to pull from `android/key.properties` when present.
+### 1. Build APK Workflow (`.github/workflows/build-apk.yml`)
+- **Trigger**: Push to `main`, PR, or manual `workflow_dispatch`.
+- **Keystore Secrets**: Automatically checks for `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, and `KEY_PASSWORD`.
+- **Output Artifact**: `musii-release-apk` (`build/app/outputs/flutter-apk/app-release.apk`).
+- **Fallback**: Gracefully uses debug signing if secrets are not populated.
+
+### 2. Signing Report Workflow (`.github/workflows/signing-report.yml`)
+- **Trigger**: Manual `workflow_dispatch` or push affecting Android configs.
+- **Function**: Executes Gradle `signingReport` and `keytool` on the release keystore to output SHA-1, SHA-256, and MD5 fingerprints.
+- **Output**: Posts a Markdown summary directly to `$GITHUB_STEP_SUMMARY` and uploads `android-signing-report` artifact.
+

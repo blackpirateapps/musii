@@ -18,7 +18,44 @@ Keep your keystore file and passwords safe and never check them into git.
 
 ---
 
-## 2. Configure Keystore in Gradle
+## 2. GitHub Actions Secrets Configuration (Recommended)
+
+To allow GitHub Actions to build signed release APKs without checking keys into the repository, add the following secrets under **Settings > Secrets and variables > Actions** in your GitHub repository:
+
+| Secret Name | Description | Example / Command |
+|---|---|---|
+| `KEYSTORE_BASE64` | Base64-encoded string of your `.jks` file | `base64 -w 0 ~/musii-release-key.jks` |
+| `KEYSTORE_PASSWORD` | Store password for the keystore | Your keystore password |
+| `KEY_ALIAS` | Alias name for the key entry | `musii-key` |
+| `KEY_PASSWORD` | Password for the key alias | Your key password |
+
+### Converting Keystore to Base64:
+On Linux/macOS:
+```bash
+base64 -w 0 ~/musii-release-key.jks
+```
+(On macOS, use `base64 -i ~/musii-release-key.jks | tr -d '\n'`).
+
+Copy the entire output and paste it into the `KEYSTORE_BASE64` secret in GitHub.
+
+---
+
+## 3. Generating the Android Signing Report via GitHub Actions
+
+Musii includes a dedicated workflow to extract and display the SHA-1 and SHA-256 certificate fingerprints directly inside GitHub Actions:
+
+- **Workflow File**: [`.github/workflows/signing-report.yml`](../.github/workflows/signing-report.yml)
+- **How to Run**:
+  1. Go to the **Actions** tab in your GitHub repository.
+  2. Select **Android Signing Report** in the left sidebar.
+  3. Click **Run workflow** on the `main` branch.
+  4. Once complete, click the workflow run:
+     - The job summary page displays the formatted SHA-1 and SHA-256 fingerprints in markdown table format.
+     - You can also download the `android-signing-report` artifact containing the full diagnostic dump.
+
+---
+
+## 4. Local Signing Configuration (Optional)
 
 Create a file named `android/key.properties` (which is git-ignored by default):
 
@@ -26,34 +63,43 @@ Create a file named `android/key.properties` (which is git-ignored by default):
 storePassword=<YOUR_STORE_PASSWORD>
 keyPassword=<YOUR_KEY_PASSWORD>
 keyAlias=musii-key
-storeFile=/path/to/musii-release-key.jks
+storeFile=upload-keystore.jks
 ```
 
-In `android/app/build.gradle.kts`, the signing configs load from `key.properties` when present:
+Place `upload-keystore.jks` inside `android/app/`.
+
+In `android/app/build.gradle.kts`, the signing configs automatically load from `key.properties` when present:
 
 ```kotlin
 val keystorePropertiesFile = rootProject.file("key.properties")
 val keystoreProperties = Properties()
-if (keystorePropertiesFile.exists()) {
+val hasKeystore = keystorePropertiesFile.exists()
+if (hasKeystore) {
     keystoreProperties.load(FileInputStream(keystorePropertiesFile))
 }
 
 android {
     signingConfigs {
-        create("release") {
-            keyAlias = keystoreProperties["keyAlias"] as String?
-            keyPassword = keystoreProperties["keyPassword"] as String?
-            storeFile = keystoreProperties["storeFile"]?.let { file(it) }
-            storePassword = keystoreProperties["storePassword"] as String?
+        if (hasKeystore) {
+            create("release") {
+                keyAlias = keystoreProperties["keyAlias"] as String?
+                keyPassword = keystoreProperties["keyPassword"] as String?
+                storeFile = keystoreProperties["storeFile"]?.let { path ->
+                    val f = file(path)
+                    if (f.exists()) f else rootProject.file(path)
+                }
+                storePassword = keystoreProperties["storePassword"] as String?
+            }
         }
     }
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("release")
-            isMinifyEnabled = true
-            isShrinkResources = true
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfig = if (hasKeystore) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
         }
     }
 }
@@ -61,20 +107,10 @@ android {
 
 ---
 
-## 3. Automated GitHub Actions Release Workflow
+## 5. Automated GitHub Actions Release Workflow
 
-Musii includes a GitHub Actions workflow located at [`.github/workflows/build-apk.yml`](../.github/workflows/build-apk.yml).
-
-### Build Pipeline:
-1. Automatically triggers on every push to `main` and on pull requests.
-2. Can be manually triggered via `workflow_dispatch` from the GitHub Actions console.
-3. Automatically provisions Ubuntu runner, JDK 17, and Flutter stable.
-4. Executes `build_runner`, `flutter analyze`, and `flutter test`.
-5. Builds the production APK (`flutter build apk --release`).
-6. Archives and uploads the release APK as a downloadable artifact.
-
-### Downloading the Build Artifact:
-1. Navigate to your Musii repository on GitHub.
-2. Click the **Actions** tab.
-3. Select the latest successful **Build Musii Android APK** run.
-4. Under the **Artifacts** section, download `musii-release-apk`.
+- **Workflow File**: [`.github/workflows/build-apk.yml`](../.github/workflows/build-apk.yml)
+- **Behavior**:
+  - Automatically loads `KEYSTORE_BASE64` and credentials if configured.
+  - Falls back gracefully to debug signing if secrets are not set yet.
+  - Builds `app-release.apk` and uploads the artifact `musii-release-apk`.

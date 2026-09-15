@@ -41,6 +41,27 @@ jobs:
       - name: Run code generation (Drift & Mocks)
         run: dart run build_runner build --delete-conflicting-outputs
 
+      - name: Configure Release Keystore from Repository Secrets
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "Release keystore secret detected. Configuring production signing..."
+            echo "$KEYSTORE_BASE64" | base64 --decode > android/app/upload-keystore.jks
+            cat <<EOF > android/key.properties
+            storePassword=$KEYSTORE_PASSWORD
+            keyPassword=$KEY_PASSWORD
+            keyAlias=$KEY_ALIAS
+            storeFile=upload-keystore.jks
+            EOF
+            echo "Production keystore configured successfully."
+          else
+            echo "No KEYSTORE_BASE64 secret found. Falling back to debug signing."
+          fi
+
       - name: Static code analysis
         run: flutter analyze --no-fatal-infos
 
