@@ -2,10 +2,14 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart' show Slider;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:musii/app/bootstrap/providers.dart';
 import 'package:musii/features/library/domain/entities/music_entities.dart';
+import 'package:musii/features/playback/domain/entities/playback_repository.dart';
 import 'package:musii/features/playback/domain/entities/playback_state.dart';
 import 'package:musii/features/playback/presentation/pages/now_playing_page.dart';
+
+class MockPlaybackRepository extends Mock implements PlaybackRepository {}
 
 void main() {
   const testTrack = Track(
@@ -212,9 +216,7 @@ void main() {
     expect(find.byType(NowPlayingPage), findsNothing);
   });
 
-  testWidgets('Swiping up from anywhere opens Queue sheet', (
-    tester,
-  ) async {
+  testWidgets('Swiping up from anywhere opens Queue sheet', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -247,4 +249,74 @@ void main() {
 
     expect(find.text('Playing Next'), findsOneWidget);
   });
+
+  testWidgets(
+    'Tapping pause button on NowPlayingPage invokes repository.pause',
+    (tester) async {
+      final mockRepo = MockPlaybackRepository();
+      when(() => mockRepo.pause()).thenAnswer((_) async {});
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            playbackRepositoryProvider.overrideWithValue(mockRepo),
+            playerStateProvider.overrideWith(
+              (ref) => Stream.value(
+                const PlayerStateSnapshot(
+                  currentTrack: testTrack,
+                  duration: Duration(milliseconds: 243000),
+                  position: Duration(milliseconds: 103000),
+                  isPlaying: true,
+                ),
+              ),
+            ),
+            isTrackFavoriteProvider('track_test_1')
+                .overrideWith((ref) => Stream.value(false)),
+          ],
+          child: const CupertinoApp(home: NowPlayingPage()),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(CupertinoIcons.pause_fill));
+      await tester.pump();
+      verify(() => mockRepo.pause()).called(1);
+    },
+  );
+
+  testWidgets(
+    'Tapping play button on NowPlayingPage invokes repository.resume',
+    (tester) async {
+      final mockRepo = MockPlaybackRepository();
+      when(() => mockRepo.resume()).thenAnswer((_) async {});
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            playbackRepositoryProvider.overrideWithValue(mockRepo),
+            playerStateProvider.overrideWith(
+              (ref) => Stream.value(
+                const PlayerStateSnapshot(
+                  currentTrack: testTrack,
+                  duration: Duration(milliseconds: 243000),
+                  position: Duration(milliseconds: 103000),
+                  isPlaying: false,
+                ),
+              ),
+            ),
+            isTrackFavoriteProvider('track_test_1')
+                .overrideWith((ref) => Stream.value(false)),
+          ],
+          child: const CupertinoApp(home: NowPlayingPage()),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(CupertinoIcons.play_fill));
+      await tester.pump();
+      verify(() => mockRepo.resume()).called(1);
+    },
+  );
 }

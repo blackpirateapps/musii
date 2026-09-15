@@ -32,6 +32,8 @@ class MusiiAudioHandler extends BaseAudioHandler
   bool _shuffleMode = false;
   List<Track> _unshuffledQueue = [];
   int _loadGeneration = 0;
+  String? _loadedTrackId;
+  String? _loadingTrackId;
 
   final StreamController<PlayerStateSnapshot> _stateController =
       StreamController<PlayerStateSnapshot>.broadcast();
@@ -105,6 +107,7 @@ class MusiiAudioHandler extends BaseAudioHandler
   }
 
   void _broadcastPlaybackState() {
+    if (_loadingTrackId != null) return;
     final isPlaying = _player.playing;
     final processing = _player.processingState;
 
@@ -146,6 +149,9 @@ class MusiiAudioHandler extends BaseAudioHandler
 
   void _listenToPlayerEvents() {
     _player.playbackEventStream.listen((PlaybackEvent event) {
+      if (_loadingTrackId != null || _loadedTrackId != _currentTrack?.id) {
+        return;
+      }
       _broadcastPlaybackState();
       _emitSnapshot(
         _snapshot.copyWith(
@@ -160,6 +166,9 @@ class MusiiAudioHandler extends BaseAudioHandler
     });
 
     _player.playerStateStream.listen((state) {
+      if (_loadingTrackId != null || _loadedTrackId != _currentTrack?.id) {
+        return;
+      }
       _broadcastPlaybackState();
       _emitSnapshot(
         _snapshot.copyWith(
@@ -175,10 +184,16 @@ class MusiiAudioHandler extends BaseAudioHandler
     });
 
     _player.positionStream.listen((pos) {
+      if (_loadingTrackId != null || _loadedTrackId != _currentTrack?.id) {
+        return;
+      }
       _emitSnapshot(_snapshot.copyWith(position: pos));
     });
 
     _player.durationStream.listen((dur) {
+      if (_loadingTrackId != null || _loadedTrackId != _currentTrack?.id) {
+        return;
+      }
       if (dur != null) {
         _emitSnapshot(_snapshot.copyWith(duration: dur));
       }
@@ -242,6 +257,8 @@ class MusiiAudioHandler extends BaseAudioHandler
 
     // Sync media session queue immediately
     _syncMediaQueue();
+
+    _loadingTrackId = targetTrack.id;
 
     // Emit loading state immediately
     _emitSnapshot(
@@ -313,6 +330,7 @@ class MusiiAudioHandler extends BaseAudioHandler
           LogCategory.playback,
           'Failed to obtain audio file: ${fileResult.failureOrNull?.message}',
         );
+        _loadingTrackId = null;
         _emitSnapshot(_snapshot.copyWith(isBuffering: false, isPlaying: false));
         return;
       }
@@ -322,6 +340,9 @@ class MusiiAudioHandler extends BaseAudioHandler
 
       await _player.setFilePath(file.path);
       if (currentGen != _loadGeneration) return;
+
+      _loadedTrackId = targetTrack.id;
+      _loadingTrackId = null;
 
       await _player.play();
 
@@ -338,6 +359,7 @@ class MusiiAudioHandler extends BaseAudioHandler
           e,
           st,
         );
+        _loadingTrackId = null;
         _emitSnapshot(_snapshot.copyWith(isBuffering: false, isPlaying: false));
       }
     }
@@ -370,12 +392,25 @@ class MusiiAudioHandler extends BaseAudioHandler
 
   @override
   Future<void> play() async {
-    if (_player.processingState == ProcessingState.completed) {
-      await seek(Duration.zero);
+    final target = _currentTrack ?? _snapshot.currentTrack;
+    if (target == null) return;
+
+    if (_loadedTrackId == target.id &&
+        _loadingTrackId == null &&
+        _player.processingState != ProcessingState.idle) {
+      if (_player.processingState == ProcessingState.completed) {
+        await seek(Duration.zero);
+      }
+      await _player.play();
+      _broadcastPlaybackState();
+      await _persistState();
+    } else if (_loadingTrackId == target.id) {
+      // Already loading target track; it will automatically play when ready.
+      return;
+    } else {
+      // Target track is not loaded in player; load and play it now.
+      await loadAndPlayTrack(target);
     }
-    await _player.play();
-    _broadcastPlaybackState();
-    await _persistState();
   }
 
   @override
@@ -396,6 +431,8 @@ class MusiiAudioHandler extends BaseAudioHandler
   @override
   Future<void> stop() async {
     await _player.stop();
+    _loadedTrackId = null;
+    _loadingTrackId = null;
     _cacheRepository.setCurrentlyPlayingTrackId(null);
     _broadcastPlaybackState();
     _emitSnapshot(_snapshot.copyWith(isPlaying: false, isBuffering: false));

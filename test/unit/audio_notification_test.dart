@@ -169,5 +169,43 @@ void main() {
         verify(() => mockCache.getOrDownloadTrack(any())).called(1);
       },
     );
+
+    test('play() initiates loadAndPlayTrack for current track if not yet loaded in player', () async {
+      const testTrack = Track(
+        id: 'track_unloaded',
+        driveFileId: 'df_unloaded',
+        sourceId: 's1',
+        title: 'Unloaded Song',
+        normalizedTitle: 'unloaded song',
+        durationMs: 150000,
+      );
+
+      // Populate queue without loading audio
+      handler.playNext(testTrack);
+      expect(
+        handler.currentSnapshot.currentTrack?.id,
+        equals('track_unloaded'),
+      );
+
+      // Calling play() must load and play the displayed track
+      await handler.play();
+
+      expect(
+        handler.currentSnapshot.currentTrack?.id,
+        equals('track_unloaded'),
+      );
+      verify(() => mockCache.setCurrentlyPlayingTrackId('track_unloaded'))
+          .called(1);
+      verify(() => mockCache.getOrDownloadTrack(any())).called(1);
+    });
+
+    test(
+      'play() does nothing safely when no track is in queue or snapshot',
+      () async {
+        handler.clearQueue();
+        await handler.play();
+        expect(handler.currentSnapshot.currentTrack, isNull);
+      },
+    );
   });
 }

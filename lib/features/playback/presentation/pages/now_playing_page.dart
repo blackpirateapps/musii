@@ -88,16 +88,17 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
     final start = _dragOffset;
     if (start == 0.0) return;
     _dismissController?.reset();
-    _dismissAnimation = Tween<double>(begin: start, end: 0.0).animate(
-      CurvedAnimation(
-        parent: _dismissController!,
-        curve: Curves.easeOutCubic,
-      ),
-    )..addListener(() {
-        setState(() {
-          _dragOffset = _dismissAnimation!.value;
+    _dismissAnimation =
+        Tween<double>(begin: start, end: 0.0).animate(
+          CurvedAnimation(
+            parent: _dismissController!,
+            curve: Curves.easeOutCubic,
+          ),
+        )..addListener(() {
+          setState(() {
+            _dragOffset = _dismissAnimation!.value;
+          });
         });
-      });
     _dismissController?.forward().then((_) {
       if (mounted) {
         setState(() {
@@ -158,8 +159,10 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
               if (track?.artworkPath != null &&
                   File(track!.artworkPath!).existsSync())
                 Positioned.fill(
-                  child:
-                      Image.file(File(track.artworkPath!), fit: BoxFit.cover),
+                  child: Image.file(
+                    File(track.artworkPath!),
+                    fit: BoxFit.cover,
+                  ),
                 ),
               Positioned.fill(
                 child: BackdropFilter(
@@ -222,18 +225,15 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
                                     width: 36,
                                     height: 5,
                                     decoration: BoxDecoration(
-                                      color: CupertinoColors.white
-                                          .withOpacity(0.35),
-                                      borderRadius:
-                                          BorderRadius.circular(2.5),
+                                      color: CupertinoColors.white.withOpacity(
+                                        0.35,
+                                      ),
+                                      borderRadius: BorderRadius.circular(2.5),
                                     ),
                                   ),
 
                                   // Right: Balanced spacer to ensure the grabber is perfectly centered
-                                  const SizedBox(
-                                    width: 44,
-                                    height: 44,
-                                  ),
+                                  const SizedBox(width: 44, height: 44),
                                 ],
                               ),
                             ),
@@ -526,7 +526,7 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
                                         ref
                                             .read(playbackRepositoryProvider)
                                             .pause();
-                                      } else {
+                                      } else if (track != null) {
                                         ref
                                             .read(playbackRepositoryProvider)
                                             .resume();
