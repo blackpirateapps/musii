@@ -2,7 +2,10 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/bootstrap/providers.dart';
+import '../../../lyrics/presentation/pages/lyrics_sheet.dart';
 import '../../domain/entities/music_entities.dart';
+import '../pages/album_detail_page.dart';
+import '../pages/artist_detail_page.dart';
 import 'audio_info_sheet.dart';
 
 void showTrackActionSheet({
@@ -80,6 +83,37 @@ void showTrackActionSheet({
                 ? 'Remove Offline Download'
                 : 'Download for Offline',
           ),
+        ),
+        if (track.albumId != null)
+          CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.of(context).push(
+                CupertinoPageRoute(
+                  builder: (_) => AlbumDetailPage(albumId: track.albumId!),
+                ),
+              );
+            },
+            child: const Text('View Album'),
+          ),
+        if (track.artistId != null)
+          CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.of(context).push(
+                CupertinoPageRoute(
+                  builder: (_) => ArtistDetailPage(artistId: track.artistId!),
+                ),
+              );
+            },
+            child: const Text('View Artist'),
+          ),
+        CupertinoActionSheetAction(
+          onPressed: () {
+            Navigator.pop(ctx);
+            showLyricsSheet(context, track);
+          },
+          child: const Text('Lyrics'),
         ),
         CupertinoActionSheetAction(
           onPressed: () {

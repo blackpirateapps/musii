@@ -19,6 +19,7 @@ class ParsedAudioMetadata {
   final String format;
   final int fileSize;
   final Uint8List? artworkBytes;
+  final String? lyrics;
   final Map<String, dynamic>? rawMetadata;
 
   const ParsedAudioMetadata({
@@ -39,6 +40,7 @@ class ParsedAudioMetadata {
     required this.format,
     required this.fileSize,
     this.artworkBytes,
+    this.lyrics,
     this.rawMetadata,
   });
 }

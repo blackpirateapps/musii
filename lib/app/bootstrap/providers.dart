@@ -13,6 +13,9 @@ import '../../features/library/data/repositories/music_library_repository_impl.d
 import '../../features/library/domain/entities/music_entities.dart';
 import '../../features/library/domain/entities/sync_progress.dart';
 import '../../features/metadata/data/repositories/metadata_extractor_impl.dart';
+import '../../features/lyrics/data/repositories/lyrics_repository_impl.dart';
+import '../../features/lyrics/domain/entities/lyric_model.dart';
+import '../../features/lyrics/domain/repositories/lyrics_repository.dart';
 import '../../features/playback/data/repositories/playback_repository_impl.dart';
 import '../../features/playback/domain/entities/playback_repository.dart';
 import '../../features/playback/domain/entities/playback_state.dart';
@@ -158,17 +161,41 @@ final playerStateProvider = StreamProvider<PlayerStateSnapshot>((ref) {
   return repo.watchPlayerState();
 });
 
+// Lyrics
+final lyricsRepositoryProvider = Provider<LyricsRepository>((ref) {
+  final db = ref.watch(appDatabaseProvider);
+  return LyricsRepositoryImpl(database: db);
+});
+
+final trackLyricsProvider = StreamProvider.family<TrackLyrics?, String>((
+  ref,
+  trackId,
+) {
+  final repo = ref.watch(lyricsRepositoryProvider);
+  return repo.watchLyricsForTrack(trackId);
+});
+
+final currentTrackLyricsProvider = StreamProvider<TrackLyrics?>((ref) {
+  final playerSnapshot = ref.watch(playerStateProvider).value;
+  final track = playerSnapshot?.currentTrack;
+  if (track == null) return Stream.value(null);
+  final repo = ref.watch(lyricsRepositoryProvider);
+  return repo.watchLyricsForTrack(track.id);
+});
+
 // Library
 final musicLibraryRepositoryProvider = Provider<MusicLibraryRepository>((ref) {
   final db = ref.watch(appDatabaseProvider);
   final drive = ref.watch(googleDriveRepositoryProvider);
   final extractor = ref.watch(metadataExtractorProvider);
+  final lyrics = ref.watch(lyricsRepositoryProvider);
   final fs = ref.watch(appFileSystemProvider);
 
   return MusicLibraryRepositoryImpl(
     database: db,
     driveRepository: drive,
     metadataExtractor: extractor,
+    lyricsRepository: lyrics,
     fileSystem: fs,
   );
 });

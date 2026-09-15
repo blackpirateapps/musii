@@ -53,6 +53,9 @@ class MetadataExtractor {
         format: ext.toUpperCase(),
         fileSize: fileSize,
         artworkBytes: artworkBytes,
+        lyrics: (meta.lyrics != null && meta.lyrics!.trim().isNotEmpty)
+            ? meta.lyrics!.trim()
+            : null,
         rawMetadata: {
           'title': meta.title,
           'artist': meta.artist,
@@ -64,6 +67,7 @@ class MetadataExtractor {
           'year': year,
           'bitrate': meta.bitrate,
           'sampleRate': meta.sampleRate,
+          'hasLyrics': meta.lyrics != null && meta.lyrics!.trim().isNotEmpty,
         },
       );
 

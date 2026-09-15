@@ -29,13 +29,15 @@ part 'app_database.g.dart';
     Artworks,
     AppSettings,
     PlaybackStates,
+    Lyrics,
+    LyricLines,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? e]) : super(e ?? _openConnection());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration {
@@ -58,9 +60,24 @@ class AppDatabase extends _$AppDatabase {
         await customStatement(
           'CREATE INDEX IF NOT EXISTS idx_albums_artist ON albums(artist_id);',
         );
+        await customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_lyrics_track ON lyrics(track_id);',
+        );
+        await customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_lyric_lines_lyrics ON lyric_lines(lyrics_id, sequence);',
+        );
       },
       onUpgrade: (Migrator m, int from, int to) async {
-        // Migration logic for future versions
+        if (from < 2) {
+          await m.createTable(lyrics);
+          await m.createTable(lyricLines);
+          await customStatement(
+            'CREATE INDEX IF NOT EXISTS idx_lyrics_track ON lyrics(track_id);',
+          );
+          await customStatement(
+            'CREATE INDEX IF NOT EXISTS idx_lyric_lines_lyrics ON lyric_lines(lyrics_id, sequence);',
+          );
+        }
       },
       beforeOpen: (details) async {
         await customStatement('PRAGMA foreign_keys = ON');

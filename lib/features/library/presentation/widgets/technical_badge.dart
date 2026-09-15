@@ -15,14 +15,14 @@ class TechnicalBadge extends StatelessWidget {
       parts.add(track.format!.toUpperCase());
     }
 
-    if (track.bitDepth != null && track.sampleRate != null) {
+    if (track.bitrate != null && track.bitrate! > 0) {
+      final kbps = (track.bitrate! / 1000).round();
+      parts.add('$kbps kbps');
+    } else if (track.bitDepth != null && track.sampleRate != null) {
       final khz = (track.sampleRate! / 1000)
           .toStringAsFixed(1)
           .replaceAll('.0', '');
       parts.add('${track.bitDepth}-bit / $khz kHz');
-    } else if (track.bitrate != null && track.bitrate! > 0) {
-      final kbps = (track.bitrate! / 1000).round();
-      parts.add('$kbps kbps');
     }
 
     if (parts.isEmpty) {

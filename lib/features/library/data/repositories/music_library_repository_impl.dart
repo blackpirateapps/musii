@@ -12,6 +12,10 @@ import '../../../../core/result/result.dart';
 import '../../../google_drive/domain/entities/drive_item.dart';
 import '../../../metadata/data/repositories/metadata_extractor_impl.dart';
 import '../../../metadata/domain/entities/parsed_audio_metadata.dart';
+import '../../../lyrics/data/repositories/lyrics_repository_impl.dart';
+import '../../../lyrics/domain/entities/lyric_model.dart';
+import '../../../lyrics/domain/repositories/lyrics_repository.dart';
+import '../../../lyrics/domain/services/lrc_parser.dart';
 import '../../../metadata/domain/services/metadata_normalization_service.dart';
 import '../../domain/entities/music_entities.dart';
 import '../../domain/entities/sync_progress.dart';
@@ -20,6 +24,7 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
   final AppDatabase _database;
   final GoogleDriveRepository _driveRepository;
   final MetadataExtractor _metadataExtractor;
+  final LyricsRepository _lyricsRepository;
   final AppFileSystem _fileSystem;
 
   final StreamController<SyncProgress> _syncProgressController =
@@ -31,10 +36,13 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
     required AppDatabase database,
     required GoogleDriveRepository driveRepository,
     MetadataExtractor? metadataExtractor,
+    LyricsRepository? lyricsRepository,
     AppFileSystem? fileSystem,
   }) : _database = database,
        _driveRepository = driveRepository,
        _metadataExtractor = metadataExtractor ?? MetadataExtractor(),
+       _lyricsRepository =
+           lyricsRepository ?? LyricsRepositoryImpl(database: database),
        _fileSystem = fileSystem ?? AppFileSystem.instance;
 
   @override
@@ -302,8 +310,19 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
         return Result.failure(err);
       }
 
-      final driveFiles = scanResult.dataOrNull ?? [];
-      final driveFileMap = {for (final f in driveFiles) f.id: f};
+      final allDriveFiles = scanResult.dataOrNull ?? [];
+      final driveAudioFiles = allDriveFiles.where((f) => !f.isLrc).toList();
+      final driveLrcFiles = allDriveFiles.where((f) => f.isLrc).toList();
+
+      // Build map of sidecar LRC files keyed by folder and base filename
+      final Map<String, DriveFileItem> lrcMap = {};
+      for (final lrc in driveLrcFiles) {
+        final folder = lrc.parentFolderId ?? '';
+        final base = _cleanBaseName(lrc.name);
+        lrcMap['${folder}_$base'] = lrc;
+      }
+
+      final driveFileMap = {for (final f in driveAudioFiles) f.id: f};
 
       // 3. Load existing indexed tracks
       final existingTracks = await (_database.select(
@@ -313,7 +332,7 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
 
       // 4. Determine diff: added, modified, removed
       final toAddOrUpdate = <DriveFileItem>[];
-      for (final df in driveFiles) {
+      for (final df in driveAudioFiles) {
         final existing = existingMap[df.id];
         if (existing == null) {
           toAddOrUpdate.add(df);
@@ -336,7 +355,7 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
       _updateProgress(
         _currentProgress.copyWith(
           phase: SyncPhase.extractingMetadata,
-          filesDiscovered: driveFiles.length,
+          filesDiscovered: driveAudioFiles.length,
           filesProcessed: 0,
         ),
       );
@@ -390,6 +409,15 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
               rawJson: jsonEncode(parsedMeta.rawMetadata ?? {}),
             );
 
+            // Extract & associate lyrics with deterministic priority
+            final trackId = 'track_${driveFile.id}';
+            await _processLyricsForTrack(
+              trackId: trackId,
+              driveFile: driveFile,
+              parsedMeta: parsedMeta,
+              lrcMap: lrcMap,
+            );
+
             if (existingMap.containsKey(driveFile.id)) {
               updatedCount++;
             } else {
@@ -437,6 +465,7 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
             await (_database.delete(
               _database.cacheEntries,
             )..where((tbl) => tbl.trackId.equals(track.id))).go();
+            await _lyricsRepository.deleteLyricsForTrack(track.id);
           }
         }
       }
@@ -451,7 +480,7 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
         SyncRunsCompanion(
           completedAt: Value(DateTime.now()),
           status: const Value('completed'),
-          filesDiscovered: Value(driveFiles.length),
+          filesDiscovered: Value(driveAudioFiles.length),
           filesProcessed: Value(processed),
           filesAdded: Value(addedCount),
           filesUpdated: Value(updatedCount),
@@ -654,6 +683,100 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
           trackCount: Value(tracks.length),
           albumCount: Value(albums.length),
         ),
+      );
+    }
+  }
+
+  String _cleanBaseName(String filename) {
+    final withoutExt = filename.contains('.')
+        ? filename.substring(0, filename.lastIndexOf('.'))
+        : filename;
+    return withoutExt.trim().toLowerCase();
+  }
+
+  Future<void> _processLyricsForTrack({
+    required String trackId,
+    required DriveFileItem driveFile,
+    required ParsedAudioMetadata parsedMeta,
+    required Map<String, DriveFileItem> lrcMap,
+  }) async {
+    try {
+      final folder = driveFile.parentFolderId ?? '';
+      final base = _cleanBaseName(driveFile.name);
+      final matchingLrc = lrcMap['${folder}_$base'];
+
+      final embedded = parsedMeta.lyrics;
+      final bool hasEmbedded = embedded != null && embedded.trim().isNotEmpty;
+
+      if (hasEmbedded) {
+        final parsedEmbedded = LrcParser.parse(embedded);
+        if (parsedEmbedded.isSynchronized && parsedEmbedded.lines.isNotEmpty) {
+          // 1. Embedded synchronized
+          await _lyricsRepository.saveLyrics(
+            trackId: trackId,
+            source: LyricSource.embeddedSynced,
+            isSynchronized: true,
+            rawText: parsedEmbedded.rawText,
+            offsetMs: parsedEmbedded.offsetMs,
+            lines: parsedEmbedded.lines,
+          );
+          return;
+        } else if (parsedEmbedded.lines.isNotEmpty) {
+          // 2. Embedded unsynchronized / plain
+          await _lyricsRepository.saveLyrics(
+            trackId: trackId,
+            source: LyricSource.embeddedPlain,
+            isSynchronized: false,
+            rawText: parsedEmbedded.rawText,
+            offsetMs: 0,
+            lines: parsedEmbedded.lines,
+          );
+          return;
+        } else if (matchingLrc != null) {
+          // Fall back to matching LRC if embedded was empty or malformed
+          await _fetchAndSaveSidecarLrc(trackId, matchingLrc);
+          return;
+        }
+      } else if (matchingLrc != null) {
+        // 3. Matching external .lrc file
+        await _fetchAndSaveSidecarLrc(trackId, matchingLrc);
+        return;
+      }
+    } catch (e, st) {
+      AppLogger.warning(
+        LogCategory.metadata,
+        'Error indexing lyrics for track $trackId',
+        e,
+        st,
+      );
+    }
+  }
+
+  Future<void> _fetchAndSaveSidecarLrc(
+    String trackId,
+    DriveFileItem lrcFile,
+  ) async {
+    try {
+      final lrcRes = await _driveRepository.downloadTextFile(lrcFile.id);
+      if (lrcRes.isSuccess) {
+        final text = lrcRes.dataOrNull ?? '';
+        final parsed = LrcParser.parse(text);
+        if (parsed.lines.isNotEmpty) {
+          await _lyricsRepository.saveLyrics(
+            trackId: trackId,
+            source: LyricSource.sidecarLrc,
+            isSynchronized: parsed.isSynchronized,
+            rawText: parsed.rawText,
+            offsetMs: parsed.offsetMs,
+            lines: parsed.lines,
+          );
+        }
+      }
+    } catch (e) {
+      AppLogger.warning(
+        LogCategory.metadata,
+        'Failed to fetch sidecar LRC for $trackId',
+        e,
       );
     }
   }

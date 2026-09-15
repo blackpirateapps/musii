@@ -254,3 +254,33 @@ class PlaybackStates extends Table {
   @override
   Set<Column> get primaryKey => {id};
 }
+
+@DataClassName('LyricRow')
+class Lyrics extends Table {
+  TextColumn get id => text()();
+  TextColumn get trackId => text().unique()();
+  TextColumn get source =>
+      text()(); // 'embedded_synced', 'embedded_plain', 'sidecar_lrc', 'none'
+  BoolColumn get isSynchronized =>
+      boolean().withDefault(const Constant(false))();
+  TextColumn get rawText => text().nullable()();
+  IntColumn get offsetMs => integer().withDefault(const Constant(0))();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+@DataClassName('LyricLineRow')
+class LyricLines extends Table {
+  TextColumn get id => text()();
+  TextColumn get lyricsId => text()();
+  IntColumn get timestampMs => integer()();
+  TextColumn get content => text().named('text')();
+  IntColumn get sequence => integer()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+

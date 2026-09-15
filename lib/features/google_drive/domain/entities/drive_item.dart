@@ -39,6 +39,7 @@ class DriveFileItem {
   final DateTime? modifiedTime;
   final String? md5Checksum;
   final String? parentFolderId;
+  final bool isLrc;
 
   const DriveFileItem({
     required this.id,
@@ -48,6 +49,7 @@ class DriveFileItem {
     this.modifiedTime,
     this.md5Checksum,
     this.parentFolderId,
+    this.isLrc = false,
   });
 
   @override
@@ -58,7 +60,8 @@ class DriveFileItem {
   int get hashCode => id.hashCode;
 
   @override
-  String toString() => 'DriveFileItem(id: $id, name: $name, size: $size)';
+  String toString() =>
+      'DriveFileItem(id: $id, name: $name, size: $size, isLrc: $isLrc)';
 }
 
 abstract class GoogleDriveRepository {
@@ -76,6 +79,8 @@ abstract class GoogleDriveRepository {
     required File destinationFile,
     void Function(int receivedBytes, int totalBytes)? onProgress,
   });
+
+  Future<Result<String, AppFailure>> downloadTextFile(String fileId);
 
   Future<Result<List<int>, AppFailure>> readByteRange({
     required String fileId,

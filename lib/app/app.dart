@@ -8,11 +8,11 @@ class MusiiApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CupertinoApp(
+    return CupertinoApp.router(
       title: 'Musii',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
-      home: const RootNavigationShell(),
+      routerConfig: appRouter,
     );
   }
 }

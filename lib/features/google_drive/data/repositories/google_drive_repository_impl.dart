@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:http/http.dart' as http;
@@ -146,20 +147,26 @@ class GoogleDriveRepositoryImpl implements GoogleDriveRepository {
               final isAudioMime =
                   mime.startsWith('audio/') ||
                   AppAudioConstants.supportedMimeTypes.contains(mime);
+              final isLrc = ext == 'lrc';
 
-              if (isAudioExt || isAudioMime) {
+              if (isAudioExt || isAudioMime || isLrc) {
                 final sizeBytes = int.tryParse(f.size ?? '0') ?? 0;
                 final fileItem = DriveFileItem(
                   id: fId,
                   name: name,
-                  mimeType: mime.isNotEmpty ? mime : 'audio/mpeg',
+                  mimeType: mime.isNotEmpty
+                      ? mime
+                      : (isLrc ? 'text/plain' : 'audio/mpeg'),
                   size: sizeBytes,
                   modifiedTime: f.modifiedTime,
                   md5Checksum: f.md5Checksum,
                   parentFolderId: currentFolderId,
+                  isLrc: isLrc,
                 );
                 discoveredAudio.add(fileItem);
-                onProgress?.call(discoveredAudio.length);
+                onProgress?.call(
+                  discoveredAudio.where((item) => !item.isLrc).length,
+                );
               }
             }
           }
@@ -243,6 +250,41 @@ class GoogleDriveRepositoryImpl implements GoogleDriveRepository {
       return Result.failure(
         DriveApiFailure(
           'Failed to download file from Google Drive',
+          technicalDetails: e.toString(),
+          cause: e,
+        ),
+      );
+    }
+  }
+
+  @override
+  Future<Result<String, AppFailure>> downloadTextFile(String fileId) async {
+    try {
+      final driveApi = _getDriveApi();
+      AppLogger.debug(LogCategory.drive, 'Downloading text file $fileId');
+
+      final media = await driveApi.files.get(
+        fileId,
+        downloadOptions: drive.DownloadOptions.fullMedia,
+      ) as drive.Media;
+
+      final bytes = <int>[];
+      await for (final chunk in media.stream) {
+        bytes.addAll(chunk);
+      }
+
+      final content = utf8.decode(bytes, allowMalformed: true);
+      return Result.success(content);
+    } catch (e, st) {
+      AppLogger.error(
+        LogCategory.drive,
+        'Failed to download text file $fileId',
+        e,
+        st,
+      );
+      return Result.failure(
+        DriveApiFailure(
+          'Failed to download text file from Google Drive',
           technicalDetails: e.toString(),
           cause: e,
         ),

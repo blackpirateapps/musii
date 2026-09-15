@@ -270,14 +270,13 @@ class PlaylistRepositoryImpl implements PlaylistRepository {
         if (oldIndex < 0 ||
             oldIndex >= items.length ||
             newIndex < 0 ||
-            newIndex > items.length) {
+            newIndex >= items.length) {
           return;
         }
 
         final mutableList = List<PlaylistTrack>.from(items);
         final item = mutableList.removeAt(oldIndex);
-        final insertIndex = (oldIndex < newIndex) ? newIndex - 1 : newIndex;
-        mutableList.insert(insertIndex, item);
+        mutableList.insert(newIndex, item);
 
         for (int i = 0; i < mutableList.length; i++) {
           await (_database.update(_database.playlistTracks)
