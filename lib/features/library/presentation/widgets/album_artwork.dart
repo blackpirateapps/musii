@@ -1,0 +1,79 @@
+import 'dart:io';
+
+import 'package:flutter/cupertino.dart';
+
+import '../../../../core/constants/app_constants.dart';
+
+class AlbumArtwork extends StatelessWidget {
+  final String? artworkPath;
+  final String? title;
+  final String? artist;
+  final double size;
+  final double borderRadius;
+
+  const AlbumArtwork({
+    super.key,
+    this.artworkPath,
+    this.title,
+    this.artist,
+    this.size = 56.0,
+    this.borderRadius = AppRadii.artwork,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (artworkPath != null && artworkPath!.isNotEmpty) {
+      final file = File(artworkPath!);
+      if (file.existsSync()) {
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(borderRadius),
+          child: Image.file(
+            file,
+            width: size,
+            height: size,
+            fit: BoxFit.cover,
+            errorBuilder: (_, _, _) => _buildFallback(),
+          ),
+        );
+      }
+    }
+    return _buildFallback();
+  }
+
+  Widget _buildFallback() {
+    // Generate deterministic colors from title + artist
+    final seed = '${artist ?? ''}:${title ?? ''}'.hashCode;
+    final hue1 = (seed.abs() % 360).toDouble();
+    final hue2 = ((hue1 + 45) % 360).toDouble();
+
+    final color1 = HSVColor.fromAHSV(1.0, hue1, 0.65, 0.45).toColor();
+    final color2 = HSVColor.fromAHSV(1.0, hue2, 0.70, 0.30).toColor();
+
+    final initials = (title != null && title!.trim().isNotEmpty)
+        ? title!.trim()[0].toUpperCase()
+        : '♫';
+
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(borderRadius),
+        gradient: LinearGradient(
+          colors: [color1, color2],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Center(
+        child: Text(
+          initials,
+          style: TextStyle(
+            color: CupertinoColors.white.withOpacity(0.85),
+            fontSize: size * 0.4,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+}
