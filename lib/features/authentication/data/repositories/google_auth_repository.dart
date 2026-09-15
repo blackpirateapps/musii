@@ -4,6 +4,7 @@ import 'package:drift/drift.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
 
+import '../../../../core/constants/app_constants.dart';
 import '../../../../core/database/app_database.dart';
 import '../../../../core/error/failures.dart';
 import '../../../../core/logging/app_logger.dart';
@@ -22,7 +23,10 @@ class GoogleAuthRepository implements AuthRepository {
   }) : _database = database,
        _googleSignIn =
            googleSignIn ??
-           GoogleSignIn(scopes: [drive.DriveApi.driveReadonlyScope]) {
+           GoogleSignIn(
+             scopes: [drive.DriveApi.driveReadonlyScope],
+             serverClientId: AppAuthConfig.googleClientId,
+           ) {
     _googleSignIn.onCurrentUserChanged.listen((GoogleSignInAccount? account) {
       if (account != null) {
         final user = AuthUser(

@@ -51,6 +51,8 @@ key.properties
 android/key.properties
 local.properties
 **/local.properties
+client_secret*.json
+*.credentials.json
 
 # Android build outputs
 android/build/
