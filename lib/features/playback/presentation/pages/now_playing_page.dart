@@ -3,6 +3,7 @@ import 'dart:math';
 import 'dart:ui';
 
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart' show Material, MaterialType, Slider, SliderTheme, SliderThemeData, RoundSliderThumbShape, RoundSliderOverlayShape, RoundedRectSliderTrackShape;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/bootstrap/providers.dart';
@@ -114,9 +115,9 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage> {
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      Color(0x66000000),
-                      Color(0xAA000000),
-                      Color(0xDD000000),
+                      Color(0x40000000),
+                      Color(0x80000000),
+                      Color(0xB3000000),
                     ],
                   ),
                 ),
@@ -296,24 +297,44 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage> {
                     ),
                     child: Column(
                       children: [
-                        CupertinoSlider(
-                          value: curSec,
-                          min: 0.0,
-                          max: maxSec,
-                          activeColor: CupertinoColors.white,
-                          thumbColor: CupertinoColors.white,
-                          onChangeStart: (_) {
-                            setState(() => _isScrubbing = true);
-                          },
-                          onChanged: (val) {
-                            setState(() => _scrubValue = val);
-                          },
-                          onChangeEnd: (val) {
-                            _isScrubbing = false;
-                            ref
-                                .read(playbackRepositoryProvider)
-                                .seek(Duration(milliseconds: val.toInt()));
-                          },
+                        Material(
+                          type: MaterialType.transparency,
+                          child: SliderTheme(
+                            data: SliderThemeData(
+                              trackHeight: 4.0,
+                              activeTrackColor: CupertinoColors.white,
+                              inactiveTrackColor:
+                                  CupertinoColors.white.withOpacity(0.3),
+                              thumbColor: CupertinoColors.white,
+                              overlayColor:
+                                  CupertinoColors.white.withOpacity(0.1),
+                              thumbShape: const RoundSliderThumbShape(
+                                enabledThumbRadius: 6.0,
+                              ),
+                              overlayShape: const RoundSliderOverlayShape(
+                                overlayRadius: 14.0,
+                              ),
+                              trackShape: const RoundedRectSliderTrackShape(),
+                            ),
+                            child: Slider(
+                              value: curSec,
+                              min: 0.0,
+                              max: maxSec,
+                              onChangeStart: (_) {
+                                setState(() => _isScrubbing = true);
+                              },
+                              onChanged: (val) {
+                                setState(() => _scrubValue = val);
+                              },
+                              onChangeEnd: (val) {
+                                _isScrubbing = false;
+                                ref
+                                    .read(playbackRepositoryProvider)
+                                    .seek(Duration(
+                                        milliseconds: val.toInt()));
+                              },
+                            ),
+                          ),
                         ),
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 4.0),
@@ -378,7 +399,7 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage> {
                               .read(playbackRepositoryProvider)
                               .skipToPrevious(),
                           child: const Icon(
-                            CupertinoIcons.backward_fill,
+                            CupertinoIcons.backward_end_fill,
                             size: 34,
                             color: CupertinoColors.white,
                           ),
@@ -423,7 +444,7 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage> {
                           onPressed: () =>
                               ref.read(playbackRepositoryProvider).skipToNext(),
                           child: const Icon(
-                            CupertinoIcons.forward_fill,
+                            CupertinoIcons.forward_end_fill,
                             size: 34,
                             color: CupertinoColors.white,
                           ),
@@ -475,8 +496,10 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage> {
                             height: 48,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: CupertinoColors.systemGrey.withOpacity(
-                                0.28,
+                              color: CupertinoColors.white.withOpacity(0.08),
+                              border: Border.all(
+                                color: CupertinoColors.white.withOpacity(0.25),
+                                width: 1.0,
                               ),
                             ),
                             child: Icon(
@@ -504,12 +527,14 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage> {
                             height: 48,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: CupertinoColors.systemGrey.withOpacity(
-                                0.28,
+                              color: CupertinoColors.white.withOpacity(0.08),
+                              border: Border.all(
+                                color: CupertinoColors.white.withOpacity(0.25),
+                                width: 1.0,
                               ),
                             ),
                             child: const Icon(
-                              CupertinoIcons.quote_bubble,
+                              CupertinoIcons.square_arrow_up,
                               size: 22,
                               color: CupertinoColors.white,
                             ),
@@ -525,12 +550,14 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage> {
                             height: 48,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: CupertinoColors.systemGrey.withOpacity(
-                                0.28,
+                              color: CupertinoColors.white.withOpacity(0.08),
+                              border: Border.all(
+                                color: CupertinoColors.white.withOpacity(0.25),
+                                width: 1.0,
                               ),
                             ),
                             child: const Icon(
-                              CupertinoIcons.list_bullet,
+                              CupertinoIcons.text_badge_plus,
                               size: 22,
                               color: CupertinoColors.white,
                             ),

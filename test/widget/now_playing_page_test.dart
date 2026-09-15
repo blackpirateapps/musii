@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart' show Slider;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:musii/app/bootstrap/providers.dart';
@@ -66,21 +67,21 @@ void main() {
     expect(find.byIcon(CupertinoIcons.ellipsis), findsOneWidget);
 
     // Scrubber & Times (1:43 and -2:20)
-    expect(find.byType(CupertinoSlider), findsOneWidget);
+    expect(find.byType(Slider), findsOneWidget);
     expect(find.text('1:43'), findsOneWidget);
     expect(find.text('-2:20'), findsOneWidget);
 
     // Primary Controls
     expect(find.byIcon(CupertinoIcons.shuffle), findsOneWidget);
-    expect(find.byIcon(CupertinoIcons.backward_fill), findsOneWidget);
+    expect(find.byIcon(CupertinoIcons.backward_end_fill), findsOneWidget);
     expect(find.byIcon(CupertinoIcons.pause_fill), findsOneWidget);
-    expect(find.byIcon(CupertinoIcons.forward_fill), findsOneWidget);
+    expect(find.byIcon(CupertinoIcons.forward_end_fill), findsOneWidget);
     expect(find.byIcon(CupertinoIcons.repeat), findsOneWidget);
 
     // Bottom Secondary Controls (Favorite, Lyrics, Queue)
     expect(find.byIcon(CupertinoIcons.heart), findsOneWidget);
-    expect(find.byIcon(CupertinoIcons.quote_bubble), findsOneWidget);
-    expect(find.byIcon(CupertinoIcons.list_bullet), findsOneWidget);
+    expect(find.byIcon(CupertinoIcons.square_arrow_up), findsOneWidget);
+    expect(find.byIcon(CupertinoIcons.text_badge_plus), findsOneWidget);
   });
 
   testWidgets('Tapping More button opens action sheet with all actions', (

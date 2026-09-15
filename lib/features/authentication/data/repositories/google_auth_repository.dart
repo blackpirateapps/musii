@@ -151,7 +151,14 @@ class GoogleAuthRepository implements AuthRepository {
   }
 
   @override
-  Stream<AuthUser?> watchCurrentUser() => _userStreamController.stream;
+  Stream<AuthUser?> watchCurrentUser() async* {
+    // Emit current user immediately on subscription so cold starts
+    // don't show the "Connect Google Drive" empty state incorrectly.
+    final currentResult = await getCurrentUser();
+    yield currentResult.dataOrNull;
+    // Then forward all future changes from sign-in / sign-out events.
+    yield* _userStreamController.stream;
+  }
 
   @override
   Future<Result<String, AppFailure>> getAccessToken() async {

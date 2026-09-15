@@ -57,22 +57,22 @@ The codebase strictly adheres to standard four-layer Clean Architecture:
 
 ### 1. Now Playing Experience (Visual Authority)
 Located in `lib/features/playback/presentation/pages/now_playing_page.dart`:
-- **Dark Blurred Artwork Aesthetic**: Real-time blurred album artwork backdrop with dark gradient overlay.
+- **Vibrant Blurred Artwork Aesthetic**: Real-time blurred album artwork backdrop with a lighter translucent gradient overlay (`0x40`/`0x80`/`0xB3` opacity) so album art colors bleed through vividly.
 - **Proportional Artwork Presentation**: Floating artwork sized responsively (`min(width * 0.62, height * 0.32)`) with rounded corners and subtle drop shadow.
 - **Left-Aligned Track Metadata**: Song title, artist name, and album name with Cupertino typography and ellipsis truncation.
 - **Technical Pill Badge**: Displays exact audio format and bitrate (e.g., `FLAC · 706 kbps`, `MP3 · 320 kbps`) in a translucent rounded pill container.
 - **More Actions Button**: Circular translucent Cupertino button (`...`) opening a contextual action sheet (Album, Artist, Lyrics, Share, Favorite).
-- **Apple-Style Scrubber**: Ultra-thin interactive progress bar with current elapsed time and negative remaining time (`-m:ss`).
+- **Apple Music-Style Scrubber**: Custom Material `SliderTheme` + `Slider` with thin 4px track, small 6px thumb radius, white active track, and semi-transparent gray inactive track. Uses selective Material import (`show Slider, SliderTheme, SliderThemeData, ...`).
 - **5-Control Playback Cluster**:
   - Shuffle toggle with active highlight.
-  - Previous track / restart track (threshold > 3s).
+  - Previous track (skip-style `backward_end_fill` icon) / restart track (threshold > 3s).
   - Prominent 74px translucent circular Play/Pause button.
-  - Next track button.
+  - Next track button (skip-style `forward_end_fill` icon).
   - Repeat mode toggle (off, all, one).
-- **Bottom Action Bar**:
+- **Bottom Action Bar** (border-outlined circular buttons with translucent fill):
   - Heart icon for instant favorites toggling.
-  - Lyrics icon opening synchronized `LyricsSheet`.
-  - Queue icon opening the dynamic playback queue sheet.
+  - Lyrics icon (`square_arrow_up`) opening synchronized `LyricsSheet`.
+  - Queue icon (`text_badge_plus`) opening the dynamic playback queue sheet.
 
 ### 2. Lyrics Engine & Synchronization
 Located in `lib/features/lyrics/`:
@@ -119,6 +119,8 @@ Located in `lib/features/google_drive/` and `lib/features/library/`:
    - `CupertinoSliverNavigationBar` renders two `Text` widgets (collapsed and expanded large title). Use `find.text(...), findsWidgets` in widget tests rather than `findsOneWidget`.
 5. **Playlist Reordering Index**:
    - When moving items in `PlaylistRepositoryImpl.reorderPlaylistTracks(playlistId, oldIndex, newIndex)`, do not apply an off-by-one decrement in the repository layer; the repository operates on target index slots directly.
+6. **Auth Stream Cold Start — Broadcast Stream Initial Value**:
+   - `GoogleAuthRepository._userStreamController` is a broadcast `StreamController` that only emits on sign-in/sign-out events. On cold app start, `watchCurrentUser()` must first yield the current user (via `getCurrentUser()` which calls `signInSilently()` + DB fallback) before forwarding the stream. Without this, `currentUserProvider` stays `null` and the homepage shows the "Connect Google Drive" empty state even when already signed in.
 
 ---
 
