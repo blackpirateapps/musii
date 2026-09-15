@@ -57,6 +57,9 @@ The codebase strictly adheres to standard four-layer Clean Architecture:
 
 ### 1. Now Playing Experience (Visual Authority)
 Located in `lib/features/playback/presentation/pages/now_playing_page.dart`:
+- **Apple Music-Inspired Minimalist Top Bar**: Features a centered grabber indicator pill (`36x5` rounded bar) and a subtle left dismiss chevron (`chevron_down`), completely removing static "Now Playing" text and redundant top queue icons for an immersive, uncluttered aesthetic.
+- **Interactive Pull-Down Gesture**: Dragging down anywhere on the screen (artwork, metadata, empty background) smoothly translates the modal downward with real-time tactile tracking, popping when pulled past the threshold (>120px) or flicked downwards (>300 px/s), and snapping gracefully back to top on early release.
+- **Swipe-Up for Queue**: Swiping up when at top offset opens the Cupertino queue modal sheet.
 - **Vibrant Blurred Artwork Aesthetic**: Real-time blurred album artwork backdrop with a lighter translucent gradient overlay (`0x40`/`0x80`/`0xB3` opacity) so album art colors bleed through vividly.
 - **Proportional Artwork Presentation**: Floating artwork sized responsively (`min(width * 0.62, height * 0.32)`) with rounded corners and subtle drop shadow.
 - **Left-Aligned Track Metadata**: Song title, artist name, and album name with Cupertino typography and ellipsis truncation.

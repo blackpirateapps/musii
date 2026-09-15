@@ -32,9 +32,80 @@ class NowPlayingPage extends ConsumerStatefulWidget {
   ConsumerState<NowPlayingPage> createState() => _NowPlayingPageState();
 }
 
-class _NowPlayingPageState extends ConsumerState<NowPlayingPage> {
+class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
+    with SingleTickerProviderStateMixin {
   bool _isScrubbing = false;
   double _scrubValue = 0.0;
+
+  AnimationController? _dismissController;
+  Animation<double>? _dismissAnimation;
+  double _dragOffset = 0.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _dismissController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 250),
+    );
+  }
+
+  @override
+  void dispose() {
+    _dismissController?.dispose();
+    super.dispose();
+  }
+
+  void _onVerticalDragStart(DragStartDetails details) {
+    _dismissController?.stop();
+  }
+
+  void _onVerticalDragUpdate(DragUpdateDetails details) {
+    if (details.primaryDelta == null) return;
+    setState(() {
+      _dragOffset = max(0.0, _dragOffset + details.primaryDelta!);
+    });
+  }
+
+  void _onVerticalDragEnd(DragEndDetails details) {
+    final velocity = details.primaryVelocity ?? 0.0;
+
+    // Swipe up to open queue when at top
+    if (_dragOffset == 0.0 && velocity < -300) {
+      showQueueSheet(context);
+      return;
+    }
+
+    // Dismiss if pulled down past 120px or flicked downwards
+    if (velocity > 300 || _dragOffset > 120) {
+      Navigator.of(context).pop();
+    } else {
+      _animateBack();
+    }
+  }
+
+  void _animateBack() {
+    final start = _dragOffset;
+    if (start == 0.0) return;
+    _dismissController?.reset();
+    _dismissAnimation = Tween<double>(begin: start, end: 0.0).animate(
+      CurvedAnimation(
+        parent: _dismissController!,
+        curve: Curves.easeOutCubic,
+      ),
+    )..addListener(() {
+        setState(() {
+          _dragOffset = _dismissAnimation!.value;
+        });
+      });
+    _dismissController?.forward().then((_) {
+      if (mounted) {
+        setState(() {
+          _dragOffset = 0.0;
+        });
+      }
+    });
+  }
 
   String _formatDuration(Duration d) {
     final minutes = d.inMinutes;
@@ -74,89 +145,99 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage> {
 
     return CupertinoPageScaffold(
       backgroundColor: CupertinoColors.black,
-      navigationBar: CupertinoNavigationBar(
-        backgroundColor: CupertinoColors.transparent,
-        border: null,
-        leading: CupertinoButton(
-          padding: EdgeInsets.zero,
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Icon(
-            CupertinoIcons.chevron_down,
-            size: 24,
-            color: CupertinoColors.white,
-          ),
-        ),
-        middle: const Text(
-          'Now Playing',
-          style: TextStyle(
-            color: CupertinoColors.white,
-            fontSize: 17,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        trailing: CupertinoButton(
-          padding: EdgeInsets.zero,
-          onPressed: () => showQueueSheet(context),
-          child: const Icon(
-            CupertinoIcons.music_note_list,
-            size: 22,
-            color: CupertinoColors.white,
-          ),
-        ),
-      ),
-      child: Stack(
-        children: [
-          // 1. Blurred Backdrop from current artwork
-          if (track?.artworkPath != null &&
-              File(track!.artworkPath!).existsSync())
-            Positioned.fill(
-              child: Image.file(File(track.artworkPath!), fit: BoxFit.cover),
-            ),
-          Positioned.fill(
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 55, sigmaY: 55),
-              child: Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Color(0x40000000),
-                      Color(0x80000000),
-                      Color(0xB3000000),
-                    ],
+      child: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onVerticalDragStart: _onVerticalDragStart,
+        onVerticalDragUpdate: _onVerticalDragUpdate,
+        onVerticalDragEnd: _onVerticalDragEnd,
+        child: Transform.translate(
+          offset: Offset(0, _dragOffset),
+          child: Stack(
+            children: [
+              // 1. Blurred Backdrop from current artwork
+              if (track?.artworkPath != null &&
+                  File(track!.artworkPath!).existsSync())
+                Positioned.fill(
+                  child:
+                      Image.file(File(track.artworkPath!), fit: BoxFit.cover),
+                ),
+              Positioned.fill(
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 55, sigmaY: 55),
+                  child: Container(
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Color(0x40000000),
+                          Color(0x80000000),
+                          Color(0xB3000000),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ),
-            ),
-          ),
 
-          // 2. Main Content with Gestures
-          SafeArea(
-            child: GestureDetector(
-              onVerticalDragEnd: (details) {
-                // Swipe down to dismiss
-                if (details.primaryVelocity != null &&
-                    details.primaryVelocity! > 300) {
-                  Navigator.of(context).pop();
-                }
-                // Swipe up to open queue
-                else if (details.primaryVelocity != null &&
-                    details.primaryVelocity! < -300) {
-                  showQueueSheet(context);
-                }
-              },
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  return SingleChildScrollView(
-                    physics: const ClampingScrollPhysics(),
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        minHeight: constraints.maxHeight,
-                      ),
-                      child: IntrinsicHeight(
+              // 2. Main Content
+              SafeArea(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    return SingleChildScrollView(
+                      physics: const NeverScrollableScrollPhysics(),
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minHeight: constraints.maxHeight,
+                          maxHeight: constraints.maxHeight,
+                        ),
                         child: Column(
                           children: [
+                            // Minimalist Apple Music-style Top Bar
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: AppSpacing.sm,
+                                vertical: AppSpacing.xs,
+                              ),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  // Left: Dismiss Chevron
+                                  CupertinoButton(
+                                    padding: EdgeInsets.zero,
+                                    minSize: 44,
+                                    onPressed: () =>
+                                        Navigator.of(context).pop(),
+                                    child: const Icon(
+                                      CupertinoIcons.chevron_down,
+                                      size: 24,
+                                      color: CupertinoColors.white,
+                                    ),
+                                  ),
+
+                                  // Center: Sheet Grabber Pill
+                                  Container(
+                                    width: 36,
+                                    height: 5,
+                                    decoration: BoxDecoration(
+                                      color: CupertinoColors.white
+                                          .withOpacity(0.35),
+                                      borderRadius:
+                                          BorderRadius.circular(2.5),
+                                    ),
+                                  ),
+
+                                  // Right: Balanced spacer to ensure the grabber is perfectly centered
+                                  const SizedBox(
+                                    width: 44,
+                                    height: 44,
+                                  ),
+                                ],
+                              ),
+                            ),
+
                             const Spacer(flex: 1),
 
                             // Floating Artwork with Left/Right Swipe Gestures
@@ -635,13 +716,13 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage> {
                           ],
                         ),
                       ),
-                    ),
-                  );
-                },
+                    );
+                  },
+                ),
               ),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

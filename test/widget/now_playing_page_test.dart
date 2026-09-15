@@ -47,10 +47,10 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    // Top Navigation Bar
-    expect(find.text('Now Playing'), findsOneWidget);
+    // Minimalist Apple Music Top Bar
+    expect(find.text('Now Playing'), findsNothing);
     expect(find.byIcon(CupertinoIcons.chevron_down), findsOneWidget);
-    expect(find.byIcon(CupertinoIcons.music_note_list), findsOneWidget);
+    expect(find.byIcon(CupertinoIcons.music_note_list), findsNothing);
 
     // Track Metadata
     expect(find.text('Mayonaka no Door / Stay With Me'), findsOneWidget);
@@ -119,5 +119,132 @@ void main() {
     expect(find.text('Download for Offline'), findsOneWidget);
     expect(find.text('Lyrics'), findsOneWidget);
     expect(find.text('Audio Information'), findsOneWidget);
+  });
+
+  testWidgets('Tapping chevron down button pops NowPlayingPage', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          playerStateProvider.overrideWith(
+            (ref) => Stream.value(
+              const PlayerStateSnapshot(
+                currentTrack: testTrack,
+                duration: Duration(milliseconds: 243000),
+                position: Duration(milliseconds: 103000),
+                isPlaying: true,
+              ),
+            ),
+          ),
+          isTrackFavoriteProvider('track_test_1')
+              .overrideWith((ref) => Stream.value(false)),
+        ],
+        child: CupertinoApp(
+          home: Builder(
+            builder: (context) => CupertinoButton(
+              child: const Text('Open'),
+              onPressed: () => Navigator.of(context).push(
+                CupertinoPageRoute(builder: (_) => const NowPlayingPage()),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(NowPlayingPage), findsOneWidget);
+
+    // Tap chevron_down
+    await tester.tap(find.byIcon(CupertinoIcons.chevron_down));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(NowPlayingPage), findsNothing);
+  });
+
+  testWidgets('Swiping down from anywhere minimizes/pops NowPlayingPage', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          playerStateProvider.overrideWith(
+            (ref) => Stream.value(
+              const PlayerStateSnapshot(
+                currentTrack: testTrack,
+                duration: Duration(milliseconds: 243000),
+                position: Duration(milliseconds: 103000),
+                isPlaying: true,
+              ),
+            ),
+          ),
+          isTrackFavoriteProvider('track_test_1')
+              .overrideWith((ref) => Stream.value(false)),
+        ],
+        child: CupertinoApp(
+          home: Builder(
+            builder: (context) => CupertinoButton(
+              child: const Text('Open'),
+              onPressed: () => Navigator.of(context).push(
+                CupertinoPageRoute(builder: (_) => const NowPlayingPage()),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(NowPlayingPage), findsOneWidget);
+
+    // Drag down anywhere (e.g. from the track title area)
+    await tester.drag(
+      find.text('Mayonaka no Door / Stay With Me'),
+      const Offset(0, 300),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(NowPlayingPage), findsNothing);
+  });
+
+  testWidgets('Swiping up from anywhere opens Queue sheet', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          playerStateProvider.overrideWith(
+            (ref) => Stream.value(
+              const PlayerStateSnapshot(
+                currentTrack: testTrack,
+                duration: Duration(milliseconds: 243000),
+                position: Duration(milliseconds: 103000),
+                isPlaying: true,
+              ),
+            ),
+          ),
+          isTrackFavoriteProvider('track_test_1')
+              .overrideWith((ref) => Stream.value(false)),
+        ],
+        child: const CupertinoApp(home: NowPlayingPage()),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    // Drag up from anywhere
+    await tester.fling(
+      find.text('Mayonaka no Door / Stay With Me'),
+      const Offset(0, -600),
+      1000,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Playing Next'), findsOneWidget);
   });
 }
