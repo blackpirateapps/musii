@@ -562,5 +562,156 @@ void main() {
       expect(albums.length, equals(1));
       expect(artists.length, equals(1));
     });
+
+    test('SYNC FROM SAVED FOLDER: returns failure when no folder is configured', () async {
+      final result = await libraryRepo.syncFromSavedFolder();
+      expect(result.isFailure, isTrue);
+      expect(
+        result.failureOrNull?.message,
+        contains('No music folder configured'),
+      );
+    });
+
+    test('SYNC FROM SAVED FOLDER: triggers sync using folder from MusicSources', () async {
+      final now = DateTime(2026, 9, 16, 12, 0);
+      fakeDrive.filesToReturn = [
+        DriveFileItem(
+          id: 'df_1',
+          name: 'Track 1.mp3',
+          mimeType: 'audio/mpeg',
+          size: 1000,
+          modifiedTime: now,
+          parentFolderId: 'saved_root',
+        ),
+      ];
+
+      // Pre-populate MusicSources with a saved folder
+      await db
+          .into(db.musicSources)
+          .insertOnConflictUpdate(
+            MusicSourcesCompanion(
+              id: const Value('source_gdrive'),
+              type: const Value('google_drive'),
+              accountEmail: const Value('test@example.com'),
+              rootFolderId: const Value('saved_root'),
+              rootFolderName: const Value('My Music'),
+              createdAt: Value(now),
+            ),
+          );
+
+      final result = await libraryRepo.syncFromSavedFolder();
+      expect(result.isSuccess, isTrue);
+
+      final tracks = await libraryRepo.watchAllTracks().first;
+      expect(tracks.length, equals(1));
+      expect(tracks.first.driveFileId, equals('df_1'));
+    });
+
+    test('FORCE SYNC: re-processes all files even when unchanged', () async {
+      final now = DateTime(2026, 9, 16, 12, 0);
+      fakeDrive.filesToReturn = [
+        DriveFileItem(
+          id: 'df_1',
+          name: 'Track 1.mp3',
+          mimeType: 'audio/mpeg',
+          size: 1000,
+          modifiedTime: now,
+          md5Checksum: 'md5_1',
+          parentFolderId: 'root',
+        ),
+        DriveFileItem(
+          id: 'df_2',
+          name: 'Track 2.mp3',
+          mimeType: 'audio/mpeg',
+          size: 2000,
+          modifiedTime: now,
+          md5Checksum: 'md5_2',
+          parentFolderId: 'root',
+        ),
+      ];
+
+      // 1. First sync — processes everything
+      await libraryRepo.syncLibrary(
+        rootFolderId: 'root',
+        rootFolderName: 'Music',
+      );
+      expect(fakeDrive.downloadCallCount, equals(2));
+
+      // Reset counters
+      fakeDrive.downloadCallCount = 0;
+      fakeExtractor.extractCallCount = 0;
+
+      // 2. Normal re-sync — skips everything (unchanged)
+      await libraryRepo.syncLibrary(
+        rootFolderId: 'root',
+        rootFolderName: 'Music',
+      );
+      expect(fakeDrive.downloadCallCount, equals(0));
+      expect(fakeExtractor.extractCallCount, equals(0));
+
+      // Reset counters
+      fakeDrive.downloadCallCount = 0;
+      fakeExtractor.extractCallCount = 0;
+
+      // 3. Force sync — re-processes everything despite being unchanged
+      await libraryRepo.syncLibrary(
+        rootFolderId: 'root',
+        rootFolderName: 'Music',
+        forceSync: true,
+      );
+      expect(fakeDrive.downloadCallCount, equals(2));
+      expect(fakeExtractor.extractCallCount, equals(2));
+
+      // Still only 2 tracks in DB (no duplicates)
+      final tracks = await libraryRepo.watchAllTracks().first;
+      expect(tracks.length, equals(2));
+    });
+
+    test('CLASSIFICATION FIX: track with fileSize 0 and complete metadata is classified as unchangedComplete', () async {
+      final now = DateTime(2026, 9, 16, 12, 0);
+      fakeDrive.filesToReturn = [
+        DriveFileItem(
+          id: 'df_1',
+          name: 'Track 1.mp3',
+          mimeType: 'audio/mpeg',
+          size: 5000,
+          modifiedTime: now,
+          md5Checksum: 'md5_1',
+          parentFolderId: 'root',
+        ),
+      ];
+
+      // Insert a track directly with fileSize=0 but complete metadata
+      await db
+          .into(db.tracks)
+          .insert(
+            TracksCompanion.insert(
+              id: 'track_df_1',
+              driveFileId: 'df_1',
+              sourceId: 'source_gdrive',
+              title: 'Track 1',
+              normalizedTitle: 'track 1',
+              format: const Value('MP3'),
+              fileSize: const Value(0), // fileSize is 0 (not matching remote.size=5000)
+              durationMs: const Value(200000),
+              driveModifiedAt: Value(now),
+              driveMd5Checksum: const Value('md5_1'),
+              createdAt: now,
+              updatedAt: now,
+            ),
+          );
+
+      // Sync should skip this track because fileSize=0 means no meaningful
+      // size was stored, so size comparison is skipped
+      final result = await libraryRepo.syncLibrary(
+        rootFolderId: 'root',
+        rootFolderName: 'Music',
+      );
+
+      expect(result.isSuccess, isTrue);
+      // Should NOT have downloaded the file since metadata is complete
+      // and fileSize=0 skips size comparison
+      expect(fakeDrive.downloadCallCount, equals(0));
+    });
   });
 }

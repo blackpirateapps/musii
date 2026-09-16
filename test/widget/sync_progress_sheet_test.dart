@@ -104,5 +104,35 @@ void main() {
       expect(find.text('Synchronization complete'), findsOneWidget);
       expect(find.text('Done'), findsOneWidget);
     });
+
+    testWidgets('renders Sync Now button in complete state', (tester) async {
+      const completedProgress = SyncProgress(
+        phase: SyncPhase.complete,
+        filesDiscovered: 50,
+        filesProcessed: 50,
+        progressPercent: 1.0,
+        rootFolderId: 'folder_root',
+        rootFolderName: 'Music',
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            syncProgressProvider.overrideWith(
+              (ref) => Stream.value(completedProgress),
+            ),
+          ],
+          child: const CupertinoApp(
+            home: CupertinoPageScaffold(child: SyncProgressSheet()),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(find.text('Library Synced'), findsOneWidget);
+      expect(find.text('Sync Now'), findsOneWidget);
+      expect(find.text('Done'), findsOneWidget);
+    });
   });
 }

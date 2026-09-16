@@ -233,8 +233,28 @@ class SyncProgressSheet extends ConsumerWidget {
                 child: const Text('Dismiss to Background'),
               ),
             ] else ...[
-              CupertinoButton.filled(
-                borderRadius: BorderRadius.circular(AppRadii.card),
+              if (syncProgress.rootFolderId != null ||
+                  syncProgress.phase == SyncPhase.complete) ...[
+                CupertinoButton.filled(
+                  borderRadius: BorderRadius.circular(AppRadii.card),
+                  onPressed: () {
+                    ref
+                        .read(musicLibraryRepositoryProvider)
+                        .syncFromSavedFolder();
+                  },
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(CupertinoIcons.arrow_2_circlepath, size: 18),
+                      SizedBox(width: 8),
+                      Text('Sync Now'),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+              ],
+              CupertinoButton(
+                padding: EdgeInsets.zero,
                 onPressed: () => Navigator.pop(context),
                 child: const Text('Done'),
               ),

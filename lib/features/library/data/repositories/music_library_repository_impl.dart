@@ -280,6 +280,57 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
     );
   }
 
+  @override
+  Future<Result<void, AppFailure>> syncFromSavedFolder({
+    bool forceSync = false,
+  }) async {
+    if (_isSyncRunning) {
+      return const Result.success(null);
+    }
+
+    // Try in-memory progress first
+    String? folderId = _currentProgress.rootFolderId;
+    String? folderName = _currentProgress.rootFolderName;
+
+    // Fall back to MusicSources table
+    if (folderId == null) {
+      final source = await (_database.select(
+        _database.musicSources,
+      )..where((tbl) => tbl.id.equals('source_gdrive'))).getSingleOrNull();
+      if (source != null && source.rootFolderId != null) {
+        folderId = source.rootFolderId;
+        folderName = source.rootFolderName;
+      }
+    }
+
+    // Fall back to latest SyncRun
+    if (folderId == null) {
+      final latest =
+          await (_database.select(_database.syncRuns)
+                ..orderBy([(tbl) => OrderingTerm.desc(tbl.startedAt)])
+                ..limit(1))
+              .getSingleOrNull();
+      if (latest != null) {
+        folderId = latest.rootFolderId;
+        folderName = latest.rootFolderName;
+      }
+    }
+
+    if (folderId == null) {
+      return const Result.failure(
+        DriveApiFailure(
+          'No music folder configured. Please select a folder first.',
+        ),
+      );
+    }
+
+    return syncLibrary(
+      rootFolderId: folderId,
+      rootFolderName: folderName ?? 'Music',
+      forceSync: forceSync,
+    );
+  }
+
   Track _mapDbTrackToEntity(TrackRow row) {
     return Track(
       id: row.id,
@@ -470,12 +521,13 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
       return TrackSyncAction.processNew;
     }
 
+    // Metadata completeness — only checks core metadata fields, not file size.
+    // File size mismatch is a change detection signal, not a completeness indicator.
     final isMetadataComplete =
         local.title.trim().isNotEmpty &&
         local.normalizedTitle.trim().isNotEmpty &&
         local.format != null &&
-        local.format!.isNotEmpty &&
-        local.fileSize == remote.size;
+        local.format!.isNotEmpty;
 
     if (!isMetadataComplete) {
       return TrackSyncAction.repairIncomplete;
@@ -495,8 +547,8 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
       }
     }
 
-    // Change detection via file size
-    if (remote.size != local.fileSize) {
+    // Change detection via file size (only if local has a stored size)
+    if (local.fileSize > 0 && remote.size != local.fileSize) {
       return TrackSyncAction.updateModified;
     }
 
@@ -509,6 +561,7 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
     required String rootFolderName,
     void Function(SyncProgress progress)? onProgress,
     bool isResume = false,
+    bool forceSync = false,
   }) async {
     if (_isSyncRunning) {
       AppLogger.warning(
@@ -655,6 +708,10 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
       final List<DriveFileItem> unchangedComplete = [];
 
       for (final df in driveAudioFiles) {
+        if (forceSync) {
+          toProcess.add(df);
+          continue;
+        }
         final existing = existingMap[df.id];
         final action = _classifyTrack(df, existing);
         switch (action) {

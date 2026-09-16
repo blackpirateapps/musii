@@ -7,6 +7,7 @@ import '../../../../core/constants/app_constants.dart';
 import '../../../../core/services/notification_permission_service.dart';
 import '../../../google_drive/presentation/pages/drive_connect_page.dart';
 import '../../../google_drive/presentation/pages/drive_folder_picker_page.dart';
+import '../../../library/domain/entities/sync_progress.dart';
 import '../../../library/presentation/widgets/sync_progress_sheet.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
@@ -103,6 +104,54 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     );
   }
 
+  void _triggerSync(BuildContext context, WidgetRef ref, {
+    bool forceSync = false,
+  }) {
+    final syncProgress =
+        ref.read(syncProgressProvider).value ?? const SyncProgress();
+
+    if (syncProgress.isBusy) {
+      // Sync already running — just show the progress sheet
+      showSyncProgressSheet(context);
+      return;
+    }
+
+    // Show progress sheet immediately
+    showSyncProgressSheet(context);
+
+    // Trigger sync using the saved folder
+    ref.read(musicLibraryRepositoryProvider).syncFromSavedFolder(
+      forceSync: forceSync,
+    );
+  }
+
+  void _triggerForceSync(BuildContext context, WidgetRef ref) {
+    showCupertinoDialog(
+      context: context,
+      builder: (ctx) => CupertinoAlertDialog(
+        title: const Text('Force Full Re-sync?'),
+        content: const Text(
+          'This will re-process all audio files from Google Drive, '
+          'including ones that haven\'t changed. This may take a while.',
+        ),
+        actions: [
+          CupertinoDialogAction(
+            child: const Text('Cancel'),
+            onPressed: () => Navigator.pop(ctx),
+          ),
+          CupertinoDialogAction(
+            isDestructiveAction: true,
+            child: const Text('Force Re-sync'),
+            onPressed: () {
+              Navigator.pop(ctx);
+              _triggerSync(context, ref, forceSync: true);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final userAsync = ref.watch(currentUserProvider);
@@ -164,7 +213,21 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                         size: 24,
                       ),
                       title: const Text('Sync Library Now'),
-                      onTap: () => showSyncProgressSheet(context),
+                      subtitle: const Text(
+                        'Scan for new and changed tracks',
+                      ),
+                      onTap: () => _triggerSync(context, ref),
+                    ),
+                    CupertinoListTile(
+                      leading: const Icon(
+                        CupertinoIcons.arrow_counterclockwise,
+                        size: 24,
+                      ),
+                      title: const Text('Force Full Re-sync'),
+                      subtitle: const Text(
+                        'Re-process all files from scratch',
+                      ),
+                      onTap: () => _triggerForceSync(context, ref),
                     ),
                     CupertinoListTile(
                       leading: const Icon(

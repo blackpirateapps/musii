@@ -4,7 +4,7 @@
 > **Target Audience**: Incoming AI Coding Assistants & Human Software Engineers  
 > **Last Verified**: September 2026  
 > **App Identifier**: `com.blackpirateapps.musii`  
-> **Test Status**: 116 / 116 Passing (`flutter test`), 0 Analyzer Warnings (`flutter analyze`)
+> **Test Status**: 121 / 121 Passing (`flutter test`), 0 Analyzer Warnings (`flutter analyze`)
 
 ---
 
@@ -116,10 +116,20 @@ Located in `lib/features/google_drive/` and `lib/features/library/`:
 - **Incremental Metadata Reuse**:
   - Stable Google Drive file identity (`driveFileId`) used as primary mapping.
   - For each discovered remote audio file, classifies into:
-    - `UNCHANGED_COMPLETE`: Matches existing record in SQLite with matching modified timestamp (`!remote.modifiedTime.isAfter(local.driveModifiedAt)`), matching size, matching checksum, and complete metadata. **Zero audio downloads, zero metadata parsing.** Reuses all local records.
-    - `CHANGED`: Remote modification timestamp is newer, size changed, or checksum differs. Downloads temporary audio staging file, refreshes metadata, updates track and relations in SQLite.
-    - `INCOMPLETE`: Track exists in SQLite but missing vital fields (e.g., missing title, format, or zero duration). Re-fetches and repairs metadata.
+    - `UNCHANGED_COMPLETE`: Matches existing record in SQLite with matching modified timestamp (`!remote.modifiedTime.isAfter(local.driveModifiedAt)`), matching checksum, and complete metadata (title, format present). File size mismatch is only detected if the local record has a meaningful stored size (`fileSize > 0`). **Zero audio downloads, zero metadata parsing.** Reuses all local records.
+    - `CHANGED`: Remote modification timestamp is newer, checksum differs, or file size changed (when local size is non-zero). Downloads temporary audio staging file, refreshes metadata, updates track and relations in SQLite.
+    - `INCOMPLETE`: Track exists in SQLite but missing vital fields (e.g., missing title, format). Re-fetches and repairs metadata. Note: file size is NOT part of the completeness check — a track with `fileSize=0` but complete title/format is considered complete.
     - `NEW`: Completely new remote file. Full metadata extraction and relational upsert.
+- **One-Tap Sync (`syncFromSavedFolder()`)**:
+  - Looks up the previously configured root folder from in-memory progress → `MusicSources` table → latest `SyncRuns` record.
+  - Triggers `syncLibrary()` directly without requiring the Google Drive folder picker UI.
+  - Settings page "Sync Library Now" button calls this method to enable one-tap re-sync.
+  - Returns `DriveApiFailure` if no folder has ever been configured.
+- **Force Sync (`forceSync: true`)**:
+  - When `syncLibrary(forceSync: true)` is called, ALL discovered files are added to the processing queue regardless of classification.
+  - Bypasses the `unchangedComplete` optimization to force re-download and re-extraction of every file.
+  - Settings page "Force Full Re-sync" button triggers this with a confirmation dialog.
+  - Useful when metadata extraction logic has changed or files need complete re-indexing.
 - **Atomic Work Units & Checkpoint Storage**:
   - Work unit: Single audio track processing with transactional SQLite commit.
   - Single atomic database transaction wraps:
@@ -147,7 +157,8 @@ Located in `lib/features/google_drive/` and `lib/features/library/`:
   - Running: displays progress bar, file counts, current filename, and prominent Cupertino `Stop Sync` button.
   - Stopping: displays animated activity indicator and disables stop button.
   - Stopped: displays "Sync Stopped", "X of Y completed", and prominent Cupertino `Resume Sync` button.
-  - Complete: displays "Library Synced" and "Done" button.
+  - Complete: displays "Library Synced", `Sync Now` button (to trigger incremental re-sync), and `Done` button.
+  - Idle with saved folder: displays `Sync Now` button and `Done` button.
 
 ### 4. Android Media Notifications & Lock Screen Playback Controls
 Located in `lib/app/bootstrap/bootstrap.dart`, `lib/core/services/notification_permission_service.dart`, and `lib/features/playback/data/repositories/playback_repository_impl.dart`:
