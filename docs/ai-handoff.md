@@ -1,10 +1,10 @@
 # Musii — AI Engineering Handoff Document
 
-> **Document Version**: 1.6.0  
+> **Document Version**: 1.7.0  
 > **Target Audience**: Incoming AI Coding Assistants & Human Software Engineers  
 > **Last Verified**: September 2026  
 > **App Identifier**: `com.blackpirateapps.musii`  
-> **Test Status**: 121 / 121 Passing (`flutter test`), 0 Analyzer Warnings (`flutter analyze`)
+> **Test Status**: 122 / 122 Passing (`flutter test`), 0 Analyzer Warnings (`flutter analyze`)
 
 ---
 
@@ -55,16 +55,37 @@ The codebase strictly adheres to standard four-layer Clean Architecture:
 
 ## 3. Subsystems & Features
 
-### 1. Now Playing Experience (Visual Authority)
+### 1. Home Screen Experience (Visual Authority)
+Located in `lib/features/library/presentation/pages/home_page.dart` and `lib/features/library/presentation/widgets/`:
+- **Atmospheric Twilight Backdrop**: Rich twilight and warm sunset gradient glow (`RadialGradient`) with 90px Gaussian blur, giving Cupertino dark mode depth and warmth without visual noise.
+- **Dynamic Header & Subtitle**: Time-of-day greeting (`AppGreeting.getGreeting()`) paired with the subtitle *"Your music, your way."* in clean Cupertino typography.
+- **Upper-Right Account Control (`AccountInfoSheet`)**: Subtle 38px circular avatar with Google profile photo or fallback avatar. Tapping opens a Cupertino modal sheet displaying Google account info, live music library statistics (song, album, artist counts), Google Drive connection state, and last sync timestamp.
+- **Continue Listening Card (`ContinueListeningCard`)**:
+  - Derived from active playback state or recent history.
+  - Frosted glass container with rounded corners (`22px`), 1px translucent border, and subtle drop shadow.
+  - Square album artwork (102px, radius 16px).
+  - Left metadata: Song title (bold 16sp), artist name (13sp), album name (12sp), and technical badge pill (`FLAC · 706 kbps`, `MP3 · 320 kbps`).
+  - Right circular play/pause action button (48px circle, translucent fill).
+  - Bottom scrubber bar: Thin progress line with circular white thumb dot, current position (`1:43`), and remaining time (`-2:20`).
+- **Horizontal Carousels for All Music Sections (`HomeArtworkCard`)**:
+  - **Favorites**: Horizontal artwork carousel of favorited songs.
+  - **Recently Played**: Horizontal carousel derived from actual playback history.
+  - **Recently Added**: Horizontal carousel of recently added/indexed music (replaces legacy dense vertical rows).
+  - **Albums & Playlists**: Horizontal carousels of square artwork cards.
+  - **Artists**: Horizontal carousel of circular artist items.
+- **Refined Section Headers (`SectionHeader`)**: Bold section titles with subtle "See All >" affordances and title chevrons where appropriate.
+- **Content-Aware Geometry**: Sections only render when real data exists; empty states render clean Cupertino invitations to connect Drive.
+
+### 2. Now Playing Experience (Visual Authority)
 Located in `lib/features/playback/presentation/pages/now_playing_page.dart`:
-- **Apple Music-Inspired Minimalist Top Bar**: Features a centered grabber indicator pill (`36x5` rounded bar) and a subtle left dismiss chevron (`chevron_down`), completely removing static "Now Playing" text and redundant top queue icons for an immersive, uncluttered aesthetic.
+- **Cupertino Top Bar**: Features a centered "Now Playing" title, left dismiss chevron (`chevron_down`), and right top queue access button (`text_badge_plus`), perfectly matching the Now Playing visual authority screenshot.
 - **Interactive Pull-Down Gesture**: Dragging down anywhere on the screen (artwork, metadata, empty background) smoothly translates the modal downward with real-time tactile tracking, popping when pulled past the threshold (>120px) or flicked downwards (>300 px/s), and snapping gracefully back to top on early release.
 - **Swipe-Up for Queue**: Swiping up when at top offset opens the Cupertino queue modal sheet.
 - **Vibrant Blurred Artwork Aesthetic**: Real-time blurred album artwork backdrop with a lighter translucent gradient overlay (`0x40`/`0x80`/`0xB3` opacity) so album art colors bleed through vividly.
-- **Proportional Artwork Presentation**: Floating artwork sized responsively (`min(width * 0.62, height * 0.32)`) with rounded corners and subtle drop shadow.
+- **Proportional Artwork Presentation**: Floating artwork sized responsively (`min(width * 0.64, height * 0.33)`) with rounded corners (22px) and subtle drop shadow.
 - **Left-Aligned Track Metadata**: Song title, artist name, and album name with Cupertino typography and ellipsis truncation.
 - **Technical Pill Badge**: Displays exact audio format and bitrate (e.g., `FLAC · 706 kbps`, `MP3 · 320 kbps`) in a translucent rounded pill container with adaptive background contrast (`isDarkBackground`).
-- **More Actions Button**: Circular translucent Cupertino button (`...`) opening a contextual action sheet (Album, Artist, Lyrics, Share, Favorite).
+- **More Actions Button**: Circular translucent Cupertino button (`...`) opening a contextual action sheet (Album, Artist, Lyrics, Share, Favorite, Download).
 - **Apple Music-Style Scrubber**: Custom Material `SliderTheme` + `Slider` with thin 4px track, small 6px thumb radius, white active track, and semi-transparent gray inactive track. Uses selective Material import (`show Slider, SliderTheme, SliderThemeData, ...`).
 - **5-Control Playback Cluster**:
   - Shuffle toggle with active highlight.
@@ -77,7 +98,14 @@ Located in `lib/features/playback/presentation/pages/now_playing_page.dart`:
   - Lyrics icon (`quote_bubble`) opening synchronized `LyricsSheet`.
   - Queue icon (`text_badge_plus`) opening the dynamic playback queue sheet.
 
-### 2. Lyrics Engine & Synchronization (Word-Level & Line-Level Upgraded)
+### 3. Docked Mini-Player Integration
+Located in `lib/features/playback/presentation/widgets/mini_player.dart`:
+- Floating translucent card with horizontal insets (14px) and rounded corners (16px) docked right above bottom tabs.
+- Features small album artwork (44px, radius 10px), title, artist, play/pause toggle, and next track button.
+- Subtle 2px bottom progress bar indicator tracking playback position in real-time.
+- Tapping opens the fullscreen Now Playing modal.
+
+### 4. Lyrics Engine & Synchronization (Word-Level & Line-Level Upgraded)
 Located in `lib/features/lyrics/`:
 - **Parser (`LrcParser`)**:
   - Millisecond precision (`[mm:ss.xxx]` and `<mm:ss.xxx>`) and centisecond precision (`[mm:ss.xx]` and `<mm:ss.xx>`).
@@ -111,7 +139,7 @@ Located in `lib/features/lyrics/`:
   - **Smooth Viewport Movement**: 300ms `Curves.easeOutCubic` animated scrolling triggered on `activeIndex` changes.
   - **Manual Scroll Recovery & Tap-to-Seek**: User drag notifications pause auto-scroll and animate in the floating "Current line" button. Tapping "Current line" or tapping any lyric line seeks playback, snaps to the 45% focal position, and restores auto-following.
 
-### 3. Google Drive Integration & Incremental Sync Engine (Optimized & Crash-Safe)
+### 5. Google Drive Integration & Incremental Sync Engine (Optimized & Crash-Safe)
 Located in `lib/features/google_drive/` and `lib/features/library/`:
 - **Incremental Metadata Reuse**:
   - Stable Google Drive file identity (`driveFileId`) used as primary mapping.
@@ -160,7 +188,7 @@ Located in `lib/features/google_drive/` and `lib/features/library/`:
   - Complete: displays "Library Synced", `Sync Now` button (to trigger incremental re-sync), and `Done` button.
   - Idle with saved folder: displays `Sync Now` button and `Done` button.
 
-### 4. Android Media Notifications & Lock Screen Playback Controls
+### 6. Android Media Notifications & Lock Screen Playback Controls
 Located in `lib/app/bootstrap/bootstrap.dart`, `lib/core/services/notification_permission_service.dart`, and `lib/features/playback/data/repositories/playback_repository_impl.dart`:
 - **AudioService Registration (`AudioService.init`)**:
   - Initializes background foreground service with `AudioServiceConfig` (channel `com.blackpirateapps.musii.channel.audio`, small icon `drawable/ic_stat_music`).
@@ -176,7 +204,7 @@ Located in `lib/app/bootstrap/bootstrap.dart`, `lib/core/services/notification_p
   - **Restored State Broadcasting**: `restoreSavedState()` must call `_broadcastPlaybackState()` after restoring the queue and media item. Without this, Android has no `PlaybackState` to render and the media notification will not appear after app restart.
   - **Artwork Resolution in Queue Restore**: `artworkPath` is not stored in the `Tracks` table — it is resolved dynamically via `MetadataNormalizationService.computeArtworkKey()` + `AppFileSystem.getArtworkCacheFile()`. The `_resolveArtworkPath()` helper in `MusiiAudioHandler` mirrors this pattern for restored tracks.
 
-### 5. Wi-Fi Pre-Caching & In-Memory Artwork Retention
+### 7. Wi-Fi Pre-Caching & In-Memory Artwork Retention
 Located in `lib/core/services/connectivity_service.dart`, `lib/features/cache/`, `lib/features/library/presentation/widgets/album_artwork.dart`, and `lib/features/playback/`:
 - **Wi-Fi Pre-Caching Engine**:
   - When connected to Wi-Fi/Ethernet, automatically pre-fetches the next up to 3 upcoming queue tracks sequentially in background without interrupting playback.
@@ -186,7 +214,7 @@ Located in `lib/core/services/connectivity_service.dart`, `lib/features/cache/`,
   - `PaintingBinding.instance.imageCache` is expanded to 256MB capacity (2,000 textures) to eliminate pop-in re-decoding during fast scrolling.
   - `cacheExtent: 600.0` on sliver scrollviews retains viewport boundary layouts.
 
-### 6. Playback Queue Engine & Context-Aware Reordering (Q1–Q4)
+### 8. Playback Queue Engine & Context-Aware Reordering (Q1–Q4)
 Located in `lib/features/playback/domain/entities/playback_state.dart`, `lib/features/playback/data/repositories/playback_repository_impl.dart`, `lib/features/playback/presentation/pages/queue_page.dart`, and `lib/features/library/presentation/widgets/track_overflow_sheet.dart`:
 - **Unique QueueItem Identity**: Every item in the queue wraps a `Track` inside a `QueueItem` entity featuring a unique `id` (`qi_${timestamp}_${counter}_${trackId}`). This allows duplicate tracks to coexist in the playback queue safely without key collisions, ambiguous reordering, or inadvertent multi-item deletions.
 - **Non-Disruptive Drag-and-Drop Reordering**: `QueuePage` renders upcoming tracks via `ReorderableListView.builder` using custom drag handles (`CupertinoIcons.line_horizontal_3`). Reordering modifies the upcoming sequence instantly while the currently playing track continues playback uninterrupted.

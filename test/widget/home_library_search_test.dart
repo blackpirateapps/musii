@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:musii/app/bootstrap/providers.dart';
 import 'package:musii/core/constants/app_constants.dart';
 import 'package:musii/core/database/app_database.dart';
+import 'package:musii/features/authentication/domain/entities/auth_user.dart';
 import 'package:musii/features/library/domain/entities/music_entities.dart';
 import 'package:musii/features/library/presentation/pages/home_page.dart';
 import 'package:musii/features/library/presentation/pages/library_page.dart';
@@ -41,9 +42,79 @@ void main() {
     albumCount: 1,
   );
 
+  const testUser = AuthUser(
+    id: 'usr_1',
+    email: 'audiophile@musii.app',
+    displayName: 'City Pop Fan',
+  );
+
   group('HomePage', () {
     testWidgets(
-      'renders dynamic greeting and library sections with real data',
+      'renders dynamic greeting, subtitle, and library sections with real data',
+      (tester) async {
+        tester.view.physicalSize = const Size(1080, 2400);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(() {
+          tester.view.resetPhysicalSize();
+          tester.view.resetDevicePixelRatio();
+        });
+
+        final db = AppDatabase(NativeDatabase.memory());
+        addTearDown(db.close);
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              appDatabaseProvider.overrideWithValue(db),
+              playerStateProvider.overrideWith(
+                (ref) => Stream.value(
+                  const PlayerStateSnapshot(
+                    currentTrack: sampleTrack,
+                    duration: Duration(seconds: 240),
+                    position: Duration(seconds: 60),
+                    isPlaying: true,
+                  ),
+                ),
+              ),
+              currentUserProvider.overrideWith((ref) => Stream.value(testUser)),
+              recentlyPlayedTracksProvider.overrideWith(
+                (ref) => Stream.value([sampleTrack]),
+              ),
+              favoriteTracksProvider.overrideWith(
+                (ref) => Stream.value([sampleTrack]),
+              ),
+              allTracksProvider('recent')
+                  .overrideWith((ref) => Stream.value([sampleTrack])),
+              allTracksProvider(null)
+                  .overrideWith((ref) => Stream.value([sampleTrack])),
+              allAlbumsProvider.overrideWith(
+                (ref) => Stream.value([sampleAlbum]),
+              ),
+              allArtistsProvider.overrideWith(
+                (ref) => Stream.value([sampleArtist]),
+              ),
+              playlistsProvider.overrideWith((ref) => Stream.value([])),
+            ],
+            child: const CupertinoApp(home: HomePage()),
+          ),
+        );
+
+        await tester.pumpAndSettle();
+
+        final expectedGreeting = AppGreeting.getGreeting();
+        expect(find.text(expectedGreeting), findsWidgets);
+        expect(find.text('Your music, your way.'), findsOneWidget);
+        expect(find.text('Continue Listening'), findsOneWidget);
+        expect(find.text('Recently Played'), findsOneWidget);
+        expect(find.text('Favorites'), findsOneWidget);
+        expect(find.text('Recently Added'), findsOneWidget);
+        expect(find.text('Albums'), findsOneWidget);
+        expect(find.text('Artists'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'Tapping profile avatar opens AccountInfoSheet with library statistics and Drive status',
       (tester) async {
         tester.view.physicalSize = const Size(1080, 2400);
         tester.view.devicePixelRatio = 1.0;
@@ -62,6 +133,7 @@ void main() {
               playerStateProvider.overrideWith(
                 (ref) => Stream.value(const PlayerStateSnapshot()),
               ),
+              currentUserProvider.overrideWith((ref) => Stream.value(testUser)),
               recentlyPlayedTracksProvider.overrideWith(
                 (ref) => Stream.value([sampleTrack]),
               ),
@@ -69,6 +141,8 @@ void main() {
                 (ref) => Stream.value([sampleTrack]),
               ),
               allTracksProvider('recent')
+                  .overrideWith((ref) => Stream.value([sampleTrack])),
+              allTracksProvider(null)
                   .overrideWith((ref) => Stream.value([sampleTrack])),
               allAlbumsProvider.overrideWith(
                 (ref) => Stream.value([sampleAlbum]),
@@ -84,13 +158,18 @@ void main() {
 
         await tester.pumpAndSettle();
 
-        final expectedGreeting = AppGreeting.getGreeting();
-        expect(find.text(expectedGreeting), findsWidgets);
-        expect(find.text('Recently Played'), findsOneWidget);
-        expect(find.text('Favorites'), findsOneWidget);
-        expect(find.text('Recently Added'), findsOneWidget);
-        expect(find.text('Albums'), findsOneWidget);
-        expect(find.text('Artists'), findsOneWidget);
+        // Find and tap profile avatar in the upper right
+        await tester.tap(find.byIcon(CupertinoIcons.person_fill));
+        await tester.pumpAndSettle();
+
+        // Verify AccountInfoSheet is open with user info and library statistics
+        expect(find.text('City Pop Fan'), findsOneWidget);
+        expect(find.text('audiophile@musii.app'), findsOneWidget);
+        expect(find.text('MUSIC LIBRARY'), findsOneWidget);
+        expect(find.text('GOOGLE DRIVE STATUS'), findsOneWidget);
+        expect(find.text('Total Songs'), findsOneWidget);
+        expect(find.text('Total Albums'), findsOneWidget);
+        expect(find.text('Total Artists'), findsOneWidget);
       },
     );
   });

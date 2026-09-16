@@ -51,10 +51,9 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    // Minimalist Apple Music Top Bar
-    expect(find.text('Now Playing'), findsNothing);
+    // Top Bar matching reference screenshot
+    expect(find.text('Now Playing'), findsOneWidget);
     expect(find.byIcon(CupertinoIcons.chevron_down), findsOneWidget);
-    expect(find.byIcon(CupertinoIcons.music_note_list), findsNothing);
 
     // Track Metadata
     expect(find.text('Mayonaka no Door / Stay With Me'), findsOneWidget);
@@ -82,7 +81,7 @@ void main() {
     // Bottom Secondary Controls (Favorite, Lyrics, Queue)
     expect(find.byIcon(CupertinoIcons.heart), findsOneWidget);
     expect(find.byIcon(CupertinoIcons.quote_bubble), findsOneWidget);
-    expect(find.byIcon(CupertinoIcons.text_badge_plus), findsOneWidget);
+    expect(find.byIcon(CupertinoIcons.text_badge_plus), findsWidgets);
   });
 
   testWidgets('Tapping More button opens action sheet with all actions', (

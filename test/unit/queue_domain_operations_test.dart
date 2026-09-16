@@ -12,7 +12,9 @@ import 'package:musii/features/playback/domain/entities/playback_state.dart';
 import 'package:musii/features/recently_played/data/repositories/recently_played_repository_impl.dart';
 
 class MockCacheRepository extends Mock implements CacheRepository {}
-class MockRecentlyPlayedRepository extends Mock implements RecentlyPlayedRepository {}
+
+class MockRecentlyPlayedRepository extends Mock
+    implements RecentlyPlayedRepository {}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -112,7 +114,10 @@ void main() {
       expect(snapshot.upNextItems.length, equals(2));
       expect(snapshot.upNextItems[0].track.title, equals('Song B'));
       expect(snapshot.upNextItems[1].track.title, equals('Song C'));
-      expect(snapshot.upNextTracks.map((t) => t.title), equals(['Song B', 'Song C']));
+      expect(
+        snapshot.upNextTracks.map((t) => t.title),
+        equals(['Song B', 'Song C']),
+      );
       expect(snapshot.hasNext, isTrue);
       expect(snapshot.hasPrevious, isFalse);
     });
@@ -170,32 +175,43 @@ void main() {
       await db.close();
     });
 
-    test('Play Next preserves sequential requested order (A -> D -> E -> B -> C)', () async {
-      // 1. Initialize queue with A (playing), B, C
-      await handler.loadAndPlayTrack(
-        trackA,
-        queue: [trackA, trackB, trackC],
-        queueIndex: 0,
-      );
+    test(
+      'Play Next preserves sequential requested order (A -> D -> E -> B -> C)',
+      () async {
+        // 1. Initialize queue with A (playing), B, C
+        await handler.loadAndPlayTrack(
+          trackA,
+          queue: [trackA, trackB, trackC],
+          queueIndex: 0,
+        );
 
-      expect(handler.currentSnapshot.queue.map((t) => t.title).toList(),
-          equals(['Song A', 'Song B', 'Song C']));
+        expect(
+          handler.currentSnapshot.queue.map((t) => t.title).toList(),
+          equals(['Song A', 'Song B', 'Song C']),
+        );
 
-      // 2. Play Next D -> [A, D, B, C]
-      handler.playNext(trackD);
-      expect(handler.currentSnapshot.queue.map((t) => t.title).toList(),
-          equals(['Song A', 'Song D', 'Song B', 'Song C']));
+        // 2. Play Next D -> [A, D, B, C]
+        handler.playNext(trackD);
+        expect(
+          handler.currentSnapshot.queue.map((t) => t.title).toList(),
+          equals(['Song A', 'Song D', 'Song B', 'Song C']),
+        );
 
-      // 3. Play Next E -> [A, D, E, B, C]
-      handler.playNext(trackE);
-      expect(handler.currentSnapshot.queue.map((t) => t.title).toList(),
-          equals(['Song A', 'Song D', 'Song E', 'Song B', 'Song C']));
+        // 3. Play Next E -> [A, D, E, B, C]
+        handler.playNext(trackE);
+        expect(
+          handler.currentSnapshot.queue.map((t) => t.title).toList(),
+          equals(['Song A', 'Song D', 'Song E', 'Song B', 'Song C']),
+        );
 
-      // 4. Play Next F -> [A, D, E, F, B, C]
-      handler.playNext(trackF);
-      expect(handler.currentSnapshot.queue.map((t) => t.title).toList(),
-          equals(['Song A', 'Song D', 'Song E', 'Song F', 'Song B', 'Song C']));
-    });
+        // 4. Play Next F -> [A, D, E, F, B, C]
+        handler.playNext(trackF);
+        expect(
+          handler.currentSnapshot.queue.map((t) => t.title).toList(),
+          equals(['Song A', 'Song D', 'Song E', 'Song F', 'Song B', 'Song C']),
+        );
+      },
+    );
 
     test('Add to Queue (playLast) appends items to the end', () async {
       await handler.loadAndPlayTrack(
@@ -207,25 +223,32 @@ void main() {
       handler.playLast(trackC);
       handler.playLast(trackD);
 
-      expect(handler.currentSnapshot.queue.map((t) => t.title).toList(),
-          equals(['Song A', 'Song B', 'Song C', 'Song D']));
-    });
-
-    test('Reorder queue moves item and preserves current playing track', () async {
-      await handler.loadAndPlayTrack(
-        trackA,
-        queue: [trackA, trackB, trackC, trackD, trackE],
-        queueIndex: 0,
+      expect(
+        handler.currentSnapshot.queue.map((t) => t.title).toList(),
+        equals(['Song A', 'Song B', 'Song C', 'Song D']),
       );
-
-      // Move D (oldIndex = 3) above B (newIndex = 1) -> [A, D, B, C, E]
-      handler.reorderQueue(3, 1);
-
-      expect(handler.currentSnapshot.queue.map((t) => t.title).toList(),
-          equals(['Song A', 'Song D', 'Song B', 'Song C', 'Song E']));
-      expect(handler.currentSnapshot.currentTrack?.title, equals('Song A'));
-      expect(handler.currentSnapshot.queueIndex, equals(0));
     });
+
+    test(
+      'Reorder queue moves item and preserves current playing track',
+      () async {
+        await handler.loadAndPlayTrack(
+          trackA,
+          queue: [trackA, trackB, trackC, trackD, trackE],
+          queueIndex: 0,
+        );
+
+        // Move D (oldIndex = 3) above B (newIndex = 1) -> [A, D, B, C, E]
+        handler.reorderQueue(3, 1);
+
+        expect(
+          handler.currentSnapshot.queue.map((t) => t.title).toList(),
+          equals(['Song A', 'Song D', 'Song B', 'Song C', 'Song E']),
+        );
+        expect(handler.currentSnapshot.currentTrack?.title, equals('Song A'));
+        expect(handler.currentSnapshot.queueIndex, equals(0));
+      },
+    );
 
     test('Move queue item by queueItemId', () async {
       const itemA = QueueItem(id: 'item_a', track: trackA);
@@ -241,35 +264,44 @@ void main() {
 
       handler.moveQueueItem('item_d', 1);
 
-      expect(handler.currentSnapshot.queueItems.map((q) => q.id).toList(),
-          equals(['item_a', 'item_d', 'item_b', 'item_c']));
-    });
-
-    test('Duplicate tracks in queue can be distinguished and removed individually', () async {
-      const itemA1 = QueueItem(id: 'item_a1', track: trackA);
-      const itemB = QueueItem(id: 'item_b', track: trackB);
-      const itemA2 = QueueItem(id: 'item_a2', track: trackA);
-      const itemC = QueueItem(id: 'item_c', track: trackC);
-
-      // Queue: [A (item_a1), B (item_b), A (item_a2), C (item_c)]
-      await handler.loadAndPlayTrack(
-        trackA,
-        queueItems: [itemA1, itemB, itemA2, itemC],
-        queueIndex: 0,
+      expect(
+        handler.currentSnapshot.queueItems.map((q) => q.id).toList(),
+        equals(['item_a', 'item_d', 'item_b', 'item_c']),
       );
-
-      expect(handler.currentSnapshot.queueItems.length, equals(4));
-
-      // Remove second occurrence of A (item_a2)
-      handler.removeQueueItemById('item_a2');
-
-      final remaining = handler.currentSnapshot.queueItems;
-      expect(remaining.length, equals(3));
-      expect(remaining.map((q) => q.id).toList(),
-          equals(['item_a1', 'item_b', 'item_c']));
-      expect(remaining.map((q) => q.track.title).toList(),
-          equals(['Song A', 'Song B', 'Song C']));
     });
+
+    test(
+      'Duplicate tracks in queue can be distinguished and removed individually',
+      () async {
+        const itemA1 = QueueItem(id: 'item_a1', track: trackA);
+        const itemB = QueueItem(id: 'item_b', track: trackB);
+        const itemA2 = QueueItem(id: 'item_a2', track: trackA);
+        const itemC = QueueItem(id: 'item_c', track: trackC);
+
+        // Queue: [A (item_a1), B (item_b), A (item_a2), C (item_c)]
+        await handler.loadAndPlayTrack(
+          trackA,
+          queueItems: [itemA1, itemB, itemA2, itemC],
+          queueIndex: 0,
+        );
+
+        expect(handler.currentSnapshot.queueItems.length, equals(4));
+
+        // Remove second occurrence of A (item_a2)
+        handler.removeQueueItemById('item_a2');
+
+        final remaining = handler.currentSnapshot.queueItems;
+        expect(remaining.length, equals(3));
+        expect(
+          remaining.map((q) => q.id).toList(),
+          equals(['item_a1', 'item_b', 'item_c']),
+        );
+        expect(
+          remaining.map((q) => q.track.title).toList(),
+          equals(['Song A', 'Song B', 'Song C']),
+        );
+      },
+    );
 
     test('Clear Up Next removes only upcoming tracks and keeps current track playing', () async {
       await handler.loadAndPlayTrack(
@@ -303,14 +335,18 @@ void main() {
       // Disable shuffle -> restores exact original unshuffled queue
       handler.toggleShuffle();
       expect(handler.currentSnapshot.shuffleMode, isFalse);
-      expect(handler.currentSnapshot.queue.map((t) => t.title).toList(),
-          equals(['Song A', 'Song B', 'Song C', 'Song D', 'Song E']));
+      expect(
+        handler.currentSnapshot.queue.map((t) => t.title).toList(),
+        equals(['Song A', 'Song B', 'Song C', 'Song D', 'Song E']),
+      );
     });
 
     test('Queue persistence and restoration across restarts', () async {
       // 1. Populate tracks in database
       for (final t in [trackA, trackB, trackC, trackD]) {
-        await db.into(db.tracks).insertOnConflictUpdate(
+        await db
+            .into(db.tracks)
+            .insertOnConflictUpdate(
               TracksCompanion(
                 id: Value(t.id),
                 driveFileId: Value(t.driveFileId),
@@ -351,10 +387,14 @@ void main() {
 
       final restored = newHandler.currentSnapshot;
       expect(restored.queueItems.length, equals(4));
-      expect(restored.queueItems.map((q) => q.id).toList(),
-          equals(['q_pers_a1', 'q_pers_b', 'q_pers_a2', 'q_pers_c']));
-      expect(restored.queueItems.map((q) => q.track.title).toList(),
-          equals(['Song A', 'Song B', 'Song A', 'Song C']));
+      expect(
+        restored.queueItems.map((q) => q.id).toList(),
+        equals(['q_pers_a1', 'q_pers_b', 'q_pers_a2', 'q_pers_c']),
+      );
+      expect(
+        restored.queueItems.map((q) => q.track.title).toList(),
+        equals(['Song A', 'Song B', 'Song A', 'Song C']),
+      );
       expect(restored.currentTrack?.title, equals('Song A'));
       expect(restored.queueIndex, equals(0));
     });

@@ -27,145 +27,147 @@ class MiniPlayer extends ConsumerWidget {
               .clamp(0.0, 1.0)
         : 0.0;
 
-    return CupertinoButton(
-      padding: EdgeInsets.zero,
-      minSize: 0,
-      onPressed: () {
-        Navigator.of(context, rootNavigator: true).push(
-          CupertinoPageRoute(
-            fullscreenDialog: true,
-            builder: (_) => const NowPlayingPage(),
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 4.0),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xE8262832) : const Color(0xF2F0F0F5),
+        borderRadius: BorderRadius.circular(16.0),
+        border: Border.all(
+          color: isDark ? const Color(0x24FFFFFF) : const Color(0x18000000),
+          width: 1.0,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: CupertinoColors.black.withOpacity(isDark ? 0.35 : 0.12),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
           ),
-        );
-      },
-      child: Container(
-        margin: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.xs,
-          vertical: 4.0,
-        ),
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF252528) : const Color(0xFFF2F2F7),
-          borderRadius: BorderRadius.circular(AppRadii.card),
-          boxShadow: [
-            BoxShadow(
-              color: CupertinoColors.black.withOpacity(0.12),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16.0),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Thin Progress Bar
-            ClipRRect(
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(AppRadii.card),
-              ),
-              child: SizedBox(
-                height: 2.0,
-                child: LinearProgressIndicator(
-                  value: progress,
-                  backgroundColor: CupertinoColors.transparent,
-                  valueColor: const AlwaysStoppedAnimation<Color>(
-                    CupertinoColors.systemPink,
+            CupertinoButton(
+              padding: EdgeInsets.zero,
+              minSize: 0,
+              onPressed: () {
+                Navigator.of(context, rootNavigator: true).push(
+                  CupertinoPageRoute(
+                    fullscreenDialog: true,
+                    builder: (_) => const NowPlayingPage(),
                   ),
+                );
+              },
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(10.0, 8.0, 12.0, 8.0),
+                child: Row(
+                  children: [
+                    Hero(
+                      tag: 'current_artwork_${track.id}',
+                      child: AlbumArtwork(
+                        artworkPath: track.artworkPath,
+                        title: track.title,
+                        artist: track.artistName,
+                        size: 44,
+                        borderRadius: 10,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            track.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 14.5,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: -0.2,
+                              color: isDark
+                                  ? CupertinoColors.white
+                                  : CupertinoColors.black,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            track.artistName ?? 'Unknown Artist',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w400,
+                              color: isDark
+                                  ? CupertinoColors.white.withOpacity(0.65)
+                                  : CupertinoColors.secondaryLabel,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    // Play/Pause Button
+                    CupertinoButton(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.xs,
+                      ),
+                      minSize: 0,
+                      onPressed: () {
+                        if (playerSnapshot.isPlaying) {
+                          ref.read(playbackRepositoryProvider).pause();
+                        } else {
+                          ref.read(playbackRepositoryProvider).resume();
+                        }
+                      },
+                      child: playerSnapshot.isBuffering
+                          ? CupertinoActivityIndicator(
+                              radius: 10,
+                              color: isDark
+                                  ? CupertinoColors.white
+                                  : CupertinoColors.black,
+                            )
+                          : Icon(
+                              playerSnapshot.isPlaying
+                                  ? CupertinoIcons.pause_fill
+                                  : CupertinoIcons.play_fill,
+                              size: 24,
+                              color: isDark
+                                  ? CupertinoColors.white
+                                  : CupertinoColors.black,
+                            ),
+                    ),
+                    const SizedBox(width: 4),
+                    // Next Track Button
+                    CupertinoButton(
+                      padding: EdgeInsets.zero,
+                      minSize: 0,
+                      onPressed: () {
+                        ref.read(playbackRepositoryProvider).skipToNext();
+                      },
+                      child: Icon(
+                        CupertinoIcons.forward_fill,
+                        size: 22,
+                        color: isDark
+                            ? CupertinoColors.white
+                            : CupertinoColors.black,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.sm,
-                vertical: 8.0,
-              ),
-              child: Row(
-                children: [
-                  Hero(
-                    tag: 'current_artwork_${track.id}',
-                    child: AlbumArtwork(
-                      artworkPath: track.artworkPath,
-                      title: track.title,
-                      artist: track.artistName,
-                      size: 42,
-                      borderRadius: AppRadii.small,
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          track.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: -0.2,
-                            color: isDark
-                                ? CupertinoColors.white
-                                : CupertinoColors.black,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          track.artistName ?? 'Unknown Artist',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w400,
-                            color: isDark
-                                ? CupertinoColors.systemGrey
-                                : CupertinoColors.secondaryLabel,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  // Play/Pause Button
-                  CupertinoButton(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.sm,
-                    ),
-                    minSize: 0,
-                    onPressed: () {
-                      if (playerSnapshot.isPlaying) {
-                        ref.read(playbackRepositoryProvider).pause();
-                      } else {
-                        ref.read(playbackRepositoryProvider).resume();
-                      }
-                    },
-                    child: playerSnapshot.isBuffering
-                        ? const CupertinoActivityIndicator(radius: 10)
-                        : Icon(
-                            playerSnapshot.isPlaying
-                                ? CupertinoIcons.pause_fill
-                                : CupertinoIcons.play_fill,
-                            size: 24,
-                            color: isDark
-                                ? CupertinoColors.white
-                                : CupertinoColors.black,
-                          ),
-                  ),
-                  // Next Button
-                  CupertinoButton(
-                    padding: const EdgeInsets.only(right: AppSpacing.xs),
-                    minSize: 0,
-                    onPressed: () {
-                      ref.read(playbackRepositoryProvider).skipToNext();
-                    },
-                    child: Icon(
-                      CupertinoIcons.forward_fill,
-                      size: 22,
-                      color: isDark
-                          ? CupertinoColors.white
-                          : CupertinoColors.black,
-                    ),
-                  ),
-                ],
+            // Thin Bottom Progress Bar Indicator
+            SizedBox(
+              height: 2.0,
+              child: LinearProgressIndicator(
+                value: progress,
+                backgroundColor: CupertinoColors.transparent,
+                valueColor: const AlwaysStoppedAnimation<Color>(
+                  CupertinoColors.systemPink,
+                ),
               ),
             ),
           ],

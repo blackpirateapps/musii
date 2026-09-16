@@ -563,49 +563,55 @@ void main() {
       expect(artists.length, equals(1));
     });
 
-    test('SYNC FROM SAVED FOLDER: returns failure when no folder is configured', () async {
-      final result = await libraryRepo.syncFromSavedFolder();
-      expect(result.isFailure, isTrue);
-      expect(
-        result.failureOrNull?.message,
-        contains('No music folder configured'),
-      );
-    });
+    test(
+      'SYNC FROM SAVED FOLDER: returns failure when no folder is configured',
+      () async {
+        final result = await libraryRepo.syncFromSavedFolder();
+        expect(result.isFailure, isTrue);
+        expect(
+          result.failureOrNull?.message,
+          contains('No music folder configured'),
+        );
+      },
+    );
 
-    test('SYNC FROM SAVED FOLDER: triggers sync using folder from MusicSources', () async {
-      final now = DateTime(2026, 9, 16, 12, 0);
-      fakeDrive.filesToReturn = [
-        DriveFileItem(
-          id: 'df_1',
-          name: 'Track 1.mp3',
-          mimeType: 'audio/mpeg',
-          size: 1000,
-          modifiedTime: now,
-          parentFolderId: 'saved_root',
-        ),
-      ];
+    test(
+      'SYNC FROM SAVED FOLDER: triggers sync using folder from MusicSources',
+      () async {
+        final now = DateTime(2026, 9, 16, 12, 0);
+        fakeDrive.filesToReturn = [
+          DriveFileItem(
+            id: 'df_1',
+            name: 'Track 1.mp3',
+            mimeType: 'audio/mpeg',
+            size: 1000,
+            modifiedTime: now,
+            parentFolderId: 'saved_root',
+          ),
+        ];
 
-      // Pre-populate MusicSources with a saved folder
-      await db
-          .into(db.musicSources)
-          .insertOnConflictUpdate(
-            MusicSourcesCompanion(
-              id: const Value('source_gdrive'),
-              type: const Value('google_drive'),
-              accountEmail: const Value('test@example.com'),
-              rootFolderId: const Value('saved_root'),
-              rootFolderName: const Value('My Music'),
-              createdAt: Value(now),
-            ),
-          );
+        // Pre-populate MusicSources with a saved folder
+        await db
+            .into(db.musicSources)
+            .insertOnConflictUpdate(
+              MusicSourcesCompanion(
+                id: const Value('source_gdrive'),
+                type: const Value('google_drive'),
+                accountEmail: const Value('test@example.com'),
+                rootFolderId: const Value('saved_root'),
+                rootFolderName: const Value('My Music'),
+                createdAt: Value(now),
+              ),
+            );
 
-      final result = await libraryRepo.syncFromSavedFolder();
-      expect(result.isSuccess, isTrue);
+        final result = await libraryRepo.syncFromSavedFolder();
+        expect(result.isSuccess, isTrue);
 
-      final tracks = await libraryRepo.watchAllTracks().first;
-      expect(tracks.length, equals(1));
-      expect(tracks.first.driveFileId, equals('df_1'));
-    });
+        final tracks = await libraryRepo.watchAllTracks().first;
+        expect(tracks.length, equals(1));
+        expect(tracks.first.driveFileId, equals('df_1'));
+      },
+    );
 
     test('FORCE SYNC: re-processes all files even when unchanged', () async {
       final now = DateTime(2026, 9, 16, 12, 0);
@@ -692,7 +698,9 @@ void main() {
               title: 'Track 1',
               normalizedTitle: 'track 1',
               format: const Value('MP3'),
-              fileSize: const Value(0), // fileSize is 0 (not matching remote.size=5000)
+              fileSize: const Value(
+                0,
+              ), // fileSize is 0 (not matching remote.size=5000)
               durationMs: const Value(200000),
               driveModifiedAt: Value(now),
               driveMd5Checksum: const Value('md5_1'),

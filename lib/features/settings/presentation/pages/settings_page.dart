@@ -104,7 +104,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     );
   }
 
-  void _triggerSync(BuildContext context, WidgetRef ref, {
+  void _triggerSync(
+    BuildContext context,
+    WidgetRef ref, {
     bool forceSync = false,
   }) {
     final syncProgress =
@@ -120,9 +122,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     showSyncProgressSheet(context);
 
     // Trigger sync using the saved folder
-    ref.read(musicLibraryRepositoryProvider).syncFromSavedFolder(
-      forceSync: forceSync,
-    );
+    ref
+        .read(musicLibraryRepositoryProvider)
+        .syncFromSavedFolder(forceSync: forceSync);
   }
 
   void _triggerForceSync(BuildContext context, WidgetRef ref) {
@@ -213,9 +215,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                         size: 24,
                       ),
                       title: const Text('Sync Library Now'),
-                      subtitle: const Text(
-                        'Scan for new and changed tracks',
-                      ),
+                      subtitle: const Text('Scan for new and changed tracks'),
                       onTap: () => _triggerSync(context, ref),
                     ),
                     CupertinoListTile(
@@ -224,9 +224,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                         size: 24,
                       ),
                       title: const Text('Force Full Re-sync'),
-                      subtitle: const Text(
-                        'Re-process all files from scratch',
-                      ),
+                      subtitle: const Text('Re-process all files from scratch'),
                       onTap: () => _triggerForceSync(context, ref),
                     ),
                     CupertinoListTile(

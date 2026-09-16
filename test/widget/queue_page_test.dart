@@ -12,6 +12,7 @@ import 'package:musii/features/playback/presentation/pages/queue_page.dart';
 import 'package:musii/features/playlists/domain/entities/playlist.dart';
 
 class MockPlaybackRepository extends Mock implements PlaybackRepository {}
+
 class MockFavoriteRepository extends Mock implements FavoriteRepository {}
 
 void main() {
@@ -59,7 +60,8 @@ void main() {
     registerFallbackValue(trackA);
     mockPlayback = MockPlaybackRepository();
     mockFavorite = MockFavoriteRepository();
-    when(() => mockFavorite.watchIsFavorite(any())).thenAnswer((_) => Stream.value(false));
+    when(() => mockFavorite.watchIsFavorite(any()))
+        .thenAnswer((_) => Stream.value(false));
   });
 
   Widget buildTestWidget({required PlayerStateSnapshot snapshot}) {
@@ -76,34 +78,37 @@ void main() {
           DefaultCupertinoLocalizations.delegate,
           DefaultWidgetsLocalizations.delegate,
         ],
-        home: CupertinoPageScaffold(
-          child: QueuePage(),
-        ),
+        home: CupertinoPageScaffold(child: QueuePage()),
       ),
     );
   }
 
-  testWidgets('QueuePage renders NOW PLAYING and UP NEXT sections with track counts', (tester) async {
-    const snapshot = PlayerStateSnapshot(
-      currentTrack: trackA,
-      queueItems: [itemA, itemB, itemC],
-      queueIndex: 0,
-      isPlaying: true,
-    );
+  testWidgets(
+    'QueuePage renders NOW PLAYING and UP NEXT sections with track counts',
+    (tester) async {
+      const snapshot = PlayerStateSnapshot(
+        currentTrack: trackA,
+        queueItems: [itemA, itemB, itemC],
+        queueIndex: 0,
+        isPlaying: true,
+      );
 
-    await tester.pumpWidget(buildTestWidget(snapshot: snapshot));
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(buildTestWidget(snapshot: snapshot));
+      await tester.pumpAndSettle();
 
-    expect(find.text('Playing Next'), findsOneWidget);
-    expect(find.text('2 songs up next'), findsOneWidget);
-    expect(find.text('NOW PLAYING'), findsOneWidget);
-    expect(find.text('Song A'), findsOneWidget);
-    expect(find.text('UP NEXT'), findsOneWidget);
-    expect(find.text('Song B'), findsOneWidget);
-    expect(find.text('Song C'), findsOneWidget);
-  });
+      expect(find.text('Playing Next'), findsOneWidget);
+      expect(find.text('2 songs up next'), findsOneWidget);
+      expect(find.text('NOW PLAYING'), findsOneWidget);
+      expect(find.text('Song A'), findsOneWidget);
+      expect(find.text('UP NEXT'), findsOneWidget);
+      expect(find.text('Song B'), findsOneWidget);
+      expect(find.text('Song C'), findsOneWidget);
+    },
+  );
 
-  testWidgets('QueuePage renders empty state when no tracks in Up Next', (tester) async {
+  testWidgets('QueuePage renders empty state when no tracks in Up Next', (
+    tester,
+  ) async {
     const snapshot = PlayerStateSnapshot(
       currentTrack: trackA,
       queueItems: [itemA],
@@ -141,7 +146,9 @@ void main() {
     verify(() => mockPlayback.clearUpNext()).called(1);
   });
 
-  testWidgets('Tapping overflow options presents Clear Up Next and Shuffle', (tester) async {
+  testWidgets('Tapping overflow options presents Clear Up Next and Shuffle', (
+    tester,
+  ) async {
     when(() => mockPlayback.clearUpNext()).thenAnswer((_) async {});
 
     const snapshot = PlayerStateSnapshot(
@@ -170,54 +177,62 @@ void main() {
     verify(() => mockPlayback.clearUpNext()).called(1);
   });
 
-  testWidgets('Long pressing an up-next track opens queue track action sheet with Remove from Queue', (tester) async {
-    const snapshot = PlayerStateSnapshot(
-      currentTrack: trackA,
-      queueItems: [itemA, itemB],
-      queueIndex: 0,
-      isPlaying: true,
-    );
+  testWidgets(
+    'Long pressing an up-next track opens queue track action sheet with Remove from Queue',
+    (tester) async {
+      const snapshot = PlayerStateSnapshot(
+        currentTrack: trackA,
+        queueItems: [itemA, itemB],
+        queueIndex: 0,
+        isPlaying: true,
+      );
 
-    await tester.pumpWidget(buildTestWidget(snapshot: snapshot));
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(buildTestWidget(snapshot: snapshot));
+      await tester.pumpAndSettle();
 
-    final songBTile = find.text('Song B');
-    expect(songBTile, findsOneWidget);
+      final songBTile = find.text('Song B');
+      expect(songBTile, findsOneWidget);
 
-    await tester.longPress(songBTile);
-    await tester.pumpAndSettle();
+      await tester.longPress(songBTile);
+      await tester.pumpAndSettle();
 
-    expect(find.text('Play Now'), findsOneWidget);
-    expect(find.text('Play Next'), findsOneWidget);
-    expect(find.text('Remove from Queue'), findsOneWidget);
-    expect(find.text('Add to Playlist...'), findsOneWidget);
-    expect(find.text('Favorite'), findsOneWidget);
-  });
+      expect(find.text('Play Now'), findsOneWidget);
+      expect(find.text('Play Next'), findsOneWidget);
+      expect(find.text('Remove from Queue'), findsOneWidget);
+      expect(find.text('Add to Playlist...'), findsOneWidget);
+      expect(find.text('Favorite'), findsOneWidget);
+    },
+  );
 
-  testWidgets('Long pressing now playing track opens action sheet without Remove from Queue', (tester) async {
-    const snapshot = PlayerStateSnapshot(
-      currentTrack: trackA,
-      queueItems: [itemA, itemB],
-      queueIndex: 0,
-      isPlaying: true,
-    );
+  testWidgets(
+    'Long pressing now playing track opens action sheet without Remove from Queue',
+    (tester) async {
+      const snapshot = PlayerStateSnapshot(
+        currentTrack: trackA,
+        queueItems: [itemA, itemB],
+        queueIndex: 0,
+        isPlaying: true,
+      );
 
-    await tester.pumpWidget(buildTestWidget(snapshot: snapshot));
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(buildTestWidget(snapshot: snapshot));
+      await tester.pumpAndSettle();
 
-    final nowPlayingTile = find.text('Song A');
-    expect(nowPlayingTile, findsOneWidget);
+      final nowPlayingTile = find.text('Song A');
+      expect(nowPlayingTile, findsOneWidget);
 
-    await tester.longPress(nowPlayingTile);
-    await tester.pumpAndSettle();
+      await tester.longPress(nowPlayingTile);
+      await tester.pumpAndSettle();
 
-    expect(find.text('Play Next'), findsOneWidget);
-    expect(find.text('Add to Queue'), findsOneWidget);
-    expect(find.text('Remove from Queue'), findsNothing);
-    expect(find.text('Favorite'), findsOneWidget);
-  });
+      expect(find.text('Play Next'), findsOneWidget);
+      expect(find.text('Add to Queue'), findsOneWidget);
+      expect(find.text('Remove from Queue'), findsNothing);
+      expect(find.text('Favorite'), findsOneWidget);
+    },
+  );
 
-  testWidgets('Swiping an up-next track left removes it from the queue', (tester) async {
+  testWidgets('Swiping an up-next track left removes it from the queue', (
+    tester,
+  ) async {
     when(() => mockPlayback.removeQueueItem('qb')).thenAnswer((_) async {});
 
     const snapshot = PlayerStateSnapshot(

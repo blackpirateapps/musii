@@ -25,13 +25,11 @@ class QueueItem {
   final String id;
   final Track track;
 
-  const QueueItem({
-    required this.id,
-    required this.track,
-  });
+  const QueueItem({required this.id, required this.track});
 
   factory QueueItem.fromTrack(Track track, [String? id]) {
-    final effectiveId = id ??
+    final effectiveId =
+        id ??
         'qi_${DateTime.now().microsecondsSinceEpoch}_${++_queueItemCounter}_${track.id}';
     return QueueItem(id: effectiveId, track: track);
   }
@@ -75,8 +73,8 @@ class PlayerStateSnapshot {
     List<Track> queue = const [],
     List<QueueItem> queueItems = const [],
     this.queueIndex = 0,
-  })  : _queue = queue,
-        _queueItems = queueItems;
+  }) : _queue = queue,
+       _queueItems = queueItems;
 
   List<QueueItem> get queueItems => effectiveQueueItems;
 
@@ -95,21 +93,20 @@ class PlayerStateSnapshot {
 
   QueueItem? get currentQueueItem =>
       (effectiveQueueItems.isNotEmpty &&
-              queueIndex >= 0 &&
-              queueIndex < effectiveQueueItems.length)
-          ? effectiveQueueItems[queueIndex]
-          : null;
+          queueIndex >= 0 &&
+          queueIndex < effectiveQueueItems.length)
+      ? effectiveQueueItems[queueIndex]
+      : null;
 
   List<QueueItem> get upNextItems =>
       (queueIndex < effectiveQueueItems.length - 1)
-          ? effectiveQueueItems.sublist(queueIndex + 1)
-          : const [];
+      ? effectiveQueueItems.sublist(queueIndex + 1)
+      : const [];
 
   List<Track> get upNextTracks =>
       upNextItems.map((item) => item.track).toList();
 
-  bool get hasNext =>
-      queueIndex < effectiveQueueItems.length - 1;
+  bool get hasNext => queueIndex < effectiveQueueItems.length - 1;
   bool get hasPrevious => queueIndex > 0 || position.inSeconds > 3;
 
   PlayerStateSnapshot copyWith({

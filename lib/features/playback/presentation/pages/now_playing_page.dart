@@ -123,8 +123,8 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
     final mediaSize = MediaQuery.of(context).size;
     final screenWidth = mediaSize.width;
     final screenHeight = mediaSize.height;
-    // Section 18: Artwork width approx 55–65% of usable screen width, adapting to height
-    final artworkSize = min(screenWidth * 0.62, screenHeight * 0.32);
+    // Sized responsively to usable screen width and height
+    final artworkSize = min(screenWidth * 0.64, screenHeight * 0.33);
 
     final duration = playerSnapshot.duration;
     final position = playerSnapshot.position;
@@ -196,7 +196,7 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
                         ),
                         child: Column(
                           children: [
-                            // Minimalist Apple Music-style Top Bar
+                            // Top Bar: Down Chevron on Left, "Now Playing" Title Centered, Queue Button on Right
                             Padding(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: AppSpacing.sm,
@@ -220,20 +220,28 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
                                     ),
                                   ),
 
-                                  // Center: Sheet Grabber Pill
-                                  Container(
-                                    width: 36,
-                                    height: 5,
-                                    decoration: BoxDecoration(
-                                      color: CupertinoColors.white.withOpacity(
-                                        0.35,
-                                      ),
-                                      borderRadius: BorderRadius.circular(2.5),
+                                  // Center: "Now Playing" Title
+                                  const Text(
+                                    'Now Playing',
+                                    style: TextStyle(
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.w600,
+                                      letterSpacing: -0.4,
+                                      color: CupertinoColors.white,
                                     ),
                                   ),
 
-                                  // Right: Balanced spacer to ensure the grabber is perfectly centered
-                                  const SizedBox(width: 44, height: 44),
+                                  // Right: Top Queue / Up Next Button
+                                  CupertinoButton(
+                                    padding: EdgeInsets.zero,
+                                    minSize: 44,
+                                    onPressed: () => showQueueSheet(context),
+                                    child: const Icon(
+                                      CupertinoIcons.text_badge_plus,
+                                      size: 22,
+                                      color: CupertinoColors.white,
+                                    ),
+                                  ),
                                 ],
                               ),
                             ),
@@ -261,7 +269,7 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
                                 tag: 'current_artwork_${track?.id ?? 'none'}',
                                 child: Container(
                                   decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(24),
+                                    borderRadius: BorderRadius.circular(22),
                                     boxShadow: [
                                       BoxShadow(
                                         color: CupertinoColors.black
@@ -276,7 +284,7 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
                                     title: track?.title,
                                     artist: track?.artistName,
                                     size: artworkSize,
-                                    borderRadius: 24,
+                                    borderRadius: 22,
                                   ),
                                 ),
                               ),
@@ -351,7 +359,7 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
 
                                   const SizedBox(width: AppSpacing.md),
 
-                                  // Visible More Button (Mandatory per Section 20)
+                                  // Visible More Button (...)
                                   CupertinoButton(
                                     padding: EdgeInsets.zero,
                                     minSize: 0,
@@ -701,7 +709,7 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
 
                             const Spacer(flex: 1),
 
-                            // Home indicator
+                            // Home Indicator Bar
                             Center(
                               child: Container(
                                 margin: const EdgeInsets.only(bottom: 6),

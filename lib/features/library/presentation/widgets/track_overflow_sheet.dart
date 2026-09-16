@@ -136,9 +136,7 @@ Future<void> showTrackActionSheet({
           onPressed: () async {
             Navigator.pop(ctx);
             await HapticFeedback.lightImpact();
-            await ref
-                .read(favoriteRepositoryProvider)
-                .toggleFavorite(track.id);
+            await ref.read(favoriteRepositoryProvider).toggleFavorite(track.id);
           },
           child: Text(isFav ? 'Remove from Favorites' : 'Favorite'),
         ),
@@ -167,8 +165,7 @@ Future<void> showTrackActionSheet({
                 : 'Download for Offline',
           ),
         ),
-        if (track.albumId != null &&
-            trackContext != TrackActionContext.album)
+        if (track.albumId != null && trackContext != TrackActionContext.album)
           CupertinoActionSheetAction(
             onPressed: () {
               Navigator.pop(ctx);
@@ -181,8 +178,7 @@ Future<void> showTrackActionSheet({
             },
             child: const Text('View Album'),
           ),
-        if (track.artistId != null &&
-            trackContext != TrackActionContext.artist)
+        if (track.artistId != null && trackContext != TrackActionContext.artist)
           CupertinoActionSheetAction(
             onPressed: () {
               Navigator.pop(ctx);

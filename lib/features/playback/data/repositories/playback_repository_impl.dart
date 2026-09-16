@@ -622,12 +622,17 @@ class MusiiAudioHandler extends BaseAudioHandler
       return;
     }
     final item = QueueItem.fromTrack(track);
-    final insertIndex = (_currentIndex + 1 + _playNextCount).clamp(0, _currentQueue.length);
+    final insertIndex = (_currentIndex + 1 + _playNextCount).clamp(
+      0,
+      _currentQueue.length,
+    );
     _currentQueue.insert(insertIndex, item);
     _unshuffledQueue.add(item);
     _playNextCount++;
     _syncMediaQueue();
-    _emitSnapshot(_snapshot.copyWith(queueItems: _currentQueue, queueIndex: _currentIndex));
+    _emitSnapshot(
+      _snapshot.copyWith(queueItems: _currentQueue, queueIndex: _currentIndex),
+    );
     unawaited(_persistQueue());
   }
 
@@ -641,7 +646,9 @@ class MusiiAudioHandler extends BaseAudioHandler
     _currentQueue.add(item);
     _unshuffledQueue.add(item);
     _syncMediaQueue();
-    _emitSnapshot(_snapshot.copyWith(queueItems: _currentQueue, queueIndex: _currentIndex));
+    _emitSnapshot(
+      _snapshot.copyWith(queueItems: _currentQueue, queueIndex: _currentIndex),
+    );
     unawaited(_persistQueue());
   }
 
@@ -706,10 +713,18 @@ class MusiiAudioHandler extends BaseAudioHandler
       } else if (index < _currentIndex) {
         _currentIndex--;
         _emitSnapshot(
-          _snapshot.copyWith(queueItems: _currentQueue, queueIndex: _currentIndex),
+          _snapshot.copyWith(
+            queueItems: _currentQueue,
+            queueIndex: _currentIndex,
+          ),
         );
       } else {
-        _emitSnapshot(_snapshot.copyWith(queueItems: _currentQueue, queueIndex: _currentIndex));
+        _emitSnapshot(
+          _snapshot.copyWith(
+            queueItems: _currentQueue,
+            queueIndex: _currentIndex,
+          ),
+        );
       }
     }
     unawaited(_persistQueue());

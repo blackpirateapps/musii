@@ -1,8 +1,7 @@
 import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart'
-    show Material, ReorderableListView;
+import 'package:flutter/material.dart' show Material, ReorderableListView;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -64,7 +63,8 @@ class QueuePage extends ConsumerWidget {
     final currentTrack = playerSnapshot.currentTrack;
     final isDark = CupertinoTheme.brightnessOf(context) == Brightness.dark;
 
-    final List<QueueItem> upNextList = playerSnapshot.effectiveQueueItems.length > currentIndex + 1
+    final List<QueueItem> upNextList =
+        playerSnapshot.effectiveQueueItems.length > currentIndex + 1
         ? playerSnapshot.effectiveQueueItems.sublist(currentIndex + 1)
         : <QueueItem>[];
 
@@ -332,38 +332,40 @@ class QueuePage extends ConsumerWidget {
                     )
                   : ReorderableListView.builder(
                       buildDefaultDragHandles: false,
-                      proxyDecorator: (
-                        Widget child,
-                        int index,
-                        Animation<double> animation,
-                      ) {
-                        return AnimatedBuilder(
-                          animation: animation,
-                          builder: (context, child) {
-                            final double animValue =
-                                Curves.easeInOut.transform(animation.value);
-                            final double elevation =
-                                lerpDouble(0, 8, animValue) ?? 0;
-                            final double scale =
-                                lerpDouble(1.0, 1.02, animValue) ?? 1.0;
-                            return Transform.scale(
-                              scale: scale,
-                              child: Material(
-                                elevation: elevation,
-                                color: isDark
-                                    ? const Color(0xFF2C2C2E)
-                                    : CupertinoColors.systemBackground,
-                                shadowColor:
-                                    CupertinoColors.black.withOpacity(0.35),
-                                borderRadius:
-                                    BorderRadius.circular(AppRadii.card),
-                                child: child,
-                              ),
+                      proxyDecorator:
+                          (
+                            Widget child,
+                            int index,
+                            Animation<double> animation,
+                          ) {
+                            return AnimatedBuilder(
+                              animation: animation,
+                              builder: (context, child) {
+                                final double animValue = Curves.easeInOut
+                                    .transform(animation.value);
+                                final double elevation =
+                                    lerpDouble(0, 8, animValue) ?? 0;
+                                final double scale =
+                                    lerpDouble(1.0, 1.02, animValue) ?? 1.0;
+                                return Transform.scale(
+                                  scale: scale,
+                                  child: Material(
+                                    elevation: elevation,
+                                    color: isDark
+                                        ? const Color(0xFF2C2C2E)
+                                        : CupertinoColors.systemBackground,
+                                    shadowColor: CupertinoColors.black
+                                        .withOpacity(0.35),
+                                    borderRadius: BorderRadius.circular(
+                                      AppRadii.card,
+                                    ),
+                                    child: child,
+                                  ),
+                                );
+                              },
+                              child: child,
                             );
                           },
-                          child: child,
-                        );
-                      },
                       itemCount: upNextList.length,
                       onReorder: (oldIndex, newIndex) {
                         HapticFeedback.lightImpact();
@@ -383,15 +385,18 @@ class QueuePage extends ConsumerWidget {
                           direction: DismissDirection.endToStart,
                           background: Container(
                             alignment: Alignment.centerRight,
-                            padding: const EdgeInsets.only(right: AppSpacing.md),
+                            padding: const EdgeInsets.only(
+                              right: AppSpacing.md,
+                            ),
                             margin: const EdgeInsets.symmetric(
                               horizontal: AppSpacing.md,
                               vertical: 2.0,
                             ),
                             decoration: BoxDecoration(
                               color: CupertinoColors.destructiveRed,
-                              borderRadius:
-                                  BorderRadius.circular(AppRadii.card),
+                              borderRadius: BorderRadius.circular(
+                                AppRadii.card,
+                              ),
                             ),
                             child: const Row(
                               mainAxisAlignment: MainAxisAlignment.end,
@@ -480,7 +485,8 @@ class QueuePage extends ConsumerWidget {
                                             fontSize: 13,
                                             color: isDark
                                                 ? CupertinoColors.systemGrey
-                                                : CupertinoColors.secondaryLabel,
+                                                : CupertinoColors
+                                                      .secondaryLabel,
                                           ),
                                         ),
                                       ],
