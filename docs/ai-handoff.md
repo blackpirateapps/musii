@@ -1,10 +1,10 @@
 # Musii — AI Engineering Handoff Document
 
-> **Document Version**: 1.12.0  
+> **Document Version**: 1.13.0  
 > **Target Audience**: Incoming AI Coding Assistants & Human Software Engineers  
 > **Last Verified**: September 2026  
 > **App Identifier**: `com.blackpirateapps.musii`  
-> **Test Status**: 237 / 237 Passing (`flutter test`), 0 Analyzer Warnings (`flutter analyze`)
+> **Test Status**: 240 / 240 Passing (`flutter test`), 0 Analyzer Warnings (`flutter analyze`)
 
 ---
 
@@ -37,7 +37,7 @@ The codebase strictly adheres to standard four-layer Clean Architecture:
    - `constants/app_constants.dart`: Design tokens (`AppRadii`, `AppSpacing`, `AppAudioConstants`, `AppGreeting`).
    - `filesystem/app_file_system.dart`: Centralized cache directory management, `.partial` file staging, and atomic commits.
    - `storage/secure_credential_store.dart`: Abstract `SecureCredentialStore` with hardware-backed Android Keystore (`FlutterSecureStorage`) and in-memory test store.
-   - `database/`: Drift SQLite setup, 25 tables with `@DataClassName` annotations and schema v8 migration.
+   - `database/`: Drift SQLite setup, 25 tables with `@DataClassName` annotations and schema v9 migration.
 2. **Domain (`lib/features/*/domain/`)**:
    - Pure Dart entities (`Track`, `Album`, `Artist`, `Genre`, `Playlist`, `CacheEntry`, `PlayerStateSnapshot`, `TrackLyrics`, `LyricLine`, `LyricWord`, `LyricSource`, `SyncProgress`, `SyncPhase`, `SyncCancellationToken`).
    - Repository interfaces declaring business contracts (`MusicLibraryRepository`, `GoogleDriveRepository`, `CacheRepository`, `PlaybackRepository`, `LyricsRepository`, `PlaylistRepository`, etc.).
@@ -179,19 +179,23 @@ Located in `lib/features/google_drive/` and `lib/features/library/`:
     5. Lyrics saving
     6. `SyncRun` checkpoint update (`filesProcessed`, `filesAdded`, `filesUpdated`, `errorsCount`, `progressPercent`, `lastCheckpointAt`, `updatedAt`).
   - Temporary audio metadata extraction files (`.partial` / `temp_...`) are deleted immediately in `finally` blocks.
-- **Stop & Resume Engine**:
+- **Stop & Resume Engine (Persistent Track Processed Status)**:
   - Explicit `SyncCancellationToken` with non-blocking checks across folder scanning and item processing loops.
   - `stopSync()` requests cooperative stop, allows the current atomic item transaction to safely finish, commits checkpoint, updates session state to `stopped` (`isResumable: true`), and exits cleanly.
-  - `resumeSync()` reads previous root folder and sync session, performs reconciliation, skips all completed items, and continues work.
+  - **Persistent Processed State (Schema v9)**: In Step 5, each processed track atomically updates `DiscoveredFiles` with `isProcessed = true`, `processStatus = 'added' | 'updated'`, and `processedAt = DateTime.now()` in the same SQLite transaction that commits the track and sync run checkpoint.
+  - Unchanged tracks are batch-marked as `isProcessed = true, processStatus = 'unchanged'`.
+  - Failed tracks are marked `isProcessed = false, processStatus = 'failed'`, ensuring they are retried on subsequent sync resumes.
+  - `resumeSync()` looks up the latest stopped/interrupted session, restores `rootFolderId` and `syncRunId`, fetches `alreadyProcessedDriveIds` from `DiscoveredFiles` where `isProcessed == true`, and completely skips re-downloading or re-extracting metadata for already-processed songs.
+  - Previous session stats (`filesAdded`, `filesUpdated`, `errorsCount`, `progressPercent`) are restored from the `SyncRuns` table to accumulate accurately rather than resetting to zero.
 - **Crash & Force-Close Recovery**:
   - Process death / force-stop leaves `SyncRuns` table with `status == 'running'` and accurate `lastCheckpointAt`.
   - On app launch, `recoverInterruptedSyncIfNeeded()` automatically detects interrupted unclosed sessions and resumes without restarting from zero.
   - Progress percentage in UI immediately reflects the actual completed tracks.
 - **Remote Deletion Reconciliation**:
   - Full remote scan builds complete `driveFileMap`. Tracks present locally but absent on Drive are deleted from `tracks`, `cacheEntries`, and `lyrics`, and album/artist aggregates are updated.
-- **Database Schema v5**:
+- **Database Schema v9**:
   - `SyncRuns` table (`@DataClassName('SyncRunRow')`) with columns: `id`, `sourceId`, `rootFolderId`, `rootFolderName`, `startedAt`, `updatedAt`, `lastCheckpointAt`, `completedAt`, `status`, `phase`, `currentFile`, `errorMessage`, `progressPercent`, `filesDiscovered`, `filesProcessed`, `filesAdded`, `filesUpdated`, `filesRemoved`, `errorsCount`, `discoveryCompleted`, `pendingFoldersJson`, `visitedFoldersJson`.
-  - `DiscoveredFiles` table (`@DataClassName('DiscoveredFileRow')`) with columns: `id`, `syncRunId`, `driveFileId`, `name`, `mimeType`, `size`, `modifiedTime`, `md5Checksum`, `parentFolderId`, `isLrc`.
+  - `DiscoveredFiles` table (`@DataClassName('DiscoveredFileRow')`) with columns: `id`, `syncRunId`, `driveFileId`, `name`, `mimeType`, `size`, `modifiedTime`, `md5Checksum`, `parentFolderId`, `isLrc`, `isProcessed`, `processStatus`, `processedAt`.
   - Indexes:
     - `CREATE INDEX IF NOT EXISTS idx_sync_runs_status ON sync_runs(status, started_at);`
     - `CREATE INDEX IF NOT EXISTS idx_discovered_files_sync ON discovered_files(sync_run_id);`
@@ -348,6 +352,9 @@ Located in `lib/features/last_fm/`, `lib/core/storage/secure_credential_store.da
 20. **`AlbumArtwork` Finite Sizing Constraints & Dynamic AspectRatio / Grid Collages**:
     - **Issue**: In `ArtistCard` (3:4 aspect ratio), `PlaylistCard` (1:1 aspect ratio and 2x2 collage), `ArtistDetailPage`, and `PlaylistDetailPage`, callers supply `size: double.infinity` so `AlbumArtwork` expands to fill the parent flex or aspect ratio box. In Dart, calling `(size * dpr).round()` on `double.infinity` throws an unhandled `UnsupportedError: Cannot convert to int: Infinity`, completely breaking the widget build and preventing artist portraits and generated playlist collages from appearing in the Library tabs. Furthermore, in `_buildFallback()`, passing `fontSize: size * 0.4` triggers Flutter's `assert(fontSize.isFinite)` check.
     - **Solution**: `AlbumArtwork` guards `size.isFinite`. When finite, it computes exact target cache thumbnails (`(size * dpr).round().clamp(64, 800)`) and sets `width: size, height: size`. When non-finite (`double.infinity`), it bounds the thumbnail cache size to `800`, passes `width: null, height: null` with `fit: BoxFit.cover` (allowing smooth expansion into tight `AspectRatio` and `Expanded` bounds), and resolves fallback initials font sizes dynamically via `LayoutBuilder` clamped between 12px and 72px. Additionally, `PlaylistCard` and `PlaylistDetailPage` deduplicate distinct album artworks from tracks so multi-album playlists render 2x2 collages while single-album playlists render clean full-size covers.
+21. **Sub-Second SQLite Timestamp Truncation & Millisecond Run ID Tie-Breaking in Sync Engine**:
+    - **Sub-Second Truncation Bug in `_classifyTrack`**: Google Drive API returns RFC 3339 timestamps with millisecond fractions (e.g., `2026-09-15T12:00:00.456Z`), but Drift/SQLite stores `DateTime` as an integer unix epoch in whole seconds. A direct comparison `remote.modifiedTime.isAfter(local.driveModifiedAt)` evaluates to `true` whenever remote has non-zero milliseconds, falsely marking unchanged songs as `updateModified` and triggering redundant re-downloads. `_classifyTrack` truncates both remote and local timestamps to second precision (`millisecondsSinceEpoch ~/ 1000`) before evaluating modification.
+    - **Same-Second Sync Run Disambiguation**: When sync runs start within the same integer second, their `startedAt` SQLite timestamps are identical. Queries ordering by `OrderingTerm.desc(tbl.startedAt)` without tie-breaking can return older runs arbitrarily. To guarantee deterministic resolution of the most recent sync session, all `syncRuns` queries (`getLastSyncSession`, `recoverInterruptedSyncIfNeeded`, `resumeSync`, `syncFromSavedFolder`, `syncLibrary`) order by `[(tbl) => OrderingTerm.desc(tbl.startedAt), (tbl) => OrderingTerm.desc(tbl.id)]`, leveraging the monotonic millisecond epoch embedded in `tbl.id` (`sync_${timestampMs}`).
 
 ---
 

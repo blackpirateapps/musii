@@ -231,6 +231,10 @@ class DiscoveredFiles extends Table {
   TextColumn get md5Checksum => text().nullable()();
   TextColumn get parentFolderId => text().nullable()();
   BoolColumn get isLrc => boolean().withDefault(const Constant(false))();
+  BoolColumn get isProcessed =>
+      boolean().withDefault(const Constant(false))();
+  TextColumn get processStatus => text().nullable()(); // 'added', 'updated', 'unchanged', 'failed'
+  DateTimeColumn get processedAt => dateTime().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};

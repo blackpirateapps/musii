@@ -8055,6 +8055,43 @@ class $DiscoveredFilesTable extends DiscoveredFiles
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _isProcessedMeta = const VerificationMeta(
+    'isProcessed',
+  );
+  @override
+  late final GeneratedColumn<bool> isProcessed = GeneratedColumn<bool>(
+    'is_processed',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_processed" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _processStatusMeta = const VerificationMeta(
+    'processStatus',
+  );
+  @override
+  late final GeneratedColumn<String> processStatus = GeneratedColumn<String>(
+    'process_status',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _processedAtMeta = const VerificationMeta(
+    'processedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> processedAt = GeneratedColumn<DateTime>(
+    'processed_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -8067,6 +8104,9 @@ class $DiscoveredFilesTable extends DiscoveredFiles
     md5Checksum,
     parentFolderId,
     isLrc,
+    isProcessed,
+    processStatus,
+    processedAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -8161,6 +8201,33 @@ class $DiscoveredFilesTable extends DiscoveredFiles
         isLrc.isAcceptableOrUnknown(data['is_lrc']!, _isLrcMeta),
       );
     }
+    if (data.containsKey('is_processed')) {
+      context.handle(
+        _isProcessedMeta,
+        isProcessed.isAcceptableOrUnknown(
+          data['is_processed']!,
+          _isProcessedMeta,
+        ),
+      );
+    }
+    if (data.containsKey('process_status')) {
+      context.handle(
+        _processStatusMeta,
+        processStatus.isAcceptableOrUnknown(
+          data['process_status']!,
+          _processStatusMeta,
+        ),
+      );
+    }
+    if (data.containsKey('processed_at')) {
+      context.handle(
+        _processedAtMeta,
+        processedAt.isAcceptableOrUnknown(
+          data['processed_at']!,
+          _processedAtMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -8210,6 +8277,18 @@ class $DiscoveredFilesTable extends DiscoveredFiles
         DriftSqlType.bool,
         data['${effectivePrefix}is_lrc'],
       )!,
+      isProcessed: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_processed'],
+      )!,
+      processStatus: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}process_status'],
+      ),
+      processedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}processed_at'],
+      ),
     );
   }
 
@@ -8231,6 +8310,9 @@ class DiscoveredFileRow extends DataClass
   final String? md5Checksum;
   final String? parentFolderId;
   final bool isLrc;
+  final bool isProcessed;
+  final String? processStatus;
+  final DateTime? processedAt;
   const DiscoveredFileRow({
     required this.id,
     required this.syncRunId,
@@ -8242,6 +8324,9 @@ class DiscoveredFileRow extends DataClass
     this.md5Checksum,
     this.parentFolderId,
     required this.isLrc,
+    required this.isProcessed,
+    this.processStatus,
+    this.processedAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -8260,6 +8345,13 @@ class DiscoveredFileRow extends DataClass
       map['parent_folder_id'] = Variable<String>(parentFolderId);
     }
     map['is_lrc'] = Variable<bool>(isLrc);
+    map['is_processed'] = Variable<bool>(isProcessed);
+    if (!nullToAbsent || processStatus != null) {
+      map['process_status'] = Variable<String>(processStatus);
+    }
+    if (!nullToAbsent || processedAt != null) {
+      map['processed_at'] = Variable<DateTime>(processedAt);
+    }
     return map;
   }
 
@@ -8279,6 +8371,13 @@ class DiscoveredFileRow extends DataClass
           ? const Value.absent()
           : Value(parentFolderId),
       isLrc: Value(isLrc),
+      isProcessed: Value(isProcessed),
+      processStatus: processStatus == null && nullToAbsent
+          ? const Value.absent()
+          : Value(processStatus),
+      processedAt: processedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(processedAt),
     );
   }
 
@@ -8298,6 +8397,9 @@ class DiscoveredFileRow extends DataClass
       md5Checksum: serializer.fromJson<String?>(json['md5Checksum']),
       parentFolderId: serializer.fromJson<String?>(json['parentFolderId']),
       isLrc: serializer.fromJson<bool>(json['isLrc']),
+      isProcessed: serializer.fromJson<bool>(json['isProcessed']),
+      processStatus: serializer.fromJson<String?>(json['processStatus']),
+      processedAt: serializer.fromJson<DateTime?>(json['processedAt']),
     );
   }
   @override
@@ -8314,6 +8416,9 @@ class DiscoveredFileRow extends DataClass
       'md5Checksum': serializer.toJson<String?>(md5Checksum),
       'parentFolderId': serializer.toJson<String?>(parentFolderId),
       'isLrc': serializer.toJson<bool>(isLrc),
+      'isProcessed': serializer.toJson<bool>(isProcessed),
+      'processStatus': serializer.toJson<String?>(processStatus),
+      'processedAt': serializer.toJson<DateTime?>(processedAt),
     };
   }
 
@@ -8328,6 +8433,9 @@ class DiscoveredFileRow extends DataClass
     Value<String?> md5Checksum = const Value.absent(),
     Value<String?> parentFolderId = const Value.absent(),
     bool? isLrc,
+    bool? isProcessed,
+    Value<String?> processStatus = const Value.absent(),
+    Value<DateTime?> processedAt = const Value.absent(),
   }) => DiscoveredFileRow(
     id: id ?? this.id,
     syncRunId: syncRunId ?? this.syncRunId,
@@ -8341,6 +8449,11 @@ class DiscoveredFileRow extends DataClass
         ? parentFolderId.value
         : this.parentFolderId,
     isLrc: isLrc ?? this.isLrc,
+    isProcessed: isProcessed ?? this.isProcessed,
+    processStatus: processStatus.present
+        ? processStatus.value
+        : this.processStatus,
+    processedAt: processedAt.present ? processedAt.value : this.processedAt,
   );
   DiscoveredFileRow copyWithCompanion(DiscoveredFilesCompanion data) {
     return DiscoveredFileRow(
@@ -8362,6 +8475,15 @@ class DiscoveredFileRow extends DataClass
           ? data.parentFolderId.value
           : this.parentFolderId,
       isLrc: data.isLrc.present ? data.isLrc.value : this.isLrc,
+      isProcessed: data.isProcessed.present
+          ? data.isProcessed.value
+          : this.isProcessed,
+      processStatus: data.processStatus.present
+          ? data.processStatus.value
+          : this.processStatus,
+      processedAt: data.processedAt.present
+          ? data.processedAt.value
+          : this.processedAt,
     );
   }
 
@@ -8377,7 +8499,10 @@ class DiscoveredFileRow extends DataClass
           ..write('modifiedTime: $modifiedTime, ')
           ..write('md5Checksum: $md5Checksum, ')
           ..write('parentFolderId: $parentFolderId, ')
-          ..write('isLrc: $isLrc')
+          ..write('isLrc: $isLrc, ')
+          ..write('isProcessed: $isProcessed, ')
+          ..write('processStatus: $processStatus, ')
+          ..write('processedAt: $processedAt')
           ..write(')'))
         .toString();
   }
@@ -8394,6 +8519,9 @@ class DiscoveredFileRow extends DataClass
     md5Checksum,
     parentFolderId,
     isLrc,
+    isProcessed,
+    processStatus,
+    processedAt,
   );
   @override
   bool operator ==(Object other) =>
@@ -8408,7 +8536,10 @@ class DiscoveredFileRow extends DataClass
           other.modifiedTime == this.modifiedTime &&
           other.md5Checksum == this.md5Checksum &&
           other.parentFolderId == this.parentFolderId &&
-          other.isLrc == this.isLrc);
+          other.isLrc == this.isLrc &&
+          other.isProcessed == this.isProcessed &&
+          other.processStatus == this.processStatus &&
+          other.processedAt == this.processedAt);
 }
 
 class DiscoveredFilesCompanion extends UpdateCompanion<DiscoveredFileRow> {
@@ -8422,6 +8553,9 @@ class DiscoveredFilesCompanion extends UpdateCompanion<DiscoveredFileRow> {
   final Value<String?> md5Checksum;
   final Value<String?> parentFolderId;
   final Value<bool> isLrc;
+  final Value<bool> isProcessed;
+  final Value<String?> processStatus;
+  final Value<DateTime?> processedAt;
   final Value<int> rowid;
   const DiscoveredFilesCompanion({
     this.id = const Value.absent(),
@@ -8434,6 +8568,9 @@ class DiscoveredFilesCompanion extends UpdateCompanion<DiscoveredFileRow> {
     this.md5Checksum = const Value.absent(),
     this.parentFolderId = const Value.absent(),
     this.isLrc = const Value.absent(),
+    this.isProcessed = const Value.absent(),
+    this.processStatus = const Value.absent(),
+    this.processedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   DiscoveredFilesCompanion.insert({
@@ -8447,6 +8584,9 @@ class DiscoveredFilesCompanion extends UpdateCompanion<DiscoveredFileRow> {
     this.md5Checksum = const Value.absent(),
     this.parentFolderId = const Value.absent(),
     this.isLrc = const Value.absent(),
+    this.isProcessed = const Value.absent(),
+    this.processStatus = const Value.absent(),
+    this.processedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        syncRunId = Value(syncRunId),
@@ -8465,6 +8605,9 @@ class DiscoveredFilesCompanion extends UpdateCompanion<DiscoveredFileRow> {
     Expression<String>? md5Checksum,
     Expression<String>? parentFolderId,
     Expression<bool>? isLrc,
+    Expression<bool>? isProcessed,
+    Expression<String>? processStatus,
+    Expression<DateTime>? processedAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -8478,6 +8621,9 @@ class DiscoveredFilesCompanion extends UpdateCompanion<DiscoveredFileRow> {
       if (md5Checksum != null) 'md5_checksum': md5Checksum,
       if (parentFolderId != null) 'parent_folder_id': parentFolderId,
       if (isLrc != null) 'is_lrc': isLrc,
+      if (isProcessed != null) 'is_processed': isProcessed,
+      if (processStatus != null) 'process_status': processStatus,
+      if (processedAt != null) 'processed_at': processedAt,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -8493,6 +8639,9 @@ class DiscoveredFilesCompanion extends UpdateCompanion<DiscoveredFileRow> {
     Value<String?>? md5Checksum,
     Value<String?>? parentFolderId,
     Value<bool>? isLrc,
+    Value<bool>? isProcessed,
+    Value<String?>? processStatus,
+    Value<DateTime?>? processedAt,
     Value<int>? rowid,
   }) {
     return DiscoveredFilesCompanion(
@@ -8506,6 +8655,9 @@ class DiscoveredFilesCompanion extends UpdateCompanion<DiscoveredFileRow> {
       md5Checksum: md5Checksum ?? this.md5Checksum,
       parentFolderId: parentFolderId ?? this.parentFolderId,
       isLrc: isLrc ?? this.isLrc,
+      isProcessed: isProcessed ?? this.isProcessed,
+      processStatus: processStatus ?? this.processStatus,
+      processedAt: processedAt ?? this.processedAt,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -8543,6 +8695,15 @@ class DiscoveredFilesCompanion extends UpdateCompanion<DiscoveredFileRow> {
     if (isLrc.present) {
       map['is_lrc'] = Variable<bool>(isLrc.value);
     }
+    if (isProcessed.present) {
+      map['is_processed'] = Variable<bool>(isProcessed.value);
+    }
+    if (processStatus.present) {
+      map['process_status'] = Variable<String>(processStatus.value);
+    }
+    if (processedAt.present) {
+      map['processed_at'] = Variable<DateTime>(processedAt.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -8562,6 +8723,9 @@ class DiscoveredFilesCompanion extends UpdateCompanion<DiscoveredFileRow> {
           ..write('md5Checksum: $md5Checksum, ')
           ..write('parentFolderId: $parentFolderId, ')
           ..write('isLrc: $isLrc, ')
+          ..write('isProcessed: $isProcessed, ')
+          ..write('processStatus: $processStatus, ')
+          ..write('processedAt: $processedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -17598,6 +17762,9 @@ typedef $$DiscoveredFilesTableCreateCompanionBuilder =
       Value<String?> md5Checksum,
       Value<String?> parentFolderId,
       Value<bool> isLrc,
+      Value<bool> isProcessed,
+      Value<String?> processStatus,
+      Value<DateTime?> processedAt,
       Value<int> rowid,
     });
 typedef $$DiscoveredFilesTableUpdateCompanionBuilder =
@@ -17612,6 +17779,9 @@ typedef $$DiscoveredFilesTableUpdateCompanionBuilder =
       Value<String?> md5Checksum,
       Value<String?> parentFolderId,
       Value<bool> isLrc,
+      Value<bool> isProcessed,
+      Value<String?> processStatus,
+      Value<DateTime?> processedAt,
       Value<int> rowid,
     });
 
@@ -17671,6 +17841,21 @@ class $$DiscoveredFilesTableFilterComposer
 
   ColumnFilters<bool> get isLrc => $composableBuilder(
     column: $table.isLrc,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isProcessed => $composableBuilder(
+    column: $table.isProcessed,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get processStatus => $composableBuilder(
+    column: $table.processStatus,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get processedAt => $composableBuilder(
+    column: $table.processedAt,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -17733,6 +17918,21 @@ class $$DiscoveredFilesTableOrderingComposer
     column: $table.isLrc,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<bool> get isProcessed => $composableBuilder(
+    column: $table.isProcessed,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get processStatus => $composableBuilder(
+    column: $table.processStatus,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get processedAt => $composableBuilder(
+    column: $table.processedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$DiscoveredFilesTableAnnotationComposer
@@ -17781,6 +17981,21 @@ class $$DiscoveredFilesTableAnnotationComposer
 
   GeneratedColumn<bool> get isLrc =>
       $composableBuilder(column: $table.isLrc, builder: (column) => column);
+
+  GeneratedColumn<bool> get isProcessed => $composableBuilder(
+    column: $table.isProcessed,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get processStatus => $composableBuilder(
+    column: $table.processStatus,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get processedAt => $composableBuilder(
+    column: $table.processedAt,
+    builder: (column) => column,
+  );
 }
 
 class $$DiscoveredFilesTableTableManager
@@ -17830,6 +18045,9 @@ class $$DiscoveredFilesTableTableManager
                 Value<String?> md5Checksum = const Value.absent(),
                 Value<String?> parentFolderId = const Value.absent(),
                 Value<bool> isLrc = const Value.absent(),
+                Value<bool> isProcessed = const Value.absent(),
+                Value<String?> processStatus = const Value.absent(),
+                Value<DateTime?> processedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => DiscoveredFilesCompanion(
                 id: id,
@@ -17842,6 +18060,9 @@ class $$DiscoveredFilesTableTableManager
                 md5Checksum: md5Checksum,
                 parentFolderId: parentFolderId,
                 isLrc: isLrc,
+                isProcessed: isProcessed,
+                processStatus: processStatus,
+                processedAt: processedAt,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -17856,6 +18077,9 @@ class $$DiscoveredFilesTableTableManager
                 Value<String?> md5Checksum = const Value.absent(),
                 Value<String?> parentFolderId = const Value.absent(),
                 Value<bool> isLrc = const Value.absent(),
+                Value<bool> isProcessed = const Value.absent(),
+                Value<String?> processStatus = const Value.absent(),
+                Value<DateTime?> processedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => DiscoveredFilesCompanion.insert(
                 id: id,
@@ -17868,6 +18092,9 @@ class $$DiscoveredFilesTableTableManager
                 md5Checksum: md5Checksum,
                 parentFolderId: parentFolderId,
                 isLrc: isLrc,
+                isProcessed: isProcessed,
+                processStatus: processStatus,
+                processedAt: processedAt,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

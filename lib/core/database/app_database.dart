@@ -43,7 +43,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? e]) : super(e ?? _openConnection());
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration {
@@ -149,6 +149,11 @@ class AppDatabase extends _$AppDatabase {
           await customStatement(
             'CREATE INDEX IF NOT EXISTS idx_scrobble_history_time ON scrobble_history(scrobbled_at);',
           );
+        }
+        if (from < 9) {
+          await m.addColumn(discoveredFiles, discoveredFiles.isProcessed);
+          await m.addColumn(discoveredFiles, discoveredFiles.processStatus);
+          await m.addColumn(discoveredFiles, discoveredFiles.processedAt);
         }
       },
       beforeOpen: (details) async {

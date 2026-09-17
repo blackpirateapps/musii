@@ -51,12 +51,19 @@ class FakeGoogleDriveRepository implements GoogleDriveRepository {
     return Result.success(filesToReturn);
   }
 
+  final Set<String> failingFileIds = {};
+
   @override
   Future<Result<File, AppFailure>> downloadFile({
     required String fileId,
     required File destinationFile,
     void Function(int receivedBytes, int totalBytes)? onProgress,
   }) async {
+    if (failingFileIds.contains(fileId)) {
+      return const Result.failure(
+        NetworkFailure('Simulated download failure'),
+      );
+    }
     downloadCallCount++;
     downloadedFileIds.add(fileId);
     // Write empty dummy file
@@ -1015,6 +1022,208 @@ void main() {
 
       // A new sync (not resume) MUST rescan Drive!
       expect(fakeDrive.listCallCount, equals(1));
+    });
+
+    test('PERSISTED PROCESSED STATUS: tracks marked isProcessed=true in DiscoveredFiles are not re-extracted on resume', () async {
+      final now = DateTime(2026, 9, 15, 12, 0);
+      fakeDrive.filesToReturn = [
+        DriveFileItem(
+          id: 'df_p1',
+          name: 'Track 1.mp3',
+          mimeType: 'audio/mpeg',
+          size: 1000,
+          modifiedTime: now,
+          parentFolderId: 'root_p',
+        ),
+        DriveFileItem(
+          id: 'df_p2',
+          name: 'Track 2.mp3',
+          mimeType: 'audio/mpeg',
+          size: 2000,
+          modifiedTime: now,
+          parentFolderId: 'root_p',
+        ),
+        DriveFileItem(
+          id: 'df_p3',
+          name: 'Track 3.mp3',
+          mimeType: 'audio/mpeg',
+          size: 3000,
+          modifiedTime: now,
+          parentFolderId: 'root_p',
+        ),
+      ];
+
+      int stoppedOnce = 0;
+      await libraryRepo.syncLibrary(
+        rootFolderId: 'root_p',
+        rootFolderName: 'Music P',
+        onProgress: (p) {
+          if (p.filesProcessed == 1 && stoppedOnce == 0) {
+            stoppedOnce++;
+            libraryRepo.stopSync();
+          }
+        },
+      );
+
+      // Check DiscoveredFiles in DB for the stopped sync run
+      final lastSession = await libraryRepo.getLastSyncSession();
+      expect(lastSession, isNotNull);
+      final runId = lastSession!.syncRunId!;
+
+      final discoveredRows = await (db.select(db.discoveredFiles)
+            ..where((tbl) => tbl.syncRunId.equals(runId)))
+          .get();
+      expect(discoveredRows.length, equals(3));
+
+      final df1 = discoveredRows.firstWhere((r) => r.driveFileId == 'df_p1');
+      expect(df1.isProcessed, isTrue);
+      expect(df1.processStatus, equals('added'));
+      expect(df1.processedAt, isNotNull);
+
+      final df2 = discoveredRows.firstWhere((r) => r.driveFileId == 'df_p2');
+      expect(df2.isProcessed, isFalse);
+      expect(df2.processStatus, isNull);
+
+      final df3 = discoveredRows.firstWhere((r) => r.driveFileId == 'df_p3');
+      expect(df3.isProcessed, isFalse);
+      expect(df3.processStatus, isNull);
+
+      // Reset download log
+      fakeDrive.downloadedFileIds.clear();
+      fakeDrive.downloadCallCount = 0;
+      fakeExtractor.extractCallCount = 0;
+
+      // Resume
+      final resumeRes = await libraryRepo.resumeSync();
+      expect(resumeRes.isSuccess, isTrue);
+
+      // df_p1 should NOT have been downloaded or extracted again
+      expect(fakeDrive.downloadedFileIds, isNot(contains('df_p1')));
+      expect(fakeDrive.downloadedFileIds, containsAll(['df_p2', 'df_p3']));
+      expect(fakeDrive.downloadCallCount, equals(2));
+      expect(fakeExtractor.extractCallCount, equals(2));
+
+      // After resume completion, all files must be marked isProcessed == true
+      final completedRows = await (db.select(db.discoveredFiles)
+            ..where((tbl) => tbl.syncRunId.equals(runId)))
+          .get();
+      expect(completedRows.every((r) => r.isProcessed), isTrue);
+      expect(
+        completedRows.map((r) => r.processStatus),
+        everyElement(anyOf('added', 'unchanged', 'updated')),
+      );
+    });
+
+    test('RETRY FAILED TRACKS ON RESUME: failed tracks have isProcessed=false, processStatus=failed and are retried on resume', () async {
+      final now = DateTime(2026, 9, 15, 12, 0);
+      fakeDrive.filesToReturn = [
+        DriveFileItem(
+          id: 'df_fail',
+          name: 'Broken Track.mp3',
+          mimeType: 'audio/mpeg',
+          size: 1000,
+          modifiedTime: now,
+          parentFolderId: 'root_f',
+        ),
+        DriveFileItem(
+          id: 'df_ok',
+          name: 'Good Track.mp3',
+          mimeType: 'audio/mpeg',
+          size: 2000,
+          modifiedTime: now,
+          parentFolderId: 'root_f',
+        ),
+      ];
+
+      // Fail df_fail
+      fakeDrive.failingFileIds.add('df_fail');
+
+      final firstRes = await libraryRepo.syncLibrary(
+        rootFolderId: 'root_f',
+        rootFolderName: 'Music F',
+      );
+      expect(firstRes.isSuccess, isTrue);
+
+      final lastSession = await libraryRepo.getLastSyncSession();
+      expect(lastSession, isNotNull);
+      final runId = lastSession!.syncRunId!;
+
+      final rows = await (db.select(db.discoveredFiles)
+            ..where((tbl) => tbl.syncRunId.equals(runId)))
+          .get();
+      final failRow = rows.firstWhere((r) => r.driveFileId == 'df_fail');
+      expect(failRow.isProcessed, isFalse);
+      expect(failRow.processStatus, equals('failed'));
+
+      final okRow = rows.firstWhere((r) => r.driveFileId == 'df_ok');
+      expect(okRow.isProcessed, isTrue);
+      expect(okRow.processStatus, equals('added'));
+
+      // Now resolve the failure and resume sync
+      fakeDrive.failingFileIds.clear();
+      fakeDrive.downloadedFileIds.clear();
+      fakeDrive.downloadCallCount = 0;
+
+      final resumeRes = await libraryRepo.resumeSync();
+      expect(resumeRes.isSuccess, isTrue);
+
+      // Only df_fail should be downloaded
+      expect(fakeDrive.downloadedFileIds, equals(['df_fail']));
+      expect(fakeDrive.downloadCallCount, equals(1));
+
+      // Check DB: df_fail is now processed
+      final rowsAfter = await (db.select(db.discoveredFiles)
+            ..where((tbl) => tbl.syncRunId.equals(runId)))
+          .get();
+      final retryRow = rowsAfter.firstWhere((r) => r.driveFileId == 'df_fail');
+      expect(retryRow.isProcessed, isTrue);
+      expect(retryRow.processStatus, equals('added'));
+    });
+
+    test('SUB-SECOND MODIFIED TIMESTAMP TOLERANCE: avoids false-positive re-downloads when remote timestamp has sub-second precision', () async {
+      // Remote initial timestamp with millisecond precision
+      final remoteInitial = DateTime.utc(2026, 9, 15, 12, 0, 0, 456);
+      fakeDrive.filesToReturn = [
+        DriveFileItem(
+          id: 'df_subsecond',
+          name: 'Timestamp Test.mp3',
+          mimeType: 'audio/mpeg',
+          size: 5000000,
+          modifiedTime: remoteInitial,
+          parentFolderId: 'root_ts',
+        ),
+      ];
+
+      // Initial sync: downloads and records track in DB
+      final res1 = await libraryRepo.syncLibrary(
+        rootFolderId: 'root_ts',
+        rootFolderName: 'Music TS',
+      );
+      expect(res1.isSuccess, isTrue);
+      expect(fakeDrive.downloadCallCount, equals(1));
+
+      // Reset download log
+      fakeDrive.downloadedFileIds.clear();
+      fakeDrive.downloadCallCount = 0;
+
+      // Second sync: remote modifiedTime still has sub-second precision (same second)
+      // SQLite truncates to seconds, so local driveModifiedAt will have 0ms or second precision.
+      final res2 = await libraryRepo.syncFromSavedFolder();
+      expect(res2.isSuccess, isTrue);
+
+      // Must NOT re-download because the second-precision timestamps match!
+      expect(fakeDrive.downloadCallCount, equals(0));
+      expect(fakeDrive.downloadedFileIds, isEmpty);
+
+      // Verified as unchanged in discovered_files
+      final lastSession = await libraryRepo.getLastSyncSession();
+
+      final rows = await (db.select(db.discoveredFiles)
+            ..where((tbl) => tbl.syncRunId.equals(lastSession!.syncRunId!)))
+          .get();
+      final row = rows.firstWhere((r) => r.driveFileId == 'df_subsecond');
+      expect(row.isProcessed, isTrue);
+      expect(row.processStatus, equals('unchanged'));
     });
   });
 }

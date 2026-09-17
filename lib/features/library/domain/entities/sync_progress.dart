@@ -126,6 +126,7 @@ abstract class MusicLibraryRepository {
     void Function(SyncProgress progress)? onProgress,
     bool isResume = false,
     bool forceSync = false,
+    String? requestedSyncRunId,
   });
 
   Future<Result<void, AppFailure>> syncFromSavedFolder({
