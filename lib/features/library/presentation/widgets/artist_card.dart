@@ -1,17 +1,26 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../app/bootstrap/providers.dart';
 import '../../domain/entities/music_entities.dart';
 import 'album_artwork.dart';
 
-class ArtistCard extends StatelessWidget {
+class ArtistCard extends ConsumerWidget {
   final Artist artist;
   final VoidCallback onTap;
 
   const ArtistCard({super.key, required this.artist, required this.onTap});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final isDark = CupertinoTheme.brightnessOf(context) == Brightness.dark;
+
+    // Lazily fetch official artist portrait if missing
+    if (artist.artworkPath == null || !artist.artworkPath!.contains('artist_')) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(artistArtworkDownloaderProvider).downloadArtistArtwork(artist);
+      });
+    }
 
     return CupertinoButton(
       padding: EdgeInsets.zero,

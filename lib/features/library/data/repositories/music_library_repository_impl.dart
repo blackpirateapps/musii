@@ -14,6 +14,7 @@ import '../../../lyrics/data/repositories/lyrics_repository_impl.dart';
 import '../../../lyrics/domain/entities/lyric_model.dart';
 import '../../../lyrics/domain/repositories/lyrics_repository.dart';
 import '../../../lyrics/domain/services/lrc_parser.dart';
+import '../../../metadata/data/datasources/artist_artwork_downloader.dart';
 import '../../../metadata/data/repositories/metadata_extractor_impl.dart';
 import '../../../metadata/domain/entities/parsed_audio_metadata.dart';
 import '../../../metadata/domain/services/metadata_normalization_service.dart';
@@ -33,6 +34,7 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
   final MetadataExtractor _metadataExtractor;
   final LyricsRepository _lyricsRepository;
   final AppFileSystem _fileSystem;
+  final ArtistArtworkDownloader? _artistArtworkDownloader;
 
   final StreamController<SyncProgress> _syncProgressController =
       StreamController<SyncProgress>.broadcast();
@@ -49,12 +51,18 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
     MetadataExtractor? metadataExtractor,
     LyricsRepository? lyricsRepository,
     AppFileSystem? fileSystem,
+    ArtistArtworkDownloader? artistArtworkDownloader,
   }) : _database = database,
        _driveRepository = driveRepository,
        _metadataExtractor = metadataExtractor ?? MetadataExtractor(),
        _lyricsRepository =
            lyricsRepository ?? LyricsRepositoryImpl(database: database),
-       _fileSystem = fileSystem ?? AppFileSystem.instance {
+       _fileSystem = fileSystem ?? AppFileSystem.instance,
+       _artistArtworkDownloader = artistArtworkDownloader ??
+           ArtistArtworkDownloader(
+             fileSystem: fileSystem ?? AppFileSystem.instance,
+             database: database,
+           ) {
     unawaited(_hydrateInitialState());
   }
 
@@ -392,10 +400,23 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
       id: row.id,
       name: row.name,
       normalizedName: row.normalizedName,
-      artworkPath: row.artworkPath,
+      artworkPath: _resolveArtistArtworkPath(row),
       trackCount: row.trackCount,
       albumCount: row.albumCount,
     );
+  }
+
+  String? _resolveArtistArtworkPath(ArtistRow row) {
+    if (row.artworkPath != null && row.artworkPath!.isNotEmpty) {
+      final file = File(row.artworkPath!);
+      if (file.existsSync()) return row.artworkPath;
+    }
+    final cachedFile =
+        _fileSystem.getArtworkCacheFile('artist_${row.normalizedName}');
+    if (cachedFile.existsSync()) {
+      return cachedFile.path;
+    }
+    return null;
   }
 
   @override
@@ -482,8 +503,18 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
       if (artistData == null) return null;
       final albums = await albumsStream.first;
       final tracks = await tracksStream.first;
+      var artistEntity = _mapDbArtistToEntity(artistData);
+      if (artistEntity.artworkPath == null && albums.isNotEmpty) {
+        final albumArt = albums
+            .map((a) => a.artworkPath ?? _resolveArtworkPath(a.title, a.artistName))
+            .where((p) => p != null && p.isNotEmpty && File(p).existsSync())
+            .firstOrNull;
+        if (albumArt != null) {
+          artistEntity = artistEntity.copyWith(artworkPath: albumArt);
+        }
+      }
       return ArtistWithAlbums(
-        artist: _mapDbArtistToEntity(artistData),
+        artist: artistEntity,
         albums: albums.map(_mapDbAlbumToEntity).toList(),
         topTracks: tracks.map(_mapDbTrackToEntity).toList(),
       );
@@ -1200,6 +1231,9 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
         'Sync completed successfully! Discovered: $totalDiscovered, Unchanged: ${unchangedComplete.length}, Added: $addedCount, Updated: $updatedCount, Removed: ${removedDriveIds.length}, Errors: $errorsCount',
       );
 
+      // Trigger background download of missing artist artwork
+      unawaited(_triggerArtistArtworkDownload());
+
       return const Result.success(null);
     } catch (e, st) {
       AppLogger.error(LogCategory.sync, 'Fatal error during sync', e, st);
@@ -1562,12 +1596,37 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
         continue;
       }
 
+      String? resolvedArtwork = art.artworkPath;
+      if (resolvedArtwork == null ||
+          resolvedArtwork.isEmpty ||
+          !File(resolvedArtwork).existsSync()) {
+        final artistCache =
+            _fileSystem.getArtworkCacheFile('artist_${art.normalizedName}');
+        if (artistCache.existsSync()) {
+          resolvedArtwork = artistCache.path;
+        } else {
+          final albumWithArt = albums
+              .where((a) {
+                final p = a.artworkPath ?? _resolveArtworkPath(a.title, a.artistName);
+                return p != null && p.isNotEmpty && File(p).existsSync();
+              })
+              .firstOrNull;
+          if (albumWithArt != null) {
+            resolvedArtwork = albumWithArt.artworkPath ??
+                _resolveArtworkPath(albumWithArt.title, albumWithArt.artistName);
+          }
+        }
+      }
+
       await (_database.update(
         _database.artists,
       )..where((tbl) => tbl.id.equals(art.id))).write(
         ArtistsCompanion(
           trackCount: Value(tracks.length),
           albumCount: Value(albums.length),
+          artworkPath: resolvedArtwork != null
+              ? Value(resolvedArtwork)
+              : const Value.absent(),
         ),
       );
     }
@@ -1663,6 +1722,21 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
         LogCategory.metadata,
         'Failed to fetch sidecar LRC for $trackId',
         e,
+      );
+    }
+  }
+
+  Future<void> _triggerArtistArtworkDownload() async {
+    try {
+      final allArtists = await (_database.select(_database.artists)).get();
+      final entities = allArtists.map(_mapDbArtistToEntity).toList();
+      await _artistArtworkDownloader?.downloadMissingArtworks(entities);
+    } catch (e, st) {
+      AppLogger.debug(
+        LogCategory.metadata,
+        'Background artist artwork download error',
+        e,
+        st,
       );
     }
   }

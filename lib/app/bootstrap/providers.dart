@@ -13,6 +13,7 @@ import '../../features/google_drive/domain/entities/drive_item.dart';
 import '../../features/library/data/repositories/music_library_repository_impl.dart';
 import '../../features/library/domain/entities/music_entities.dart';
 import '../../features/library/domain/entities/sync_progress.dart';
+import '../../features/metadata/data/datasources/artist_artwork_downloader.dart';
 import '../../features/metadata/data/repositories/metadata_extractor_impl.dart';
 import '../../features/lyrics/data/repositories/lyrics_repository_impl.dart';
 import '../../features/lyrics/domain/entities/lyric_model.dart';
@@ -212,6 +213,14 @@ final currentTrackLyricsProvider = StreamProvider<TrackLyrics?>((ref) {
   return repo.watchLyricsForTrack(track.id);
 });
 
+// Artist Artwork Downloader
+final artistArtworkDownloaderProvider =
+    Provider<ArtistArtworkDownloader>((ref) {
+  final fs = ref.watch(appFileSystemProvider);
+  final db = ref.watch(appDatabaseProvider);
+  return ArtistArtworkDownloader(fileSystem: fs, database: db);
+});
+
 // Library
 final musicLibraryRepositoryProvider = Provider<MusicLibraryRepository>((ref) {
   final db = ref.watch(appDatabaseProvider);
@@ -219,6 +228,7 @@ final musicLibraryRepositoryProvider = Provider<MusicLibraryRepository>((ref) {
   final extractor = ref.watch(metadataExtractorProvider);
   final lyrics = ref.watch(lyricsRepositoryProvider);
   final fs = ref.watch(appFileSystemProvider);
+  final downloader = ref.watch(artistArtworkDownloaderProvider);
 
   return MusicLibraryRepositoryImpl(
     database: db,
@@ -226,6 +236,7 @@ final musicLibraryRepositoryProvider = Provider<MusicLibraryRepository>((ref) {
     metadataExtractor: extractor,
     lyricsRepository: lyrics,
     fileSystem: fs,
+    artistArtworkDownloader: downloader,
   );
 });
 

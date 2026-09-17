@@ -124,6 +124,7 @@ class _RootNavigationShellState extends ConsumerState<RootNavigationShell> {
   Widget build(BuildContext context) {
     final playerSnapshot = ref.watch(playerStateProvider).value;
     final hasActiveTrack = playerSnapshot?.currentTrack != null;
+    final isDark = CupertinoTheme.brightnessOf(context) == Brightness.dark;
 
     return CupertinoPageScaffold(
       child: Stack(
@@ -145,10 +146,14 @@ class _RootNavigationShellState extends ConsumerState<RootNavigationShell> {
                   activeColor: CupertinoColors.systemPink,
                   inactiveColor: CupertinoColors.systemGrey,
                   iconSize: 24.0,
-                  backgroundColor: CupertinoColors.systemBackground.withOpacity(0.9),
+                  backgroundColor: isDark
+                      ? const Color(0xE5121318)
+                      : const Color(0xE5F8F8F8),
                   border: Border(
                     top: BorderSide(
-                      color: CupertinoColors.systemGrey.withOpacity(0.2),
+                      color: isDark
+                          ? const Color(0x1FFFFFFF)
+                          : const Color(0x1F000000),
                       width: 0.5,
                     ),
                   ),

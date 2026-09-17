@@ -45,6 +45,15 @@ class ArtistDetailPage extends ConsumerWidget {
           final albums = data.albums;
           final tracks = data.topTracks;
 
+          if (artist.artworkPath == null ||
+              !artist.artworkPath!.contains('artist_')) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              ref
+                  .read(artistArtworkDownloaderProvider)
+                  .downloadArtistArtwork(artist);
+            });
+          }
+
           return CustomScrollView(
             physics: const BouncingScrollPhysics(),
             slivers: [

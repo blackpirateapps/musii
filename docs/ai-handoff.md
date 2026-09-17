@@ -4,7 +4,7 @@
 > **Target Audience**: Incoming AI Coding Assistants & Human Software Engineers  
 > **Last Verified**: September 2026  
 > **App Identifier**: `com.blackpirateapps.musii`  
-> **Test Status**: 157 / 157 Passing (`flutter test`), 0 Analyzer Warnings (`flutter analyze`)
+> **Test Status**: 163 / 163 Passing (`flutter test`), 0 Analyzer Warnings (`flutter analyze`)
 
 ---
 
@@ -288,6 +288,9 @@ Located in `lib/app/theme/app_theme.dart`, `lib/app/app.dart`, `lib/features/set
       - **Ingestion Pipeline Matching**: In `MusicLibraryRepositoryImpl`, track ingestion assigns `meta.albumArtist ?? effectiveAlbumArtist` directly to `Tracks.albumArtist`. When `meta.albumArtist` is missing, existing albums with the same `normalizedTitle` are checked for compatible artist prefixes or substrings. When a subsequent track supplies the canonical album artist, the existing album record is upgraded in-place.
       - **Schema v7 Database Migration & Reconciler (`reconcileDuplicateAlbums`)**: Upgraded Drift schema to v7 (`lib/core/database/app_database.dart`). The reconciliation engine groups all albums by `normalizedTitle`, sorts candidates by root artist length, and groups them via transitive compatibility (matching any member in a subgroup). It elects the canonical winning album artist (giving priority to known album artists and base artist names), reassigns tracks, updates surviving album metadata, and deletes duplicate album rows.
       - **Library Aggregate & Zombie Pruning**: At the conclusion of sync, `_recomputeLibraryAggregates()` prunes 0-track zombie albums and 0-track/0-album orphaned artists to maintain referential integrity.
+14. **CupertinoTabBar Dynamic Opacity & Artist Artwork Resolution Pipeline**:
+    - **CupertinoDynamicColor withOpacity() Gotcha**: Never call `.withOpacity()` directly on `CupertinoDynamicColor` instances (like `CupertinoColors.systemBackground.withOpacity(0.9)`). Because `CupertinoDynamicColor` extends `Color`, `.withOpacity()` strips dynamic brightness resolution and evaluates the light base ARGB value (`0xFFFFFFFF`), rendering a white background in dark mode. Always resolve brightness dynamically via `CupertinoTheme.brightnessOf(context) == Brightness.dark` before calculating bar translucent colors.
+    - **Artist Artwork Resolution & Deezer Integration**: Audio file tags (MP3 ID3, FLAC Vorbis, MP4 covr) only embed album artwork. To prevent artist profiles from defaulting to empty initial-letter tiles, `MusicLibraryRepositoryImpl` applies a two-stage pipeline: (1) Immediate local fallback to the artist's first indexed album artwork for 100% offline visual presentation; (2) Background download of official artist photography via Deezer's public API (`https://api.deezer.com/search/artist?q={name}`) with zero API key requirement, caching files under `AppFileSystem.getArtworkCacheFile('artist_{normalizedName}')` and updating `Artists.artworkPath` in SQLite reactively.
 
 ---
 

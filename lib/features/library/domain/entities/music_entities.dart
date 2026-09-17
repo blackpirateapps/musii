@@ -184,6 +184,24 @@ class Artist {
     this.albumCount = 0,
   });
 
+  Artist copyWith({
+    String? id,
+    String? name,
+    String? normalizedName,
+    String? artworkPath,
+    int? trackCount,
+    int? albumCount,
+  }) {
+    return Artist(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      normalizedName: normalizedName ?? this.normalizedName,
+      artworkPath: artworkPath ?? this.artworkPath,
+      trackCount: trackCount ?? this.trackCount,
+      albumCount: albumCount ?? this.albumCount,
+    );
+  }
+
   @override
   bool operator ==(Object other) =>
       identical(this, other) || (other is Artist && other.id == id);
