@@ -1,10 +1,92 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:musii/core/error/failures.dart';
+import 'package:musii/core/result/result.dart';
 import 'package:musii/features/last_fm/domain/entities/last_fm_account.dart';
+import 'package:musii/features/last_fm/domain/entities/pending_scrobble.dart';
+import 'package:musii/features/last_fm/domain/entities/scrobble_history_item.dart';
 import 'package:musii/features/last_fm/domain/entities/scrobble_settings.dart';
+import 'package:musii/features/last_fm/domain/repositories/last_fm_repository.dart';
 import 'package:musii/features/last_fm/presentation/pages/last_fm_settings_page.dart';
 import 'package:musii/features/last_fm/presentation/providers/last_fm_providers.dart';
+import 'package:musii/features/library/domain/entities/music_entities.dart';
+
+class MockLastFmRepository implements LastFmRepository {
+  @override
+  Future<Result<int, AppFailure>> syncPendingScrobbles() async => const Success(0);
+
+  @override
+  Future<Result<LastFmAccount, AppFailure>> completeAuthentication(String token) async =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<void, AppFailure>> disconnect() async => const Success(null);
+
+  @override
+  Future<LastFmAccount?> getAccount() async => null;
+
+  @override
+  Future<String?> getApiKey() async => null;
+
+  @override
+  Future<Result<String, AppFailure>> getAuthToken() async =>
+      throw UnimplementedError();
+
+  @override
+  Future<Uri> getAuthUrl(String token) async => Uri.parse('https://example.com');
+
+  @override
+  Future<String?> getApiSecret() async => null;
+
+  @override
+  Future<DateTime?> getLastSyncedAt() async => null;
+
+  @override
+  Future<int> getPendingCount() async => 0;
+
+  @override
+  Future<List<PendingScrobble>> getPendingScrobbles() async => [];
+
+  @override
+  Future<ScrobbleSettings> getSettings() async => const ScrobbleSettings();
+
+  @override
+  Future<int> getSyncedScrobbleCount() async => 0;
+
+  @override
+  Future<bool> hasSession() async => true;
+
+  @override
+  Future<Result<void, AppFailure>> recordScrobble(Track track, int startTimestampSeconds) async =>
+      const Success(null);
+
+  @override
+  Future<void> setApiCredentials({required String apiKey, required String apiSecret}) async {}
+
+  @override
+  Future<void> setNowPlayingEnabled(bool enabled) async {}
+
+  @override
+  Future<void> setScrobblingEnabled(bool enabled) async {}
+
+  @override
+  Future<Result<void, AppFailure>> updateNowPlaying(Track track) async =>
+      const Success(null);
+
+  @override
+  Stream<LastFmAccount?> watchAccount() => Stream.value(null);
+
+  @override
+  Stream<List<PendingScrobble>> watchPendingScrobbles() => Stream.value([]);
+
+  @override
+  Stream<List<ScrobbleHistoryItem>> watchScrobbleHistory({int limit = 50}) =>
+      Stream.value([]);
+
+  @override
+  Stream<ScrobbleSettings> watchSettings() => Stream.value(const ScrobbleSettings());
+}
 
 void main() {
   group('LastFmSettingsPage', () {
@@ -16,9 +98,12 @@ void main() {
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
 
+      final mockRepo = MockLastFmRepository();
+
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
+            lastFmRepositoryProvider.overrideWithValue(mockRepo),
             lastFmAccountProvider.overrideWith((ref) => Stream.value(null)),
             lastFmSettingsProvider.overrideWith(
               (ref) => Stream.value(const ScrobbleSettings()),
@@ -37,6 +122,7 @@ void main() {
 
       // Tap gear icon to open credentials dialog
       await tester.tap(find.byIcon(CupertinoIcons.gear_alt));
+      await tester.pump();
       await tester.pumpAndSettle();
 
       expect(find.text('Last.fm API Credentials'), findsOneWidget);

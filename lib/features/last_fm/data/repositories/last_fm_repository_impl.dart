@@ -59,12 +59,18 @@ class LastFmRepositoryImpl implements LastFmRepository {
   Future<String?> getApiKey() => _getEffectiveApiKey();
 
   @override
+  Future<String?> getApiSecret() => _getEffectiveApiSecret();
+
+  @override
   Future<void> setApiCredentials({
     required String apiKey,
     required String apiSecret,
   }) async {
-    await _credentialStore.write(customApiKeyStorageKey, apiKey.trim());
-    await _credentialStore.write(customApiSecretStorageKey, apiSecret.trim());
+    final cleanKey = apiKey.replaceAll('"', '').replaceAll("'", '').trim();
+    final cleanSecret =
+        apiSecret.replaceAll('"', '').replaceAll("'", '').trim();
+    await _credentialStore.write(customApiKeyStorageKey, cleanKey);
+    await _credentialStore.write(customApiSecretStorageKey, cleanSecret);
   }
 
   @override
@@ -81,9 +87,9 @@ class LastFmRepositoryImpl implements LastFmRepository {
   }
 
   @override
-  Uri getAuthUrl(String token) {
-    final apiKey = envApiKey.isNotEmpty ? envApiKey : '';
-    return LastFmApiClient.buildAuthUrl(apiKey: apiKey, token: token);
+  Future<Uri> getAuthUrl(String token) async {
+    final apiKey = await _getEffectiveApiKey();
+    return LastFmApiClient.buildAuthUrl(apiKey: apiKey ?? '', token: token);
   }
 
   @override

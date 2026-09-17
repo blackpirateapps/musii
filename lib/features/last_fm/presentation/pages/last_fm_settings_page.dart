@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -41,19 +43,22 @@ class _LastFmSettingsPageState extends ConsumerState<LastFmSettingsPage> {
       });
 
       if (failure.message.contains('not configured')) {
-        _showConfigDialog();
+        await _showConfigDialog();
       }
       return;
     }
 
     final token = tokenResult.dataOrNull!;
+    final authUrl = await repo.getAuthUrl(token);
+
+    if (!mounted) return;
+
     setState(() {
       _pendingAuthToken = token;
       _isConnecting = false;
     });
 
     // Launch authorization in external browser
-    final authUrl = repo.getAuthUrl(token);
     const launcher = DefaultUrlLauncherService();
     await launcher.launch(authUrl);
   }
@@ -73,10 +78,13 @@ class _LastFmSettingsPageState extends ConsumerState<LastFmSettingsPage> {
     if (!mounted) return;
 
     if (result.isFailure) {
+      final failure = result.failureOrNull!;
       setState(() {
         _isConnecting = false;
-        _authErrorMessage =
-            'Authorization not yet completed on Last.fm. Please approve Musii in your browser and try again.';
+        _authErrorMessage = failure.message.contains('not been authorized') ||
+                failure.message.contains('Authentication Failed')
+            ? 'Authorization not yet completed on Last.fm. Please approve Musii in your browser and try again.'
+            : failure.message;
       });
       return;
     }
@@ -123,11 +131,18 @@ class _LastFmSettingsPageState extends ConsumerState<LastFmSettingsPage> {
     );
   }
 
-  void _showConfigDialog() {
-    final apiKeyController = TextEditingController();
-    final apiSecretController = TextEditingController();
+  Future<void> _showConfigDialog() async {
+    final repo = ref.read(lastFmRepositoryProvider);
+    final currentKey = await repo.getApiKey();
+    final currentSecret = await repo.getApiSecret();
 
-    showCupertinoDialog(
+    if (!mounted) return;
+
+    final apiKeyController = TextEditingController(text: currentKey ?? '');
+    final apiSecretController =
+        TextEditingController(text: currentSecret ?? '');
+
+    await showCupertinoDialog(
       context: context,
       builder: (ctx) => CupertinoAlertDialog(
         title: const Text('Last.fm API Credentials'),
@@ -165,12 +180,23 @@ class _LastFmSettingsPageState extends ConsumerState<LastFmSettingsPage> {
             isDefaultAction: true,
             child: const Text('Save'),
             onPressed: () async {
-              final key = apiKeyController.text.trim();
-              final sec = apiSecretController.text.trim();
+              final key = apiKeyController.text
+                  .replaceAll('"', '')
+                  .replaceAll("'", '')
+                  .trim();
+              final sec = apiSecretController.text
+                  .replaceAll('"', '')
+                  .replaceAll("'", '')
+                  .trim();
               if (key.isNotEmpty && sec.isNotEmpty) {
                 await ref
                     .read(lastFmRepositoryProvider)
                     .setApiCredentials(apiKey: key, apiSecret: sec);
+                if (mounted) {
+                  setState(() {
+                    _authErrorMessage = null;
+                  });
+                }
                 if (ctx.mounted) Navigator.pop(ctx);
               }
             },
@@ -208,7 +234,7 @@ class _LastFmSettingsPageState extends ConsumerState<LastFmSettingsPage> {
         middle: const Text('Last.fm'),
         trailing: CupertinoButton(
           padding: EdgeInsets.zero,
-          onPressed: _showConfigDialog,
+          onPressed: () => unawaited(_showConfigDialog()),
           child: const Icon(CupertinoIcons.gear_alt, size: 22),
         ),
       ),

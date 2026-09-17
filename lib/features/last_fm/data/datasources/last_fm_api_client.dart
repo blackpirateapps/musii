@@ -26,7 +26,7 @@ class LastFmScrobbleBatchResult {
 
 class LastFmApiClient {
   static const String baseUrl = 'https://ws.audioscrobbler.com/2.0/';
-  static const String authBaseUrl = 'https://www.last.fm/api/auth/';
+  static const String authBaseUrl = 'https://www.last.fm/api/auth';
   static const Duration defaultTimeout = Duration(seconds: 15);
 
   final http.Client _client;

@@ -107,6 +107,21 @@ void main() {
         expect(result.isSuccess, isTrue);
         expect(result.dataOrNull, equals('token_abc_123'));
       });
+
+      test('getAuthUrl uses effective custom API key configured in credentials', () async {
+        final repo = createRepo();
+        await repo.setApiCredentials(
+          apiKey: '979031f3a1b042ab166295f2b7bbfce3',
+          apiSecret: 'my_secret',
+        );
+
+        final authUrl = await repo.getAuthUrl('sample_token_xyz');
+        expect(authUrl.queryParameters['api_key'], equals('979031f3a1b042ab166295f2b7bbfce3'));
+        expect(authUrl.queryParameters['token'], equals('sample_token_xyz'));
+
+        final secret = await repo.getApiSecret();
+        expect(secret, equals('my_secret'));
+      });
     });
 
     group('Authentication Flow', () {

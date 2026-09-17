@@ -52,7 +52,10 @@ class FakeLastFmRepository implements LastFmRepository {
   }
 
   @override
-  Uri getAuthUrl(String token) => Uri.parse('https://example.com');
+  Future<Uri> getAuthUrl(String token) async => Uri.parse('https://example.com');
+
+  @override
+  Future<String?> getApiSecret() async => null;
 
   @override
   Future<int> getPendingCount() async => 0;

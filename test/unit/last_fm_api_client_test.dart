@@ -82,7 +82,7 @@ void main() {
 
         expect(uri.scheme, equals('https'));
         expect(uri.host, equals('www.last.fm'));
-        expect(uri.path, equals('/api/auth/'));
+        expect(uri.path, equals('/api/auth'));
         expect(uri.queryParameters['api_key'], equals('my_api_key'));
         expect(uri.queryParameters['token'], equals('my_token'));
         expect(uri.queryParameters.containsKey('cb'), isFalse);

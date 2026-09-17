@@ -1,10 +1,10 @@
 # Musii — AI Engineering Handoff Document
 
-> **Document Version**: 1.11.0  
+> **Document Version**: 1.11.1  
 > **Target Audience**: Incoming AI Coding Assistants & Human Software Engineers  
 > **Last Verified**: September 2026  
 > **App Identifier**: `com.blackpirateapps.musii`  
-> **Test Status**: 227 / 227 Passing (`flutter test`), 0 Analyzer Warnings (`flutter analyze`)
+> **Test Status**: 228 / 228 Passing (`flutter test`), 0 Analyzer Warnings (`flutter analyze`)
 
 ---
 
@@ -343,6 +343,8 @@ Located in `lib/features/last_fm/`, `lib/core/storage/secure_credential_store.da
     - Drift's `QueryStream._onCancelOrPause` schedules a zero-duration timer (`Timer(Duration.zero, ...)`) when a stream subscription is canceled so rapid rebuilds don't prematurely discard cached query results. In Flutter widget tests, if a Drift query stream provider (such as `lastFmAccountProvider`) is watched by a page being tested, disposing the test `ProviderContainer` upon widget unmount schedules this timer. If the test completes without pumping or without overriding the provider, Flutter's test runner fails the test with `!timersPending`. In isolated widget tests that test non-Last.fm functionality (e.g. `SettingsPage` appearance tests), override `lastFmAccountProvider.overrideWith((ref) => Stream.value(null))` or pump zero-duration microtasks to avoid pending timers.
 18. **Last.fm Parameter Indexing Protocol**:
     - The Last.fm 2.0 API requires parameter indexing (`track[0]`, `artist[0]`, `timestamp[0]`) only when submitting batches of multiple tracks. Submitting a single track with indexed `[0]` parameters causes Last.fm to return empty responses or parse errors on some endpoints. `LastFmApiClient.scrobbleBatch` dynamically selects un-indexed parameter names (`track`, `artist`) when `batch.length == 1`, and indexed parameter names when `batch.length > 1`.
+19. **Last.fm Custom API Key & Shared Secret Precedence**:
+    - `LastFmRepositoryImpl.getAuthUrl` must be asynchronous to query `SecureCredentialStore` (`_getEffectiveApiKey()`). If `getAuthUrl` synchronously only referenced build-time `--dart-define` (`envApiKey`), user-entered custom credentials would be omitted from the browser authorization URL (`https://www.last.fm/api/auth?api_key=&token=...`), causing Last.fm to reject requests with `"Invalid API key"`. Custom credentials stored in secure hardware storage take precedence over empty or fallback build-time keys, and inputs are trimmed and sanitized against accidental surrounding quotation marks. In widget tests, `_showConfigDialog()` is async and loads current API credentials from the repository before presenting the dialog, requiring `lastFmRepositoryProvider` to be overridden with `MockLastFmRepository`.
 
 ---
 
@@ -358,7 +360,7 @@ dart run build_runner build --delete-conflicting-outputs
 # Verify static analysis (must be 0 issues)
 flutter analyze
 
-# Run all tests (all 227 tests must pass)
+# Run all tests (all 228 tests must pass)
 flutter test
 
 # Auto-format Dart source code

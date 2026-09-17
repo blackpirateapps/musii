@@ -11,7 +11,7 @@ abstract class LastFmRepository {
   Future<Result<String, AppFailure>> getAuthToken();
 
   /// Constructs the Last.fm authorization URL where the user approves the application.
-  Uri getAuthUrl(String token);
+  Future<Uri> getAuthUrl(String token);
 
   /// Completes authentication by exchanging [token] for a 32-character session key
   /// and fetching the user's profile metadata.
@@ -44,6 +44,9 @@ abstract class LastFmRepository {
 
   /// Returns currently configured API key, if any.
   Future<String?> getApiKey();
+
+  /// Returns currently configured API secret, if any.
+  Future<String?> getApiSecret();
 
   /// Configures custom Last.fm API Key and Shared Secret in secure storage.
   Future<void> setApiCredentials({
