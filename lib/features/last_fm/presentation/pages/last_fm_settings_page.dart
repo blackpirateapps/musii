@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
@@ -22,7 +23,32 @@ class LastFmSettingsPage extends ConsumerStatefulWidget {
 class _LastFmSettingsPageState extends ConsumerState<LastFmSettingsPage> {
   bool _isConnecting = false;
   String? _pendingAuthToken;
+  Uri? _pendingAuthUrl;
+  bool _copiedLink = false;
+  Timer? _copiedLinkResetTimer;
   String? _authErrorMessage;
+  String? _configuredApiKey;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkConfiguredKey();
+  }
+
+  @override
+  void dispose() {
+    _copiedLinkResetTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _checkConfiguredKey() async {
+    final key = await ref.read(lastFmRepositoryProvider).getApiKey();
+    if (mounted) {
+      setState(() {
+        _configuredApiKey = key;
+      });
+    }
+  }
 
   Future<void> _startAuth() async {
     setState(() {
@@ -55,6 +81,8 @@ class _LastFmSettingsPageState extends ConsumerState<LastFmSettingsPage> {
 
     setState(() {
       _pendingAuthToken = token;
+      _pendingAuthUrl = authUrl;
+      _copiedLink = false;
       _isConnecting = false;
     });
 
@@ -217,6 +245,11 @@ class _LastFmSettingsPageState extends ConsumerState<LastFmSettingsPage> {
     return DateFormat('MMM d, h:mm a').format(dt);
   }
 
+  String _maskKey(String key) {
+    if (key.length <= 8) return key;
+    return '${key.substring(0, 4)}...${key.substring(key.length - 4)}';
+  }
+
   @override
   Widget build(BuildContext context) {
     final accountAsync = ref.watch(lastFmAccountProvider);
@@ -349,6 +382,107 @@ class _LastFmSettingsPageState extends ConsumerState<LastFmSettingsPage> {
                         : CupertinoColors.secondaryLabel,
                   ),
                 ),
+                if (_pendingAuthUrl != null) ...[
+                  const SizedBox(height: 14),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? const Color(0xFF12131A)
+                          : CupertinoColors.white,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: isDark
+                            ? CupertinoColors.systemGrey.withOpacity(0.2)
+                            : CupertinoColors.systemGrey4,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            _pendingAuthUrl.toString(),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontFamily: 'monospace',
+                              color: isDark
+                                  ? CupertinoColors.systemGrey
+                                  : CupertinoColors.secondaryLabel,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        CupertinoButton(
+                          padding: EdgeInsets.zero,
+                          minSize: 28,
+                          onPressed: () {
+                            final url = _pendingAuthUrl?.toString();
+                            if (url != null) {
+                              unawaited(
+                                Clipboard.setData(ClipboardData(text: url)),
+                              );
+                              setState(() => _copiedLink = true);
+                              _copiedLinkResetTimer?.cancel();
+                              _copiedLinkResetTimer = Timer(
+                                const Duration(seconds: 2),
+                                () {
+                                  if (mounted) {
+                                    setState(() => _copiedLink = false);
+                                  }
+                                },
+                              );
+                            }
+                          },
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                _copiedLink
+                                    ? CupertinoIcons.checkmark_alt
+                                    : CupertinoIcons.doc_on_clipboard,
+                                size: 14,
+                                color: CupertinoColors.activeBlue,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                _copiedLink ? 'Copied' : 'Copy',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: CupertinoColors.activeBlue,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  CupertinoButton(
+                    padding: EdgeInsets.zero,
+                    onPressed: () async {
+                      if (_pendingAuthUrl != null) {
+                        const launcher = DefaultUrlLauncherService();
+                        await launcher.launch(_pendingAuthUrl!);
+                      }
+                    },
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(CupertinoIcons.compass, size: 15),
+                        SizedBox(width: 6),
+                        Text(
+                          'Re-open Browser',
+                          style: TextStyle(fontSize: 13),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 16),
                 SizedBox(
                   width: double.infinity,
@@ -370,6 +504,40 @@ class _LastFmSettingsPageState extends ConsumerState<LastFmSettingsPage> {
             ),
           ),
         ] else ...[
+          if (_configuredApiKey != null && _configuredApiKey!.isNotEmpty) ...[
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16.0),
+              child: Center(
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: CupertinoColors.activeGreen.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        CupertinoIcons.checkmark_circle_fill,
+                        size: 14,
+                        color: CupertinoColors.activeGreen,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'API Key: ${_maskKey(_configuredApiKey!)}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: CupertinoColors.activeGreen,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
           SizedBox(
             width: double.infinity,
             child: CupertinoButton.filled(

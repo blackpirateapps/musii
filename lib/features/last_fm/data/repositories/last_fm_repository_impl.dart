@@ -46,15 +46,21 @@ class LastFmRepositoryImpl implements LastFmRepository {
        _connectivity = connectivity ?? ConnectivityService();
 
   Future<String?> _getEffectiveApiKey() async {
-    if (envApiKey.isNotEmpty) return envApiKey;
+    if (envApiKey.isNotEmpty) return LastFmApiClient.cleanCredential(envApiKey);
     final custom = await _credentialStore.read(customApiKeyStorageKey);
-    return custom?.trim();
+    if (custom == null) return null;
+    final cleaned = LastFmApiClient.cleanCredential(custom);
+    return cleaned.isNotEmpty ? cleaned : null;
   }
 
   Future<String?> _getEffectiveApiSecret() async {
-    if (envApiSecret.isNotEmpty) return envApiSecret;
+    if (envApiSecret.isNotEmpty) {
+      return LastFmApiClient.cleanCredential(envApiSecret);
+    }
     final custom = await _credentialStore.read(customApiSecretStorageKey);
-    return custom?.trim();
+    if (custom == null) return null;
+    final cleaned = LastFmApiClient.cleanCredential(custom);
+    return cleaned.isNotEmpty ? cleaned : null;
   }
 
   @override
@@ -68,11 +74,8 @@ class LastFmRepositoryImpl implements LastFmRepository {
     required String apiKey,
     required String apiSecret,
   }) async {
-    final cleanKey = apiKey.replaceAll('"', '').replaceAll("'", '').trim();
-    final cleanSecret = apiSecret
-        .replaceAll('"', '')
-        .replaceAll("'", '')
-        .trim();
+    final cleanKey = LastFmApiClient.cleanCredential(apiKey);
+    final cleanSecret = LastFmApiClient.cleanCredential(apiSecret);
     await _credentialStore.write(customApiKeyStorageKey, cleanKey);
     await _credentialStore.write(customApiSecretStorageKey, cleanSecret);
   }
@@ -93,7 +96,12 @@ class LastFmRepositoryImpl implements LastFmRepository {
   @override
   Future<Uri> getAuthUrl(String token) async {
     final apiKey = await _getEffectiveApiKey();
-    return LastFmApiClient.buildAuthUrl(apiKey: apiKey ?? '', token: token);
+    if (apiKey == null || apiKey.isEmpty) {
+      throw const LastFmConfigurationFailure(
+        'Last.fm API key not configured. Please provide your API key in settings.',
+      );
+    }
+    return LastFmApiClient.buildAuthUrl(apiKey: apiKey, token: token);
   }
 
   @override

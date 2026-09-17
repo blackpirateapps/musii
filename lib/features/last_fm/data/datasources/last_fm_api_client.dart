@@ -26,12 +26,19 @@ class LastFmScrobbleBatchResult {
 
 class LastFmApiClient {
   static const String baseUrl = 'https://ws.audioscrobbler.com/2.0/';
-  static const String authBaseUrl = 'https://www.last.fm/api/auth';
+  static const String authBaseUrl = 'https://www.last.fm/api/auth/';
   static const Duration defaultTimeout = Duration(seconds: 15);
 
   final http.Client _client;
 
   LastFmApiClient({http.Client? client}) : _client = client ?? http.Client();
+
+  /// Sanitizes a credential or token string by stripping quotes,
+  /// leading/trailing whitespace, newlines, and hidden unicode characters.
+  static String cleanCredential(String input) => input
+      .replaceAll('"', '')
+      .replaceAll("'", '')
+      .replaceAll(RegExp(r'[\s\u200B\uFEFF\u00A0]'), '');
 
   /// Computes Last.fm API signature (api_sig) according to official spec:
   /// 1. Parameters sorted alphabetically by key (excluding 'format' and 'callback').
@@ -59,18 +66,28 @@ class LastFmApiClient {
     return digest.toString();
   }
 
-  /// Builds the authorization URL for browser login.
+  /// Builds the canonical authorization URL for browser login.
   static Uri buildAuthUrl({
     required String apiKey,
     required String token,
     String? callbackUrl,
   }) {
+    final cleanKey = cleanCredential(apiKey);
+    final cleanTok = cleanCredential(token);
+    if (cleanKey.isEmpty) {
+      throw ArgumentError.value(
+        apiKey,
+        'apiKey',
+        'Last.fm API key must not be empty.',
+      );
+    }
+
     final queryParams = <String, String>{
-      'api_key': apiKey,
-      'token': token,
-      'cb': ?callbackUrl,
+      'api_key': cleanKey,
+      if (cleanTok.isNotEmpty) 'token': cleanTok,
+      if (callbackUrl != null && callbackUrl.isNotEmpty) 'cb': callbackUrl,
     };
-    return Uri.parse(authBaseUrl).replace(queryParameters: queryParams);
+    return Uri.https('www.last.fm', '/api/auth/', queryParams);
   }
 
   /// Requests an unauthorized request token (auth.getToken).

@@ -114,20 +114,28 @@ void main() {
           final repo = createRepo();
           await repo.setApiCredentials(
             apiKey: '979031f3a1b042ab166295f2b7bbfce3',
-            apiSecret: 'my_secret',
+            apiSecret: 'c0ffee1234567890abcdef1234567890',
           );
 
-          final authUrl = await repo.getAuthUrl('sample_token_xyz');
+          final authUrl = await repo.getAuthUrl('sampletokenxyz123456');
           expect(
             authUrl.queryParameters['api_key'],
             equals('979031f3a1b042ab166295f2b7bbfce3'),
           );
-          expect(authUrl.queryParameters['token'], equals('sample_token_xyz'));
+          expect(authUrl.queryParameters['token'], equals('sampletokenxyz123456'));
 
           final secret = await repo.getApiSecret();
-          expect(secret, equals('my_secret'));
+          expect(secret, equals('c0ffee1234567890abcdef1234567890'));
         },
       );
+
+      test('getAuthUrl throws LastFmConfigurationFailure when key is not configured', () async {
+        final repo = createRepo();
+        expect(
+          () => repo.getAuthUrl('sampletokenxyz123456'),
+          throwsA(isA<LastFmConfigurationFailure>()),
+        );
+      });
     });
 
     group('Authentication Flow', () {

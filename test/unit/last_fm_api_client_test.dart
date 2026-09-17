@@ -73,25 +73,58 @@ void main() {
       });
     });
 
+    group('cleanCredential', () {
+      test('removes quotes, whitespace, and hidden unicode characters', () {
+        expect(
+          LastFmApiClient.cleanCredential(
+              '" 979031f3a1b042ab166295f2b7bbfce3 "\n'),
+          equals('979031f3a1b042ab166295f2b7bbfce3'),
+        );
+      });
+
+      test('preserves dashes in tokens', () {
+        expect(
+          LastFmApiClient.cleanCredential('l6hr-QpRjScViMEFhrmVZPteTgLFi-K7'),
+          equals('l6hr-QpRjScViMEFhrmVZPteTgLFi-K7'),
+        );
+      });
+    });
+
     group('buildAuthUrl', () {
-      test('constructs standard authorization URL without callback', () {
+      test('constructs canonical authorization URL with trailing slash', () {
         final uri = LastFmApiClient.buildAuthUrl(
-          apiKey: 'my_api_key',
-          token: 'my_token',
+          apiKey: '979031f3a1b042ab166295f2b7bbfce3',
+          token: '25d3pyje5pk1kj6rzbyyrfbjqp2tzi01',
         );
 
         expect(uri.scheme, equals('https'));
         expect(uri.host, equals('www.last.fm'));
-        expect(uri.path, equals('/api/auth'));
-        expect(uri.queryParameters['api_key'], equals('my_api_key'));
-        expect(uri.queryParameters['token'], equals('my_token'));
+        expect(uri.path, equals('/api/auth/'));
+        expect(
+          uri.queryParameters['api_key'],
+          equals('979031f3a1b042ab166295f2b7bbfce3'),
+        );
+        expect(
+          uri.queryParameters['token'],
+          equals('25d3pyje5pk1kj6rzbyyrfbjqp2tzi01'),
+        );
         expect(uri.queryParameters.containsKey('cb'), isFalse);
+      });
+
+      test('throws ArgumentError when apiKey is empty', () {
+        expect(
+          () => LastFmApiClient.buildAuthUrl(
+            apiKey: '',
+            token: 'validtoken123',
+          ),
+          throwsArgumentError,
+        );
       });
 
       test('constructs authorization URL with callback when provided', () {
         final uri = LastFmApiClient.buildAuthUrl(
-          apiKey: 'my_api_key',
-          token: 'my_token',
+          apiKey: '979031f3a1b042ab166295f2b7bbfce3',
+          token: '25d3pyje5pk1kj6rzbyyrfbjqp2tzi01',
           callbackUrl: 'musii://auth-callback',
         );
 

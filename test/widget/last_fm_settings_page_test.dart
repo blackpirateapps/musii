@@ -22,6 +22,9 @@ class MockLastFmRepository implements LastFmRepository {
     String token,
   ) async => throw UnimplementedError();
 
+  String? mockApiKey;
+  String? mockToken;
+
   @override
   Future<Result<void, AppFailure>> disconnect() async => const Success(null);
 
@@ -29,15 +32,16 @@ class MockLastFmRepository implements LastFmRepository {
   Future<LastFmAccount?> getAccount() async => null;
 
   @override
-  Future<String?> getApiKey() async => null;
+  Future<String?> getApiKey() async => mockApiKey;
 
   @override
   Future<Result<String, AppFailure>> getAuthToken() async =>
-      throw UnimplementedError();
+      Success(mockToken ?? 'mock_token_123');
 
   @override
-  Future<Uri> getAuthUrl(String token) async =>
-      Uri.parse('https://example.com');
+  Future<Uri> getAuthUrl(String token) async => Uri.parse(
+    'https://www.last.fm/api/auth/?api_key=${mockApiKey ?? "979031f3a1b042ab166295f2b7bbfce3"}&token=$token',
+  );
 
   @override
   Future<String?> getApiSecret() async => null;
@@ -271,6 +275,60 @@ void main() {
         expect(find.text('Reconnect needed'), findsOneWidget);
         expect(find.text('Last.fm needs you to reconnect.'), findsOneWidget);
         expect(find.text('Reconnect'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'renders authorizing in browser view with copy auth link and re-open browser',
+      (tester) async {
+        tester.view.physicalSize = const Size(800, 1400);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        final mockRepo = MockLastFmRepository()
+          ..mockApiKey = '979031f3a1b042ab166295f2b7bbfce3'
+          ..mockToken = 'test_token_456';
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              lastFmRepositoryProvider.overrideWithValue(mockRepo),
+              lastFmAccountProvider.overrideWith((ref) => Stream.value(null)),
+              lastFmSettingsProvider.overrideWith(
+                (ref) => Stream.value(const ScrobbleSettings()),
+              ),
+              lastFmPendingScrobblesProvider.overrideWith(
+                (ref) => Stream.value([]),
+              ),
+            ],
+            child: const CupertinoApp(home: LastFmSettingsPage()),
+          ),
+        );
+
+        await tester.pumpAndSettle();
+
+        // Tap Connect Last.fm
+        await tester.tap(find.text('Connect Last.fm'));
+        await tester.pump();
+        await tester.pumpAndSettle();
+
+        expect(find.text('Authorizing in browser...'), findsOneWidget);
+        expect(find.text('Copy'), findsOneWidget);
+        expect(find.text('Re-open Browser'), findsOneWidget);
+        expect(find.text('Complete Connection'), findsOneWidget);
+
+        // Tap Copy link button
+        await tester.tap(find.text('Copy'));
+        await tester.pump();
+        expect(find.text('Copied'), findsOneWidget);
+
+        // Tap Cancel to dismiss
+        await tester.tap(find.text('Cancel'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Authorizing in browser...'), findsNothing);
+        expect(find.text('Connect Last.fm'), findsOneWidget);
       },
     );
   });
