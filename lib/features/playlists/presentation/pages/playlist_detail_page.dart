@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/bootstrap/providers.dart';
 import '../../../../core/constants/app_constants.dart';
-import '../../../library/domain/entities/music_entities.dart';
 import '../../../library/presentation/widgets/album_artwork.dart';
 import '../../../library/presentation/widgets/empty_state.dart';
 import '../../../library/presentation/widgets/song_row.dart';
@@ -54,18 +53,19 @@ class PlaylistDetailPage extends ConsumerWidget {
     final isDark = CupertinoTheme.brightnessOf(context) == Brightness.dark;
 
     final playlists = playlistsAsync.value ?? <Playlist>[];
-    final playlist =
-        playlists.where((p) => p.id == playlistId).firstOrNull ??
-        Playlist(
-          id: '',
-          name: 'Playlist',
-          createdAt: DateTime.fromMillisecondsSinceEpoch(0),
-          updatedAt: DateTime.fromMillisecondsSinceEpoch(0),
-        );
+    final playlist = playlists.where((p) => p.id == playlistId).firstOrNull ?? Playlist(
+      id: '',
+      name: 'Playlist',
+      createdAt: DateTime.fromMillisecondsSinceEpoch(0),
+      updatedAt: DateTime.fromMillisecondsSinceEpoch(0),
+    );
 
     return CupertinoPageScaffold(
+      backgroundColor: isDark ? CupertinoColors.black : CupertinoColors.systemBackground,
       navigationBar: CupertinoNavigationBar(
         previousPageTitle: 'Library',
+        backgroundColor: CupertinoColors.transparent,
+        border: null,
         trailing: CupertinoButton(
           padding: EdgeInsets.zero,
           minSize: 0,
@@ -74,17 +74,17 @@ class PlaylistDetailPage extends ConsumerWidget {
               _showDeleteConfirm(context, ref, playlist.name);
             }
           },
-          child: const Icon(
+          child: Icon(
             CupertinoIcons.trash,
-            color: CupertinoColors.destructiveRed,
-            size: 20,
+            color: isDark ? CupertinoColors.white.withOpacity(0.5) : CupertinoColors.black.withOpacity(0.5),
+            size: 22,
           ),
         ),
       ),
       child: SafeArea(
+        bottom: false,
         child: tracksAsync.when(
-          loading: () =>
-              const Center(child: CupertinoActivityIndicator(radius: 14)),
+          loading: () => const Center(child: CupertinoActivityIndicator(radius: 14)),
           error: (e, _) => EmptyState(
             icon: CupertinoIcons.exclamationmark_triangle,
             title: 'Error loading playlist',
@@ -93,117 +93,133 @@ class PlaylistDetailPage extends ConsumerWidget {
           data: (tracks) {
             final artworkSize = MediaQuery.of(context).size.width * 0.50;
 
+            Widget artworkWidget;
+            if (playlist.artworkPath != null && playlist.artworkPath!.isNotEmpty) {
+              artworkWidget = AlbumArtwork(
+                artworkPath: playlist.artworkPath,
+                size: artworkSize,
+                borderRadius: 16.0,
+              );
+            } else {
+              final arts = tracks
+                  .map((t) => t.artworkPath)
+                  .where((p) => p != null && p.isNotEmpty)
+                  .take(4)
+                  .toList();
+              
+              if (arts.isEmpty) {
+                artworkWidget = AlbumArtwork(
+                  title: playlist.name,
+                  size: artworkSize,
+                  borderRadius: 16.0,
+                );
+              } else if (arts.length < 4) {
+                 artworkWidget = AlbumArtwork(
+                  artworkPath: arts.first,
+                  size: artworkSize,
+                  borderRadius: 16.0,
+                );
+              } else {
+                artworkWidget = SizedBox(
+                  width: artworkSize,
+                  height: artworkSize,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16.0),
+                    child: Column(
+                      children: [
+                        Expanded(
+                          child: Row(
+                            children: [
+                              Expanded(child: AlbumArtwork(artworkPath: arts[0], size: double.infinity, borderRadius: 0)),
+                              const SizedBox(width: 2),
+                              Expanded(child: AlbumArtwork(artworkPath: arts[1], size: double.infinity, borderRadius: 0)),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Expanded(
+                          child: Row(
+                            children: [
+                              Expanded(child: AlbumArtwork(artworkPath: arts[2], size: double.infinity, borderRadius: 0)),
+                              const SizedBox(width: 2),
+                              Expanded(child: AlbumArtwork(artworkPath: arts[3], size: double.infinity, borderRadius: 0)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+            }
+
             return CustomScrollView(
               physics: const BouncingScrollPhysics(),
               slivers: [
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.all(AppSpacing.md),
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.lg),
                     child: Column(
                       children: [
                         Center(
-                          child: AlbumArtwork(
-                            artworkPath: playlist.artworkPath,
-                            title: playlist.name,
-                            size: artworkSize,
-                            borderRadius: AppRadii.card,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(16.0),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: CupertinoColors.black.withOpacity(isDark ? 0.4 : 0.15),
+                                  blurRadius: 24,
+                                  offset: const Offset(0, 12),
+                                ),
+                              ],
+                            ),
+                            child: artworkWidget,
                           ),
                         ),
-                        const SizedBox(height: AppSpacing.md),
+                        const SizedBox(height: 32),
                         Text(
                           playlist.name,
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            fontSize: 24,
+                            fontSize: 28,
                             fontWeight: FontWeight.w700,
-                            letterSpacing: -0.4,
-                            color: isDark
-                                ? CupertinoColors.white
-                                : CupertinoColors.black,
+                            letterSpacing: -0.5,
+                            color: isDark ? CupertinoColors.white : CupertinoColors.black,
                           ),
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 6),
                         Text(
                           '${tracks.length} ${tracks.length == 1 ? 'song' : 'songs'}',
                           style: TextStyle(
-                            fontSize: 13,
-                            color: isDark
-                                ? CupertinoColors.systemGrey
-                                : CupertinoColors.secondaryLabel,
+                            fontSize: 15,
+                            color: isDark ? CupertinoColors.white.withOpacity(0.6) : CupertinoColors.black.withOpacity(0.6),
                           ),
                         ),
-                        const SizedBox(height: AppSpacing.lg),
+                        const SizedBox(height: 32),
 
-                        // Play & Shuffle
+                        // Play
                         if (tracks.isNotEmpty)
                           Row(
                             children: [
                               Expanded(
-                                child: CupertinoButton.filled(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 12,
-                                  ),
-                                  borderRadius: BorderRadius.circular(
-                                    AppRadii.card,
-                                  ),
+                                child: CupertinoButton(
+                                  color: CupertinoColors.systemPink,
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  borderRadius: BorderRadius.circular(100),
                                   onPressed: () => ref
                                       .read(playbackRepositoryProvider)
                                       .playTrack(tracks.first, queue: tracks),
                                   child: const Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      Icon(CupertinoIcons.play_fill, size: 18),
+                                      Icon(CupertinoIcons.play_fill, size: 20, color: CupertinoColors.white),
                                       SizedBox(width: 8),
                                       Text(
                                         'Play',
                                         style: TextStyle(
                                           fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: AppSpacing.md),
-                              Expanded(
-                                child: CupertinoButton(
-                                  color: isDark
-                                      ? CupertinoColors.white.withOpacity(0.12)
-                                      : CupertinoColors.black.withOpacity(0.06),
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 12,
-                                  ),
-                                  borderRadius: BorderRadius.circular(
-                                    AppRadii.card,
-                                  ),
-                                  onPressed: () {
-                                    final shuffled = List<Track>.from(tracks)
-                                      ..shuffle();
-                                    ref
-                                        .read(playbackRepositoryProvider)
-                                        .playTrack(
-                                          shuffled.first,
-                                          queue: shuffled,
-                                        );
-                                  },
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(
-                                        CupertinoIcons.shuffle,
-                                        size: 18,
-                                        color: isDark
-                                            ? CupertinoColors.white
-                                            : CupertinoColors.black,
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        'Shuffle',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                          color: isDark
-                                              ? CupertinoColors.white
-                                              : CupertinoColors.black,
+                                          fontSize: 16,
+                                          color: CupertinoColors.white,
                                         ),
                                       ),
                                     ],
@@ -230,8 +246,7 @@ class PlaylistDetailPage extends ConsumerWidget {
                   SliverList(
                     delegate: SliverChildBuilderDelegate((context, index) {
                       final track = tracks[index];
-                      final isPlaying =
-                          playerState?.currentTrack?.id == track.id;
+                      final isPlaying = playerState?.currentTrack?.id == track.id;
                       return SongRow(
                         track: track,
                         isPlaying: isPlaying,
@@ -248,7 +263,7 @@ class PlaylistDetailPage extends ConsumerWidget {
                     }, childCount: tracks.length),
                   ),
 
-                const SliverToBoxAdapter(child: SizedBox(height: 100)),
+                const SliverToBoxAdapter(child: SizedBox(height: 120)),
               ],
             );
           },

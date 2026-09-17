@@ -1,6 +1,5 @@
 import 'package:flutter/cupertino.dart';
 
-import '../../../../core/constants/app_constants.dart';
 import '../../domain/entities/music_entities.dart';
 import 'album_artwork.dart';
 
@@ -35,21 +34,22 @@ class AlbumCard extends StatelessWidget {
               title: album.title,
               artist: album.artistName,
               size: width,
-              borderRadius: AppRadii.artwork,
+              borderRadius: 16.0,
             ),
-            const SizedBox(height: AppSpacing.xs),
+            const SizedBox(height: 12),
             Text(
               album.title,
-              maxLines: 1,
+              maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                fontSize: 14,
+                fontSize: 15,
                 fontWeight: FontWeight.w600,
+                height: 1.2,
                 letterSpacing: -0.2,
                 color: isDark ? CupertinoColors.white : CupertinoColors.black,
               ),
             ),
-            const SizedBox(height: 2),
+            const SizedBox(height: 4),
             Text(
               album.artistName ?? 'Unknown Artist',
               maxLines: 1,
@@ -58,7 +58,7 @@ class AlbumCard extends StatelessWidget {
                 fontSize: 13,
                 fontWeight: FontWeight.w400,
                 color: isDark
-                    ? CupertinoColors.systemGrey
+                    ? CupertinoColors.white.withOpacity(0.6)
                     : CupertinoColors.secondaryLabel,
               ),
             ),

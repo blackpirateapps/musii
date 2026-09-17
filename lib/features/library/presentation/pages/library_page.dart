@@ -4,10 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/bootstrap/providers.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../playlists/presentation/pages/playlist_detail_page.dart';
-import '../widgets/album_artwork.dart';
 import '../widgets/album_card.dart';
-import '../widgets/artist_row.dart';
+import '../widgets/artist_card.dart';
 import '../widgets/empty_state.dart';
+import '../widgets/playlist_card.dart';
 import '../widgets/song_row.dart';
 import '../widgets/track_overflow_sheet.dart';
 import 'album_detail_page.dart';
@@ -58,6 +58,53 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
     );
   }
 
+  Widget _buildTab(String title, int index, bool isDark) {
+    final isSelected = _selectedCategory == index;
+    return GestureDetector(
+      onTap: () {
+        if (_selectedCategory != index) {
+          setState(() => _selectedCategory = index);
+        }
+      },
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.only(right: 24.0, bottom: 8.0, top: 8.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 18,
+                letterSpacing: -0.2,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                color: isSelected
+                    ? (isDark ? CupertinoColors.white : CupertinoColors.black)
+                    : (isDark
+                        ? CupertinoColors.white.withOpacity(0.5)
+                        : CupertinoColors.black.withOpacity(0.5)),
+              ),
+            ),
+            const SizedBox(height: 6),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOutCubic,
+              height: 2,
+              width: isSelected ? 24 : 0,
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? (isDark ? CupertinoColors.white : CupertinoColors.black)
+                    : CupertinoColors.transparent,
+                borderRadius: BorderRadius.circular(1),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = CupertinoTheme.brightnessOf(context) == Brightness.dark;
@@ -72,56 +119,64 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
         physics: const BouncingScrollPhysics(),
         cacheExtent: 600.0,
         slivers: [
-          CupertinoSliverNavigationBar(
-            largeTitle: const Text('Library'),
-            border: null,
-            trailing: _selectedCategory == 3
-                ? CupertinoButton(
-                    padding: EdgeInsets.zero,
-                    minSize: 0,
-                    onPressed: _showNewPlaylistDialog,
-                    child: const Icon(
-                      CupertinoIcons.add,
-                      color: CupertinoColors.systemPink,
-                    ),
-                  )
-                : null,
-          ),
-
-          // Segmented Control Header
+          // Custom Quiet Header & Tabs
           SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.md,
-                0,
-                AppSpacing.md,
-                AppSpacing.md,
-              ),
-              child: SizedBox(
-                width: double.infinity,
-                child: CupertinoSlidingSegmentedControl<int>(
-                  groupValue: _selectedCategory,
-                  children: const {
-                    0: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 8),
-                      child: Text('Albums'),
+            child: SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.md,
+                  AppSpacing.md,
+                  AppSpacing.md,
+                  AppSpacing.sm,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Text(
+                          'Library',
+                          style: TextStyle(
+                            fontSize: 32,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -1.0,
+                            color: isDark
+                                ? CupertinoColors.white
+                                : CupertinoColors.black,
+                          ),
+                        ),
+                        if (_selectedCategory == 3)
+                          CupertinoButton(
+                            padding: EdgeInsets.zero,
+                            minSize: 0,
+                            onPressed: _showNewPlaylistDialog,
+                            child: Icon(
+                              CupertinoIcons.add,
+                              size: 24,
+                              color: isDark
+                                  ? CupertinoColors.white
+                                  : CupertinoColors.black,
+                            ),
+                          ),
+                      ],
                     ),
-                    1: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 8),
-                      child: Text('Artists'),
+                    const SizedBox(height: 24),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      physics: const BouncingScrollPhysics(),
+                      child: Row(
+                        children: [
+                          _buildTab('Albums', 0, isDark),
+                          _buildTab('Artists', 1, isDark),
+                          _buildTab('Songs', 2, isDark),
+                          _buildTab('Playlists', 3, isDark),
+                        ],
+                      ),
                     ),
-                    2: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 8),
-                      child: Text('Songs'),
-                    ),
-                    3: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 8),
-                      child: Text('Playlists'),
-                    ),
-                  },
-                  onValueChanged: (val) {
-                    if (val != null) setState(() => _selectedCategory = val);
-                  },
+                  ],
                 ),
               ),
             ),
@@ -153,11 +208,11 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                 }
 
                 final screenWidth = MediaQuery.of(context).size.width;
-                final crossAxisCount = screenWidth > 600 ? 4 : 3;
+                final crossAxisCount = screenWidth > 600 ? 4 : 2;
                 final itemWidth =
                     (screenWidth -
                         (AppSpacing.md * 2) -
-                        ((crossAxisCount - 1) * AppSpacing.sm)) /
+                        ((crossAxisCount - 1) * AppSpacing.md)) /
                     crossAxisCount;
 
                 return SliverPadding(
@@ -167,9 +222,9 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                   sliver: SliverGrid(
                     gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: crossAxisCount,
-                      crossAxisSpacing: AppSpacing.sm,
-                      mainAxisSpacing: AppSpacing.md,
-                      childAspectRatio: itemWidth / (itemWidth + 50),
+                      crossAxisSpacing: AppSpacing.md,
+                      mainAxisSpacing: 24.0,
+                      childAspectRatio: itemWidth / (itemWidth + 60),
                     ),
                     delegate: SliverChildBuilderDelegate((context, index) {
                       final album = albums[index];
@@ -215,21 +270,40 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                   );
                 }
 
-                return SliverList(
-                  delegate: SliverChildBuilderDelegate((context, index) {
-                    final artist = artists[index];
-                    return ArtistRow(
-                      artist: artist,
-                      onTap: () {
-                        Navigator.of(context).push(
-                          CupertinoPageRoute(
-                            builder: (_) =>
-                                ArtistDetailPage(artistId: artist.id),
-                          ),
-                        );
-                      },
-                    );
-                  }, childCount: artists.length),
+                final screenWidth = MediaQuery.of(context).size.width;
+                final crossAxisCount = screenWidth > 600 ? 4 : 2;
+                final itemWidth =
+                    (screenWidth -
+                        (AppSpacing.md * 2) -
+                        ((crossAxisCount - 1) * AppSpacing.md)) /
+                    crossAxisCount;
+
+                return SliverPadding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                  ),
+                  sliver: SliverGrid(
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: crossAxisCount,
+                      crossAxisSpacing: AppSpacing.md,
+                      mainAxisSpacing: 24.0,
+                      childAspectRatio: itemWidth / (itemWidth * (4/3) + 50),
+                    ),
+                    delegate: SliverChildBuilderDelegate((context, index) {
+                      final artist = artists[index];
+                      return ArtistCard(
+                        artist: artist,
+                        onTap: () {
+                          Navigator.of(context).push(
+                            CupertinoPageRoute(
+                              builder: (_) =>
+                                  ArtistDetailPage(artistId: artist.id),
+                            ),
+                          );
+                        },
+                      );
+                    }, childCount: artists.length),
+                  ),
                 );
               },
             ),
@@ -305,74 +379,40 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                   );
                 }
 
-                return SliverList(
-                  delegate: SliverChildBuilderDelegate((context, index) {
-                    final pl = playlists[index];
-                    return CupertinoButton(
-                      padding: EdgeInsets.zero,
-                      minSize: 0,
-                      onPressed: () {
-                        Navigator.of(context).push(
-                          CupertinoPageRoute(
-                            builder: (_) =>
-                                PlaylistDetailPage(playlistId: pl.id),
-                          ),
-                        );
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.md,
-                          vertical: AppSpacing.sm,
-                        ),
-                        child: Row(
-                          children: [
-                            AlbumArtwork(
-                              artworkPath: pl.artworkPath,
-                              title: pl.name,
-                              size: 52,
-                              borderRadius: AppRadii.card,
+                final screenWidth = MediaQuery.of(context).size.width;
+                final crossAxisCount = screenWidth > 600 ? 4 : 2;
+                final itemWidth =
+                    (screenWidth -
+                        (AppSpacing.md * 2) -
+                        ((crossAxisCount - 1) * AppSpacing.md)) /
+                    crossAxisCount;
+
+                return SliverPadding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                  ),
+                  sliver: SliverGrid(
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: crossAxisCount,
+                      crossAxisSpacing: AppSpacing.md,
+                      mainAxisSpacing: 24.0,
+                      childAspectRatio: itemWidth / (itemWidth + 60),
+                    ),
+                    delegate: SliverChildBuilderDelegate((context, index) {
+                      final pl = playlists[index];
+                      return PlaylistCard(
+                        playlist: pl,
+                        onTap: () {
+                          Navigator.of(context).push(
+                            CupertinoPageRoute(
+                              builder: (_) =>
+                                  PlaylistDetailPage(playlistId: pl.id),
                             ),
-                            const SizedBox(width: AppSpacing.md),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    pl.name,
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                      color: isDark
-                                          ? CupertinoColors.white
-                                          : CupertinoColors.black,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    '${pl.trackCount} ${pl.trackCount == 1 ? 'song' : 'songs'}',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      color: isDark
-                                          ? CupertinoColors.systemGrey
-                                          : CupertinoColors.secondaryLabel,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Icon(
-                              CupertinoIcons.chevron_forward,
-                              size: 18,
-                              color: isDark
-                                  ? CupertinoColors.systemGrey2
-                                  : CupertinoColors.systemGrey3,
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  }, childCount: playlists.length),
+                          );
+                        },
+                      );
+                    }, childCount: playlists.length),
+                  ),
                 );
               },
             ),

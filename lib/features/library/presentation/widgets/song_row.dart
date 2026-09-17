@@ -46,37 +46,37 @@ class SongRow extends StatelessWidget {
           onMore!();
         }
       },
-      child: Container(
+      child: Padding(
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.md,
-          vertical: AppSpacing.xs + 2,
+          vertical: 12.0,
         ),
         child: Row(
           children: [
             if (trackNumber != null)
               Container(
-                width: 28,
+                width: 32,
                 alignment: Alignment.centerLeft,
                 child: Text(
                   '$trackNumber',
                   style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w400,
                     color: isDark
-                        ? CupertinoColors.systemGrey
-                        : CupertinoColors.secondaryLabel,
+                        ? CupertinoColors.white.withOpacity(0.5)
+                        : CupertinoColors.black.withOpacity(0.5),
                   ),
                 ),
               )
             else
               Padding(
-                padding: const EdgeInsets.only(right: AppSpacing.sm),
+                padding: const EdgeInsets.only(right: 16.0),
                 child: AlbumArtwork(
                   artworkPath: track.artworkPath,
                   title: track.title,
                   artist: track.artistName,
-                  size: 46,
-                  borderRadius: AppRadii.small,
+                  size: 52,
+                  borderRadius: 10.0,
                 ),
               ),
             Expanded(
@@ -103,9 +103,9 @@ class SongRow extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: isPlaying
-                                ? FontWeight.w700
+                                ? FontWeight.w600
                                 : FontWeight.w500,
-                            letterSpacing: -0.3,
+                            letterSpacing: -0.2,
                             color: isPlaying
                                 ? CupertinoColors.systemPink
                                 : (isDark
@@ -116,7 +116,7 @@ class SongRow extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 4),
                   Row(
                     children: [
                       if (track.isPinnedOffline || track.isCached)
@@ -126,8 +126,8 @@ class SongRow extends StatelessWidget {
                             CupertinoIcons.arrow_down_circle_fill,
                             size: 12,
                             color: isDark
-                                ? CupertinoColors.systemGrey
-                                : CupertinoColors.secondaryLabel,
+                                ? CupertinoColors.white.withOpacity(0.4)
+                                : CupertinoColors.black.withOpacity(0.4),
                           ),
                         ),
                       Expanded(
@@ -136,11 +136,11 @@ class SongRow extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontSize: 13,
+                            fontSize: 14,
                             fontWeight: FontWeight.w400,
                             color: isDark
-                                ? CupertinoColors.systemGrey
-                                : CupertinoColors.secondaryLabel,
+                                ? CupertinoColors.white.withOpacity(0.6)
+                                : CupertinoColors.black.withOpacity(0.6),
                           ),
                         ),
                       ),
@@ -149,28 +149,28 @@ class SongRow extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(width: AppSpacing.xs),
+            const SizedBox(width: 12),
             Text(
               _formatDuration(track.durationMs),
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w400,
                 color: isDark
-                    ? CupertinoColors.systemGrey
-                    : CupertinoColors.secondaryLabel,
+                    ? CupertinoColors.white.withOpacity(0.4)
+                    : CupertinoColors.black.withOpacity(0.4),
               ),
             ),
             if (onMore != null)
               CupertinoButton(
-                padding: const EdgeInsets.only(left: AppSpacing.sm),
+                padding: const EdgeInsets.only(left: 12.0),
                 minSize: 0,
                 onPressed: onMore,
                 child: Icon(
                   CupertinoIcons.ellipsis,
                   size: 20,
                   color: isDark
-                      ? CupertinoColors.systemGrey
-                      : CupertinoColors.secondaryLabel,
+                      ? CupertinoColors.white.withOpacity(0.4)
+                      : CupertinoColors.black.withOpacity(0.4),
                 ),
               ),
           ],

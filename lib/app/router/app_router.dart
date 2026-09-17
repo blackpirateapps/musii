@@ -143,6 +143,15 @@ class _RootNavigationShellState extends ConsumerState<RootNavigationShell> {
                 CupertinoTabBar(
                   currentIndex: widget.navigationShell.currentIndex,
                   activeColor: CupertinoColors.systemPink,
+                  inactiveColor: CupertinoColors.systemGrey,
+                  iconSize: 24.0,
+                  backgroundColor: CupertinoColors.systemBackground.withOpacity(0.9),
+                  border: Border(
+                    top: BorderSide(
+                      color: CupertinoColors.systemGrey.withOpacity(0.2),
+                      width: 0.5,
+                    ),
+                  ),
                   onTap: (index) {
                     widget.navigationShell.goBranch(
                       index,
@@ -152,19 +161,31 @@ class _RootNavigationShellState extends ConsumerState<RootNavigationShell> {
                   },
                   items: const [
                     BottomNavigationBarItem(
-                      icon: Icon(CupertinoIcons.house_fill),
+                      icon: Padding(
+                        padding: EdgeInsets.only(bottom: 2.0),
+                        child: Icon(CupertinoIcons.house_fill),
+                      ),
                       label: 'Home',
                     ),
                     BottomNavigationBarItem(
-                      icon: Icon(CupertinoIcons.music_albums_fill),
+                      icon: Padding(
+                        padding: EdgeInsets.only(bottom: 2.0),
+                        child: Icon(CupertinoIcons.music_albums_fill),
+                      ),
                       label: 'Library',
                     ),
                     BottomNavigationBarItem(
-                      icon: Icon(CupertinoIcons.search),
+                      icon: Padding(
+                        padding: EdgeInsets.only(bottom: 2.0),
+                        child: Icon(CupertinoIcons.search),
+                      ),
                       label: 'Search',
                     ),
                     BottomNavigationBarItem(
-                      icon: Icon(CupertinoIcons.gear_solid),
+                      icon: Padding(
+                        padding: EdgeInsets.only(bottom: 2.0),
+                        child: Icon(CupertinoIcons.gear_solid),
+                      ),
                       label: 'Settings',
                     ),
                   ],

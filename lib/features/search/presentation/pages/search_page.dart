@@ -9,7 +9,7 @@ import '../../../library/presentation/pages/album_detail_page.dart';
 import '../../../library/presentation/pages/artist_detail_page.dart';
 import '../../../library/presentation/widgets/album_artwork.dart';
 import '../../../library/presentation/widgets/album_card.dart';
-import '../../../library/presentation/widgets/artist_row.dart';
+import '../../../library/presentation/widgets/artist_card.dart';
 import '../../../library/presentation/widgets/empty_state.dart';
 import '../../../library/presentation/widgets/section_header.dart';
 import '../../../library/presentation/widgets/song_row.dart';
@@ -160,14 +160,27 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                     // 3. Artists Results
                     if (results.artists.isNotEmpty) ...[
                       const SectionHeader(title: 'Artists'),
-                      ...results.artists.map(
-                        (artist) => ArtistRow(
-                          artist: artist,
-                          onTap: () {
-                            Navigator.of(context).push(
-                              CupertinoPageRoute(
-                                builder: (_) =>
-                                    ArtistDetailPage(artistId: artist.id),
+                      SizedBox(
+                        height: 200,
+                        child: ListView.separated(
+                          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                          scrollDirection: Axis.horizontal,
+                          physics: const BouncingScrollPhysics(),
+                          itemCount: results.artists.length,
+                          separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.md),
+                          itemBuilder: (context, index) {
+                            final artist = results.artists[index];
+                            return SizedBox(
+                              width: 120,
+                              child: ArtistCard(
+                                artist: artist,
+                                onTap: () {
+                                  Navigator.of(context).push(
+                                    CupertinoPageRoute(
+                                      builder: (_) => ArtistDetailPage(artistId: artist.id),
+                                    ),
+                                  );
+                                },
                               ),
                             );
                           },
