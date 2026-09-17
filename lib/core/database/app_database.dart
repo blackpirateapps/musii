@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import 'tables.dart';
+import '../../features/metadata/domain/services/metadata_normalization_service.dart';
 
 part 'app_database.g.dart';
 
@@ -39,7 +40,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? e]) : super(e ?? _openConnection());
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration {
@@ -117,11 +118,90 @@ class AppDatabase extends _$AppDatabase {
             'CREATE INDEX IF NOT EXISTS idx_discovered_files_sync ON discovered_files(sync_run_id);',
           );
         }
+        if (from < 6) {
+          await m.alterTable(TableMigration(
+            albums,
+            columnTransformer: {
+              albums.albumKey: albums.id,
+            },
+          ));
+          await reconcileDuplicateAlbums();
+        }
       },
       beforeOpen: (details) async {
         await customStatement('PRAGMA foreign_keys = ON');
       },
     );
+  }
+
+  Future<void> reconcileDuplicateAlbums() async {
+    final allAlbums = await select(albums).get();
+    final Map<String, List<AlbumRow>> groupedAlbums = {};
+
+    for (final album in allAlbums) {
+      final tracksInAlbum =
+          await (select(tracks)..where((t) => t.albumId.equals(album.id))).get();
+      String effectiveArtist = album.artistName ?? 'Unknown Artist';
+      for (final track in tracksInAlbum) {
+        if (track.albumArtist != null && track.albumArtist!.trim().isNotEmpty) {
+          effectiveArtist = track.albumArtist!;
+          break;
+        }
+      }
+
+      final canonicalKey = MetadataNormalizationService.computeAlbumKey(
+        albumName: album.title,
+        albumArtist: effectiveArtist,
+        trackArtist: album.artistName ?? 'Unknown Artist',
+      );
+
+      groupedAlbums.putIfAbsent(canonicalKey, () => []).add(album);
+    }
+
+    for (final entry in groupedAlbums.entries) {
+      final key = entry.key;
+      final group = entry.value;
+
+      if (group.length == 1) {
+        await (update(albums)..where((t) => t.id.equals(group.first.id)))
+            .write(AlbumsCompanion(albumKey: Value(key)));
+        continue;
+      }
+
+      group.sort((a, b) {
+        if ((a.artworkPath != null) != (b.artworkPath != null)) {
+          return a.artworkPath != null ? -1 : 1;
+        }
+        if (a.trackCount != b.trackCount) {
+          return b.trackCount.compareTo(a.trackCount);
+        }
+        return a.id.compareTo(b.id);
+      });
+
+      final survivor = group.first;
+      final duplicates = group.skip(1).toList();
+
+      for (final dup in duplicates) {
+        await (update(tracks)..where((t) => t.albumId.equals(dup.id)))
+            .write(TracksCompanion(albumId: Value(survivor.id)));
+        await (delete(albums)..where((t) => t.id.equals(dup.id))).go();
+      }
+
+      await (update(albums)..where((t) => t.id.equals(survivor.id)))
+          .write(AlbumsCompanion(albumKey: Value(key)));
+
+      final survivorTracks =
+          await (select(tracks)..where((t) => t.albumId.equals(survivor.id)))
+              .get();
+      final totalMs =
+          survivorTracks.fold<int>(0, (sum, t) => sum + t.durationMs);
+      await (update(albums)..where((t) => t.id.equals(survivor.id))).write(
+        AlbumsCompanion(
+          trackCount: Value(survivorTracks.length),
+          totalDurationMs: Value(totalMs),
+        ),
+      );
+    }
   }
 }
 

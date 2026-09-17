@@ -1708,6 +1708,18 @@ class $AlbumsTable extends Albums with TableInfo<$AlbumsTable, AlbumRow> {
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _albumKeyMeta = const VerificationMeta(
+    'albumKey',
+  );
+  @override
+  late final GeneratedColumn<String> albumKey = GeneratedColumn<String>(
+    'album_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'),
+  );
   static const VerificationMeta _titleMeta = const VerificationMeta('title');
   @override
   late final GeneratedColumn<String> title = GeneratedColumn<String>(
@@ -1797,6 +1809,7 @@ class $AlbumsTable extends Albums with TableInfo<$AlbumsTable, AlbumRow> {
   @override
   List<GeneratedColumn> get $columns => [
     id,
+    albumKey,
     title,
     normalizedTitle,
     artistId,
@@ -1822,6 +1835,14 @@ class $AlbumsTable extends Albums with TableInfo<$AlbumsTable, AlbumRow> {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
     } else if (isInserting) {
       context.missing(_idMeta);
+    }
+    if (data.containsKey('album_key')) {
+      context.handle(
+        _albumKeyMeta,
+        albumKey.isAcceptableOrUnknown(data['album_key']!, _albumKeyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_albumKeyMeta);
     }
     if (data.containsKey('title')) {
       context.handle(
@@ -1897,6 +1918,10 @@ class $AlbumsTable extends Albums with TableInfo<$AlbumsTable, AlbumRow> {
         DriftSqlType.string,
         data['${effectivePrefix}id'],
       )!,
+      albumKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}album_key'],
+      )!,
       title: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}title'],
@@ -1940,6 +1965,7 @@ class $AlbumsTable extends Albums with TableInfo<$AlbumsTable, AlbumRow> {
 
 class AlbumRow extends DataClass implements Insertable<AlbumRow> {
   final String id;
+  final String albumKey;
   final String title;
   final String normalizedTitle;
   final String? artistId;
@@ -1950,6 +1976,7 @@ class AlbumRow extends DataClass implements Insertable<AlbumRow> {
   final int totalDurationMs;
   const AlbumRow({
     required this.id,
+    required this.albumKey,
     required this.title,
     required this.normalizedTitle,
     this.artistId,
@@ -1963,6 +1990,7 @@ class AlbumRow extends DataClass implements Insertable<AlbumRow> {
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
+    map['album_key'] = Variable<String>(albumKey);
     map['title'] = Variable<String>(title);
     map['normalized_title'] = Variable<String>(normalizedTitle);
     if (!nullToAbsent || artistId != null) {
@@ -1985,6 +2013,7 @@ class AlbumRow extends DataClass implements Insertable<AlbumRow> {
   AlbumsCompanion toCompanion(bool nullToAbsent) {
     return AlbumsCompanion(
       id: Value(id),
+      albumKey: Value(albumKey),
       title: Value(title),
       normalizedTitle: Value(normalizedTitle),
       artistId: artistId == null && nullToAbsent
@@ -2009,6 +2038,7 @@ class AlbumRow extends DataClass implements Insertable<AlbumRow> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return AlbumRow(
       id: serializer.fromJson<String>(json['id']),
+      albumKey: serializer.fromJson<String>(json['albumKey']),
       title: serializer.fromJson<String>(json['title']),
       normalizedTitle: serializer.fromJson<String>(json['normalizedTitle']),
       artistId: serializer.fromJson<String?>(json['artistId']),
@@ -2024,6 +2054,7 @@ class AlbumRow extends DataClass implements Insertable<AlbumRow> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
+      'albumKey': serializer.toJson<String>(albumKey),
       'title': serializer.toJson<String>(title),
       'normalizedTitle': serializer.toJson<String>(normalizedTitle),
       'artistId': serializer.toJson<String?>(artistId),
@@ -2037,6 +2068,7 @@ class AlbumRow extends DataClass implements Insertable<AlbumRow> {
 
   AlbumRow copyWith({
     String? id,
+    String? albumKey,
     String? title,
     String? normalizedTitle,
     Value<String?> artistId = const Value.absent(),
@@ -2047,6 +2079,7 @@ class AlbumRow extends DataClass implements Insertable<AlbumRow> {
     int? totalDurationMs,
   }) => AlbumRow(
     id: id ?? this.id,
+    albumKey: albumKey ?? this.albumKey,
     title: title ?? this.title,
     normalizedTitle: normalizedTitle ?? this.normalizedTitle,
     artistId: artistId.present ? artistId.value : this.artistId,
@@ -2059,6 +2092,7 @@ class AlbumRow extends DataClass implements Insertable<AlbumRow> {
   AlbumRow copyWithCompanion(AlbumsCompanion data) {
     return AlbumRow(
       id: data.id.present ? data.id.value : this.id,
+      albumKey: data.albumKey.present ? data.albumKey.value : this.albumKey,
       title: data.title.present ? data.title.value : this.title,
       normalizedTitle: data.normalizedTitle.present
           ? data.normalizedTitle.value
@@ -2084,6 +2118,7 @@ class AlbumRow extends DataClass implements Insertable<AlbumRow> {
   String toString() {
     return (StringBuffer('AlbumRow(')
           ..write('id: $id, ')
+          ..write('albumKey: $albumKey, ')
           ..write('title: $title, ')
           ..write('normalizedTitle: $normalizedTitle, ')
           ..write('artistId: $artistId, ')
@@ -2099,6 +2134,7 @@ class AlbumRow extends DataClass implements Insertable<AlbumRow> {
   @override
   int get hashCode => Object.hash(
     id,
+    albumKey,
     title,
     normalizedTitle,
     artistId,
@@ -2113,6 +2149,7 @@ class AlbumRow extends DataClass implements Insertable<AlbumRow> {
       identical(this, other) ||
       (other is AlbumRow &&
           other.id == this.id &&
+          other.albumKey == this.albumKey &&
           other.title == this.title &&
           other.normalizedTitle == this.normalizedTitle &&
           other.artistId == this.artistId &&
@@ -2125,6 +2162,7 @@ class AlbumRow extends DataClass implements Insertable<AlbumRow> {
 
 class AlbumsCompanion extends UpdateCompanion<AlbumRow> {
   final Value<String> id;
+  final Value<String> albumKey;
   final Value<String> title;
   final Value<String> normalizedTitle;
   final Value<String?> artistId;
@@ -2136,6 +2174,7 @@ class AlbumsCompanion extends UpdateCompanion<AlbumRow> {
   final Value<int> rowid;
   const AlbumsCompanion({
     this.id = const Value.absent(),
+    this.albumKey = const Value.absent(),
     this.title = const Value.absent(),
     this.normalizedTitle = const Value.absent(),
     this.artistId = const Value.absent(),
@@ -2148,6 +2187,7 @@ class AlbumsCompanion extends UpdateCompanion<AlbumRow> {
   });
   AlbumsCompanion.insert({
     required String id,
+    required String albumKey,
     required String title,
     required String normalizedTitle,
     this.artistId = const Value.absent(),
@@ -2158,10 +2198,12 @@ class AlbumsCompanion extends UpdateCompanion<AlbumRow> {
     this.totalDurationMs = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
+       albumKey = Value(albumKey),
        title = Value(title),
        normalizedTitle = Value(normalizedTitle);
   static Insertable<AlbumRow> custom({
     Expression<String>? id,
+    Expression<String>? albumKey,
     Expression<String>? title,
     Expression<String>? normalizedTitle,
     Expression<String>? artistId,
@@ -2174,6 +2216,7 @@ class AlbumsCompanion extends UpdateCompanion<AlbumRow> {
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
+      if (albumKey != null) 'album_key': albumKey,
       if (title != null) 'title': title,
       if (normalizedTitle != null) 'normalized_title': normalizedTitle,
       if (artistId != null) 'artist_id': artistId,
@@ -2188,6 +2231,7 @@ class AlbumsCompanion extends UpdateCompanion<AlbumRow> {
 
   AlbumsCompanion copyWith({
     Value<String>? id,
+    Value<String>? albumKey,
     Value<String>? title,
     Value<String>? normalizedTitle,
     Value<String?>? artistId,
@@ -2200,6 +2244,7 @@ class AlbumsCompanion extends UpdateCompanion<AlbumRow> {
   }) {
     return AlbumsCompanion(
       id: id ?? this.id,
+      albumKey: albumKey ?? this.albumKey,
       title: title ?? this.title,
       normalizedTitle: normalizedTitle ?? this.normalizedTitle,
       artistId: artistId ?? this.artistId,
@@ -2217,6 +2262,9 @@ class AlbumsCompanion extends UpdateCompanion<AlbumRow> {
     final map = <String, Expression>{};
     if (id.present) {
       map['id'] = Variable<String>(id.value);
+    }
+    if (albumKey.present) {
+      map['album_key'] = Variable<String>(albumKey.value);
     }
     if (title.present) {
       map['title'] = Variable<String>(title.value);
@@ -2252,6 +2300,7 @@ class AlbumsCompanion extends UpdateCompanion<AlbumRow> {
   String toString() {
     return (StringBuffer('AlbumsCompanion(')
           ..write('id: $id, ')
+          ..write('albumKey: $albumKey, ')
           ..write('title: $title, ')
           ..write('normalizedTitle: $normalizedTitle, ')
           ..write('artistId: $artistId, ')
@@ -12556,6 +12605,7 @@ typedef $$ArtistsTableProcessedTableManager =
     >;
 typedef $$AlbumsTableCreateCompanionBuilder = AlbumsCompanion Function({
   required String id,
+  required String albumKey,
   required String title,
   required String normalizedTitle,
   Value<String?> artistId,
@@ -12568,6 +12618,7 @@ typedef $$AlbumsTableCreateCompanionBuilder = AlbumsCompanion Function({
 });
 typedef $$AlbumsTableUpdateCompanionBuilder = AlbumsCompanion Function({
   Value<String> id,
+  Value<String> albumKey,
   Value<String> title,
   Value<String> normalizedTitle,
   Value<String?> artistId,
@@ -12590,6 +12641,11 @@ class $$AlbumsTableFilterComposer
   });
   ColumnFilters<String> get id => $composableBuilder(
     column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get albumKey => $composableBuilder(
+    column: $table.albumKey,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -12648,6 +12704,11 @@ class $$AlbumsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get albumKey => $composableBuilder(
+    column: $table.albumKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get title => $composableBuilder(
     column: $table.title,
     builder: (column) => ColumnOrderings(column),
@@ -12700,6 +12761,9 @@ class $$AlbumsTableAnnotationComposer
   });
   GeneratedColumn<String> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get albumKey =>
+      $composableBuilder(column: $table.albumKey, builder: (column) => column);
 
   GeneratedColumn<String> get title =>
       $composableBuilder(column: $table.title, builder: (column) => column);
@@ -12765,6 +12829,7 @@ class $$AlbumsTableTableManager
           updateCompanionCallback:
               ({
                 Value<String> id = const Value.absent(),
+                Value<String> albumKey = const Value.absent(),
                 Value<String> title = const Value.absent(),
                 Value<String> normalizedTitle = const Value.absent(),
                 Value<String?> artistId = const Value.absent(),
@@ -12776,6 +12841,7 @@ class $$AlbumsTableTableManager
                 Value<int> rowid = const Value.absent(),
               }) => AlbumsCompanion(
                 id: id,
+                albumKey: albumKey,
                 title: title,
                 normalizedTitle: normalizedTitle,
                 artistId: artistId,
@@ -12789,6 +12855,7 @@ class $$AlbumsTableTableManager
           createCompanionCallback:
               ({
                 required String id,
+                required String albumKey,
                 required String title,
                 required String normalizedTitle,
                 Value<String?> artistId = const Value.absent(),
@@ -12800,6 +12867,7 @@ class $$AlbumsTableTableManager
                 Value<int> rowid = const Value.absent(),
               }) => AlbumsCompanion.insert(
                 id: id,
+                albumKey: albumKey,
                 title: title,
                 normalizedTitle: normalizedTitle,
                 artistId: artistId,

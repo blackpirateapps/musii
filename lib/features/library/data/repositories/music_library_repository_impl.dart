@@ -1356,28 +1356,64 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
         );
 
     // 2. Album
-    final albumId = 'album_${meta.normalizedArtist}_${meta.normalizedAlbum}';
+    final effectiveAlbumArtist = (meta.albumArtist != null && meta.albumArtist!.trim().isNotEmpty)
+        ? meta.albumArtist!
+        : meta.artist;
+
+    final canonicalAlbumKey = MetadataNormalizationService.computeAlbumKey(
+      albumName: meta.album,
+      albumArtist: meta.albumArtist,
+      trackArtist: meta.artist,
+    );
+
     final artworkKey = MetadataNormalizationService.computeArtworkKey(
       meta.album,
-      meta.artist,
+      effectiveAlbumArtist,
     );
     final artworkFile = _fileSystem.getArtworkCacheFile(artworkKey);
 
-    await _database
-        .into(_database.albums)
-        .insertOnConflictUpdate(
-          AlbumsCompanion(
-            id: Value(albumId),
-            title: Value(meta.album),
-            normalizedTitle: Value(meta.normalizedAlbum),
-            artistId: Value(artistId),
-            artistName: Value(meta.artist),
-            year: Value(meta.year),
-            artworkPath: artworkFile.existsSync()
-                ? Value(artworkFile.path)
-                : const Value(null),
-          ),
-        );
+    final existingAlbum = await (_database.select(_database.albums)
+          ..where((tbl) => tbl.albumKey.equals(canonicalAlbumKey)))
+        .getSingleOrNull();
+
+    final String albumId;
+    if (existingAlbum != null) {
+      albumId = existingAlbum.id;
+      if (existingAlbum.artworkPath == null && artworkFile.existsSync()) {
+        await (_database.update(_database.albums)
+              ..where((tbl) => tbl.id.equals(albumId)))
+            .write(AlbumsCompanion(artworkPath: Value(artworkFile.path)));
+      }
+    } else {
+      albumId = 'album_$canonicalAlbumKey';
+      
+      // Ensure the album artist exists in Artists table
+      final albumArtistId = 'artist_${canonicalAlbumKey.split("::").last}';
+      if (albumArtistId != artistId) {
+         await _database.into(_database.artists).insertOnConflictUpdate(
+           ArtistsCompanion(
+             id: Value(albumArtistId),
+             name: Value(effectiveAlbumArtist),
+             normalizedName: Value(canonicalAlbumKey.split("::").last),
+           ),
+         );
+      }
+
+      await _database.into(_database.albums).insert(
+            AlbumsCompanion(
+              id: Value(albumId),
+              albumKey: Value(canonicalAlbumKey),
+              title: Value(meta.album),
+              normalizedTitle: Value(meta.normalizedAlbum),
+              artistId: Value(albumArtistId),
+              artistName: Value(effectiveAlbumArtist),
+              year: Value(meta.year),
+              artworkPath: artworkFile.existsSync()
+                  ? Value(artworkFile.path)
+                  : const Value(null),
+            ),
+          );
+    }
 
     // 3. Genre
     if (meta.genre != null && meta.normalizedGenre != null) {

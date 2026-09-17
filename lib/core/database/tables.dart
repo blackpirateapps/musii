@@ -52,6 +52,7 @@ class Artists extends Table {
 @DataClassName('AlbumRow')
 class Albums extends Table {
   TextColumn get id => text()();
+  TextColumn get albumKey => text().unique()();
   TextColumn get title => text()();
   TextColumn get normalizedTitle => text()();
   TextColumn get artistId => text().nullable()();

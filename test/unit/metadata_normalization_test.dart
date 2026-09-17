@@ -92,4 +92,62 @@ void main() {
       },
     );
   });
+  group('MetadataNormalizationService - computeAlbumKey', () {
+    test('normalization matches ignoring case and whitespace', () {
+      final key1 = MetadataNormalizationService.computeAlbumKey(
+        albumName: 'Discovery',
+        albumArtist: 'Daft Punk',
+        trackArtist: 'Daft Punk',
+      );
+      final key2 = MetadataNormalizationService.computeAlbumKey(
+        albumName: ' discovery ',
+        albumArtist: 'daft punk',
+        trackArtist: 'Daft Punk',
+      );
+      final key3 = MetadataNormalizationService.computeAlbumKey(
+        albumName: 'DISCOVERY',
+        albumArtist: 'daft punk',
+        trackArtist: 'Daft Punk',
+      );
+
+      expect(key1, equals(key2));
+      expect(key1, equals(key3));
+    });
+
+    test('different artists with same album name generate different keys', () {
+      final key1 = MetadataNormalizationService.computeAlbumKey(
+        albumName: 'Greatest Hits',
+        albumArtist: 'Artist A',
+        trackArtist: 'Artist A',
+      );
+      final key2 = MetadataNormalizationService.computeAlbumKey(
+        albumName: 'Greatest Hits',
+        albumArtist: 'Artist B',
+        trackArtist: 'Artist B',
+      );
+
+      expect(key1, isNot(equals(key2)));
+    });
+
+    test('uses track artist when album artist is empty or null', () {
+      final key1 = MetadataNormalizationService.computeAlbumKey(
+        albumName: 'Album',
+        albumArtist: '',
+        trackArtist: 'Track Artist',
+      );
+      final key2 = MetadataNormalizationService.computeAlbumKey(
+        albumName: 'Album',
+        albumArtist: null,
+        trackArtist: 'Track Artist',
+      );
+      final key3 = MetadataNormalizationService.computeAlbumKey(
+        albumName: 'Album',
+        albumArtist: 'Track Artist',
+        trackArtist: 'Different Track Artist',
+      );
+
+      expect(key1, equals(key2));
+      expect(key1, equals(key3));
+    });
+  });
 }

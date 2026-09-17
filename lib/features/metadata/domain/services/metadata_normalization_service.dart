@@ -225,4 +225,19 @@ class MetadataNormalizationService {
     final combined = '$normArtist:$normAlbum';
     return md5.convert(utf8.encode(combined)).toString();
   }
+
+  static String computeAlbumKey({
+    required String albumName,
+    required String? albumArtist,
+    required String trackArtist,
+  }) {
+    final effectiveArtist = (albumArtist != null && albumArtist.trim().isNotEmpty)
+        ? albumArtist
+        : trackArtist;
+    
+    final normAlbum = _createSearchKey(_normalizeAlbum(albumName));
+    final normArtist = _createSearchKey(_normalizeArtist(effectiveArtist));
+    
+    return '$normAlbum::$normArtist';
+  }
 }

@@ -276,6 +276,10 @@ Located in `lib/app/theme/app_theme.dart`, `lib/app/app.dart`, `lib/features/set
     - When interrupting an active sync session to switch folders, always request cancellation via `SyncCancellationToken` and await `_activeSyncCompleter!.future` before modifying sync state or database records. This guarantees the previous sync's atomic transaction, file deletions, and `_isSyncRunning` teardown complete cleanly before the new folder sync begins. Furthermore, never overwrite `DiscoveredFiles` without scoping by `syncRunId`, ensuring resumed syncs can accurately bypass remote Google Drive scans when `discoveryCompleted == true`.
 12. **Cupertino Dynamic Theme Resolution & WidgetsBindingObserver**:
     - `CupertinoApp.router` requires explicit `CupertinoThemeData` to update when system brightness toggles. Hardcoding `theme: AppTheme.lightTheme` prevents brightness inheritance. `MusiiApp` registers a `WidgetsBindingObserver` to trigger reactive frame rebuilds upon `didChangePlatformBrightness()`, dynamically supplying `AppTheme.darkTheme` or `AppTheme.lightTheme` according to user settings and device state.
+13. **Canonical Album Identity & Duplicate Reconciliation**:
+    - **Issue**: Syncing tracks from compilation albums or tracks with different case/whitespace could result in duplicate conceptual albums (e.g., "Discovery" and " discovery ").
+    - **Solution**: Implemented a canonical `albumKey` (`albumName::effectiveAlbumArtist`) utilizing deterministic normalization. `effectiveAlbumArtist` prioritizes `albumArtist` over the individual `trackArtist` when available.
+    - **Database Changes**: Schema version updated to v6. `albumKey` added to `Albums` table with a `UNIQUE` constraint. `TableMigration` maps existing `id` to `albumKey` temporarily, followed by a programmatic reconciliation loop (`_reconcileDuplicateAlbums`) that groups albums, reassigns tracks to surviving canonical albums, safely merges metadata, and deletes duplicate rows to satisfy `albumKey` uniqueness without rebuilding the library.
 
 ---
 
