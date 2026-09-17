@@ -82,8 +82,8 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                 color: isSelected
                     ? (isDark ? CupertinoColors.white : CupertinoColors.black)
                     : (isDark
-                        ? CupertinoColors.white.withOpacity(0.5)
-                        : CupertinoColors.black.withOpacity(0.5)),
+                          ? CupertinoColors.white.withOpacity(0.5)
+                          : CupertinoColors.black.withOpacity(0.5)),
               ),
             ),
             const SizedBox(height: 6),
@@ -287,7 +287,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                       crossAxisCount: crossAxisCount,
                       crossAxisSpacing: AppSpacing.md,
                       mainAxisSpacing: 24.0,
-                      childAspectRatio: itemWidth / (itemWidth * (4/3) + 50),
+                      childAspectRatio: itemWidth / (itemWidth * (4 / 3) + 50),
                     ),
                     delegate: SliverChildBuilderDelegate((context, index) {
                       final artist = artists[index];

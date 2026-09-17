@@ -28,7 +28,9 @@ void main() {
         appDatabaseProvider.overrideWithValue(db),
         settingsRepositoryProvider.overrideWithValue(settingsRepo),
         if (initialMode != null)
-          themeModeProvider.overrideWith(() => _MockThemeModeNotifier(initialMode, settingsRepo)),
+          themeModeProvider.overrideWith(
+            () => _MockThemeModeNotifier(initialMode, settingsRepo),
+          ),
         playerStateProvider.overrideWith(
           (ref) => Stream.value(const PlayerStateSnapshot()),
         ),
@@ -57,33 +59,40 @@ void main() {
       await tester.pumpWidget(buildTestApp());
       await tester.pumpAndSettle();
 
-      final cupertinoApp = tester.widget<CupertinoApp>(find.byType(CupertinoApp));
+      final cupertinoApp = tester.widget<CupertinoApp>(
+        find.byType(CupertinoApp),
+      );
       expect(cupertinoApp.theme?.brightness, equals(Brightness.dark));
 
       await tester.pumpWidget(const SizedBox());
     });
 
-    testWidgets('adapts to light mode when system platform brightness is light', (
-      tester,
-    ) async {
-      tester.platformDispatcher.platformBrightnessTestValue = Brightness.light;
-      addTearDown(() {
-        tester.platformDispatcher.clearPlatformBrightnessTestValue();
-      });
+    testWidgets(
+      'adapts to light mode when system platform brightness is light',
+      (tester) async {
+        tester.platformDispatcher.platformBrightnessTestValue =
+            Brightness.light;
+        addTearDown(() {
+          tester.platformDispatcher.clearPlatformBrightnessTestValue();
+        });
 
-      await tester.pumpWidget(buildTestApp());
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(buildTestApp());
+        await tester.pumpAndSettle();
 
-      final cupertinoApp = tester.widget<CupertinoApp>(find.byType(CupertinoApp));
-      expect(cupertinoApp.theme?.brightness, equals(Brightness.light));
+        final cupertinoApp = tester.widget<CupertinoApp>(
+          find.byType(CupertinoApp),
+        );
+        expect(cupertinoApp.theme?.brightness, equals(Brightness.light));
 
-      await tester.pumpWidget(const SizedBox());
-    });
+        await tester.pumpWidget(const SizedBox());
+      },
+    );
 
     testWidgets(
       'forces dark mode when themeMode is set to dark, even with light system brightness',
       (tester) async {
-        tester.platformDispatcher.platformBrightnessTestValue = Brightness.light;
+        tester.platformDispatcher.platformBrightnessTestValue =
+            Brightness.light;
         await settingsRepo.setThemeMode(AppThemeMode.dark);
 
         addTearDown(() {
@@ -93,7 +102,9 @@ void main() {
         await tester.pumpWidget(buildTestApp(initialMode: AppThemeMode.dark));
         await tester.pumpAndSettle();
 
-        final cupertinoApp = tester.widget<CupertinoApp>(find.byType(CupertinoApp));
+        final cupertinoApp = tester.widget<CupertinoApp>(
+          find.byType(CupertinoApp),
+        );
         expect(cupertinoApp.theme?.brightness, equals(Brightness.dark));
 
         await tester.pumpWidget(const SizedBox());
@@ -113,7 +124,9 @@ void main() {
         await tester.pumpWidget(buildTestApp(initialMode: AppThemeMode.light));
         await tester.pumpAndSettle();
 
-        final cupertinoApp = tester.widget<CupertinoApp>(find.byType(CupertinoApp));
+        final cupertinoApp = tester.widget<CupertinoApp>(
+          find.byType(CupertinoApp),
+        );
         expect(cupertinoApp.theme?.brightness, equals(Brightness.light));
 
         await tester.pumpWidget(const SizedBox());

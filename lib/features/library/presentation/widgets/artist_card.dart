@@ -16,7 +16,8 @@ class ArtistCard extends ConsumerWidget {
     final isDark = CupertinoTheme.brightnessOf(context) == Brightness.dark;
 
     // Lazily fetch official artist portrait if missing
-    if (artist.artworkPath == null || !artist.artworkPath!.contains('artist_')) {
+    if (artist.artworkPath == null ||
+        !artist.artworkPath!.contains('artist_')) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         ref.read(artistArtworkDownloaderProvider).downloadArtistArtwork(artist);
       });

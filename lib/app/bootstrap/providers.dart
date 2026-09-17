@@ -157,8 +157,9 @@ class ThemeModeNotifier extends Notifier<AppThemeMode> {
   }
 }
 
-final themeModeProvider =
-    NotifierProvider<ThemeModeNotifier, AppThemeMode>(ThemeModeNotifier.new);
+final themeModeProvider = NotifierProvider<ThemeModeNotifier, AppThemeMode>(
+  ThemeModeNotifier.new,
+);
 
 // Connectivity
 final connectivityServiceProvider = Provider<ConnectivityService>((ref) {
@@ -214,8 +215,9 @@ final currentTrackLyricsProvider = StreamProvider<TrackLyrics?>((ref) {
 });
 
 // Artist Artwork Downloader
-final artistArtworkDownloaderProvider =
-    Provider<ArtistArtworkDownloader>((ref) {
+final artistArtworkDownloaderProvider = Provider<ArtistArtworkDownloader>((
+  ref,
+) {
   final fs = ref.watch(appFileSystemProvider);
   final db = ref.watch(appDatabaseProvider);
   return ArtistArtworkDownloader(fileSystem: fs, database: db);

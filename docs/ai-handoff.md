@@ -4,7 +4,7 @@
 > **Target Audience**: Incoming AI Coding Assistants & Human Software Engineers  
 > **Last Verified**: September 2026  
 > **App Identifier**: `com.blackpirateapps.musii`  
-> **Test Status**: 163 / 163 Passing (`flutter test`), 0 Analyzer Warnings (`flutter analyze`)
+> **Test Status**: 173 / 173 Passing (`flutter test`), 0 Analyzer Warnings (`flutter analyze`)
 
 ---
 
@@ -217,8 +217,17 @@ Located in `lib/app/bootstrap/bootstrap.dart`, `lib/core/services/notification_p
   - **Restored State Broadcasting**: `restoreSavedState()` must call `_broadcastPlaybackState()` after restoring the queue and media item. Without this, Android has no `PlaybackState` to render and the media notification will not appear after app restart.
   - **Artwork Resolution in Queue Restore**: `artworkPath` is not stored in the `Tracks` table — it is resolved dynamically via `MetadataNormalizationService.computeArtworkKey()` + `AppFileSystem.getArtworkCacheFile()`. The `_resolveArtworkPath()` helper in `MusiiAudioHandler` mirrors this pattern for restored tracks.
 
-### 7. Wi-Fi Pre-Caching & In-Memory Artwork Retention
-Located in `lib/core/services/connectivity_service.dart`, `lib/features/cache/`, `lib/features/library/presentation/widgets/album_artwork.dart`, and `lib/features/playback/`:
+### 7. Wi-Fi Pre-Caching, In-Memory Artwork Retention & Folder Artwork Discovery
+Located in `lib/core/services/connectivity_service.dart`, `lib/features/cache/`, `lib/features/library/presentation/widgets/album_artwork.dart`, `lib/features/metadata/domain/services/folder_artwork_resolver.dart`, and `lib/features/playback/`:
+- **Folder-Based Album Artwork Extraction**:
+  - When audio tracks lack embedded artwork (ID3 `APIC`, Vorbis picture, MP4 `covr`), Google Drive discovery captures folder image files (`.jpg`, `.jpeg`, `.png`, `.webp`).
+  - `FolderArtworkResolver` resolves the best candidate image:
+    1. Case-insensitive standard names in immediate folder: `cover`, `folder`, `front`, `albumart`, `album`, `artwork`.
+    2. Case-insensitive standard names in parent folder (for multi-disc releases like `CD1/`, `CD2/`).
+    3. Any valid image file in immediate folder.
+    4. Any valid image file in parent folder.
+  - Downloaded to `_fileSystem.getArtworkCacheFile(artworkKey)` ahead of database transactions, saving the path directly to `Albums.artworkPath`.
+  - All tracks in the album automatically inherit the artwork path dynamically via `_resolveArtworkPath`.
 - **Wi-Fi Pre-Caching Engine**:
   - When connected to Wi-Fi/Ethernet, automatically pre-fetches the next up to 3 upcoming queue tracks sequentially in background without interrupting playback.
   - In-flight download deduplication (`_inFlightDownloads`) in `CacheRepositoryImpl` prevents duplicate network downloads and concurrency race conditions.
@@ -291,6 +300,9 @@ Located in `lib/app/theme/app_theme.dart`, `lib/app/app.dart`, `lib/features/set
 14. **CupertinoTabBar Dynamic Opacity & Artist Artwork Resolution Pipeline**:
     - **CupertinoDynamicColor withOpacity() Gotcha**: Never call `.withOpacity()` directly on `CupertinoDynamicColor` instances (like `CupertinoColors.systemBackground.withOpacity(0.9)`). Because `CupertinoDynamicColor` extends `Color`, `.withOpacity()` strips dynamic brightness resolution and evaluates the light base ARGB value (`0xFFFFFFFF`), rendering a white background in dark mode. Always resolve brightness dynamically via `CupertinoTheme.brightnessOf(context) == Brightness.dark` before calculating bar translucent colors.
     - **Artist Artwork Resolution & Deezer Integration**: Audio file tags (MP3 ID3, FLAC Vorbis, MP4 covr) only embed album artwork. To prevent artist profiles from defaulting to empty initial-letter tiles, `MusicLibraryRepositoryImpl` applies a two-stage pipeline: (1) Immediate local fallback to the artist's first indexed album artwork for 100% offline visual presentation; (2) Background download of official artist photography via Deezer's public API (`https://api.deezer.com/search/artist?q={name}`) with zero API key requirement, caching files under `AppFileSystem.getArtworkCacheFile('artist_{normalizedName}')` and updating `Artists.artworkPath` in SQLite reactively.
+15. **Folder-Based Album Artwork Discovery & Precedence Pipeline**:
+    - **Issue**: Albums without embedded ID3/Vorbis/MP4 artwork previously rendered fallback initial-letter gradients, even when high-resolution `cover.jpg` or `folder.png` files were present in the album's Google Drive directory.
+    - **Solution**: Google Drive discovery in `listAudioFilesRecursively` captures image files (`.jpg`, `.jpeg`, `.png`, `.webp` and `image/*` MIME types), building a `folderImagesMap` alongside audio files. When a track lacks embedded artwork, `FolderArtworkResolver` selects the best candidate image using case-insensitive standard names (`cover`, `folder`, `front`, `albumart`, `album`, `artwork`), falling back to parent folders for multi-disc layouts (e.g. `CD1/`, `CD2/`) and arbitrary image files as final fallback. The selected image is downloaded and cached at `_fileSystem.getArtworkCacheFile(artworkKey)` ahead of database transactions, saving `artworkPath` to `Albums` and ensuring all tracks in the album inherit it automatically.
 
 ---
 
@@ -306,7 +318,7 @@ dart run build_runner build --delete-conflicting-outputs
 # Verify static analysis (must be 0 issues)
 flutter analyze
 
-# Run all tests (all 157 tests must pass)
+# Run all tests (all 173 tests must pass)
 flutter test
 
 # Auto-format Dart source code

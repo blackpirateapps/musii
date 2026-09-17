@@ -18,9 +18,9 @@ class ArtistArtworkDownloader {
     http.Client? client,
     required AppFileSystem fileSystem,
     required AppDatabase database,
-  })  : _client = client ?? http.Client(),
-        _fileSystem = fileSystem,
-        _database = database;
+  }) : _client = client ?? http.Client(),
+       _fileSystem = fileSystem,
+       _database = database;
 
   /// Fetches and saves an artist's official photo from Deezer's public API.
   /// Returns the local cached image file path if successful, or null on failure.
@@ -37,9 +37,12 @@ class ArtistArtworkDownloader {
     }
 
     // 2. Check if already cached in AppFileSystem
-    final cacheFile = _fileSystem.getArtworkCacheFile('artist_${artist.normalizedName}');
+    final cacheFile = _fileSystem.getArtworkCacheFile(
+      'artist_${artist.normalizedName}',
+    );
     if (cacheFile.existsSync()) {
-      await (_database.update(_database.artists)..where((tbl) => tbl.id.equals(artist.id)))
+      await (_database.update(_database.artists)
+            ..where((tbl) => tbl.id.equals(artist.id)))
           .write(ArtistsCompanion(artworkPath: Value(cacheFile.path)));
       return cacheFile.path;
     }
@@ -49,7 +52,9 @@ class ArtistArtworkDownloader {
       final uri = Uri.parse(
         'https://api.deezer.com/search/artist?q=${Uri.encodeComponent(artistName)}',
       );
-      final response = await _client.get(uri).timeout(const Duration(seconds: 10));
+      final response = await _client
+          .get(uri)
+          .timeout(const Duration(seconds: 10));
 
       if (response.statusCode != 200) {
         AppLogger.debug(
@@ -71,9 +76,11 @@ class ArtistArtworkDownloader {
 
       // Pick first result
       final firstMatch = data.first as Map<String, dynamic>;
-      final pictureUrl = (firstMatch['picture_big'] ??
-              firstMatch['picture_medium'] ??
-              firstMatch['picture']) as String?;
+      final pictureUrl =
+          (firstMatch['picture_big'] ??
+                  firstMatch['picture_medium'] ??
+                  firstMatch['picture'])
+              as String?;
 
       if (pictureUrl == null || pictureUrl.isEmpty) {
         return null;
@@ -91,7 +98,8 @@ class ArtistArtworkDownloader {
         await cacheFile.writeAsBytes(imgResponse.bodyBytes, flush: true);
 
         // Update database record
-        await (_database.update(_database.artists)..where((tbl) => tbl.id.equals(artist.id)))
+        await (_database.update(_database.artists)
+              ..where((tbl) => tbl.id.equals(artist.id)))
             .write(ArtistsCompanion(artworkPath: Value(cacheFile.path)));
 
         AppLogger.info(
@@ -115,7 +123,8 @@ class ArtistArtworkDownloader {
   /// Downloads missing artist artworks in the background with small delays to avoid bursting.
   Future<void> downloadMissingArtworks(List<Artist> artists) async {
     for (final artist in artists) {
-      final hasLocal = artist.artworkPath != null &&
+      final hasLocal =
+          artist.artworkPath != null &&
           artist.artworkPath!.isNotEmpty &&
           File(artist.artworkPath!).existsSync();
       if (!hasLocal) {

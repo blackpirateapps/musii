@@ -32,10 +32,11 @@ class FakeGoogleDriveRepository implements GoogleDriveRepository {
     void Function(int discoveredCount)? onProgress,
     void Function(DriveFileItem file)? onFileDiscovered,
     void Function(List<String> pendingFolders, Set<String> visitedFolders)?
-        onFolderStateChanged,
+    onFolderStateChanged,
     List<String>? initialFolderQueue,
     Set<String>? initialVisitedFolders,
     bool Function()? isCancelled,
+    Map<String, String?>? folderParentMap,
   }) async {
     listCallCount++;
     if (isCancelled?.call() == true) {
@@ -732,306 +733,288 @@ void main() {
       expect(fakeDrive.downloadCallCount, equals(0));
     });
 
-    test(
-      'ZERO RESCAN ON RESUME: sync stopped after discovery restores discovered files from DB and makes 0 Drive list calls on resume',
-      () async {
-        final now = DateTime(2026, 9, 17, 12, 0);
-        fakeDrive.filesToReturn = [
-          DriveFileItem(
-            id: 'df_1',
-            name: 'Song 1.mp3',
-            mimeType: 'audio/mpeg',
-            size: 1000,
-            modifiedTime: now,
-            parentFolderId: 'root',
-          ),
-          DriveFileItem(
-            id: 'df_2',
-            name: 'Song 2.mp3',
-            mimeType: 'audio/mpeg',
-            size: 2000,
-            modifiedTime: now,
-            parentFolderId: 'root',
-          ),
-          DriveFileItem(
-            id: 'df_3',
-            name: 'Song 3.mp3',
-            mimeType: 'audio/mpeg',
-            size: 3000,
-            modifiedTime: now,
-            parentFolderId: 'root',
-          ),
-        ];
+    test('ZERO RESCAN ON RESUME: sync stopped after discovery restores discovered files from DB and makes 0 Drive list calls on resume', () async {
+      final now = DateTime(2026, 9, 17, 12, 0);
+      fakeDrive.filesToReturn = [
+        DriveFileItem(
+          id: 'df_1',
+          name: 'Song 1.mp3',
+          mimeType: 'audio/mpeg',
+          size: 1000,
+          modifiedTime: now,
+          parentFolderId: 'root',
+        ),
+        DriveFileItem(
+          id: 'df_2',
+          name: 'Song 2.mp3',
+          mimeType: 'audio/mpeg',
+          size: 2000,
+          modifiedTime: now,
+          parentFolderId: 'root',
+        ),
+        DriveFileItem(
+          id: 'df_3',
+          name: 'Song 3.mp3',
+          mimeType: 'audio/mpeg',
+          size: 3000,
+          modifiedTime: now,
+          parentFolderId: 'root',
+        ),
+      ];
 
-        // 1. Start sync and stop it after 1 track is processed
-        int processedCallbackCount = 0;
-        await libraryRepo.syncLibrary(
-          rootFolderId: 'root',
-          rootFolderName: 'Music',
-          onProgress: (p) {
-            if (p.filesProcessed == 1 && processedCallbackCount == 0) {
-              processedCallbackCount++;
-              libraryRepo.stopSync();
-            }
-          },
-        );
+      // 1. Start sync and stop it after 1 track is processed
+      int processedCallbackCount = 0;
+      await libraryRepo.syncLibrary(
+        rootFolderId: 'root',
+        rootFolderName: 'Music',
+        onProgress: (p) {
+          if (p.filesProcessed == 1 && processedCallbackCount == 0) {
+            processedCallbackCount++;
+            libraryRepo.stopSync();
+          }
+        },
+      );
 
-        // Verify discovery was completed and 1 track was processed
-        final lastSession = await libraryRepo.getLastSyncSession();
-        expect(lastSession, isNotNull);
-        expect(lastSession!.phase, equals(SyncPhase.stopped));
-        expect(lastSession.filesDiscovered, equals(3));
-        expect(fakeDrive.listCallCount, equals(1));
+      // Verify discovery was completed and 1 track was processed
+      final lastSession = await libraryRepo.getLastSyncSession();
+      expect(lastSession, isNotNull);
+      expect(lastSession!.phase, equals(SyncPhase.stopped));
+      expect(lastSession.filesDiscovered, equals(3));
+      expect(fakeDrive.listCallCount, equals(1));
 
-        // Reset drive call counters
-        fakeDrive.listCallCount = 0;
-        fakeDrive.downloadCallCount = 0;
-        fakeDrive.downloadedFileIds.clear();
+      // Reset drive call counters
+      fakeDrive.listCallCount = 0;
+      fakeDrive.downloadCallCount = 0;
+      fakeDrive.downloadedFileIds.clear();
 
-        // 2. Resume sync — MUST NOT call listAudioFilesRecursively again!
-        final resumeResult = await libraryRepo.resumeSync();
-        expect(resumeResult.isSuccess, isTrue);
+      // 2. Resume sync — MUST NOT call listAudioFilesRecursively again!
+      final resumeResult = await libraryRepo.resumeSync();
+      expect(resumeResult.isSuccess, isTrue);
 
-        // ZERO Drive list calls on resume!
-        expect(fakeDrive.listCallCount, equals(0));
+      // ZERO Drive list calls on resume!
+      expect(fakeDrive.listCallCount, equals(0));
 
-        // Remaining tracks (df_2, df_3) were processed
-        expect(fakeDrive.downloadedFileIds, containsAll(['df_2', 'df_3']));
-        expect(fakeDrive.downloadedFileIds, isNot(contains('df_1')));
+      // Remaining tracks (df_2, df_3) were processed
+      expect(fakeDrive.downloadedFileIds, containsAll(['df_2', 'df_3']));
+      expect(fakeDrive.downloadedFileIds, isNot(contains('df_1')));
 
-        final allTracks = await libraryRepo.watchAllTracks().first;
-        expect(allTracks.length, equals(3));
-      },
-    );
+      final allTracks = await libraryRepo.watchAllTracks().first;
+      expect(allTracks.length, equals(3));
+    });
 
-    test(
-      'FOLDER SWITCH DURING ACTIVE SCANNING: selecting new folder stops active scan and syncs only new folder',
-      () async {
-        final now = DateTime(2026, 9, 17, 12, 0);
+    test('FOLDER SWITCH DURING ACTIVE SCANNING: selecting new folder stops active scan and syncs only new folder', () async {
+      final now = DateTime(2026, 9, 17, 12, 0);
 
-        final folderAFiles = [
-          DriveFileItem(
-            id: 'df_a1',
-            name: 'Track A1.mp3',
-            mimeType: 'audio/mpeg',
-            size: 1000,
-            modifiedTime: now,
-            parentFolderId: 'folder_a',
-          ),
-          DriveFileItem(
-            id: 'df_a2',
-            name: 'Track A2.mp3',
-            mimeType: 'audio/mpeg',
-            size: 2000,
-            modifiedTime: now,
-            parentFolderId: 'folder_a',
-          ),
-        ];
+      final folderAFiles = [
+        DriveFileItem(
+          id: 'df_a1',
+          name: 'Track A1.mp3',
+          mimeType: 'audio/mpeg',
+          size: 1000,
+          modifiedTime: now,
+          parentFolderId: 'folder_a',
+        ),
+        DriveFileItem(
+          id: 'df_a2',
+          name: 'Track A2.mp3',
+          mimeType: 'audio/mpeg',
+          size: 2000,
+          modifiedTime: now,
+          parentFolderId: 'folder_a',
+        ),
+      ];
 
-        final folderBFiles = [
-          DriveFileItem(
-            id: 'df_b1',
-            name: 'Track B1.mp3',
-            mimeType: 'audio/mpeg',
-            size: 1000,
-            modifiedTime: now,
-            parentFolderId: 'folder_b',
-          ),
-        ];
+      final folderBFiles = [
+        DriveFileItem(
+          id: 'df_b1',
+          name: 'Track B1.mp3',
+          mimeType: 'audio/mpeg',
+          size: 1000,
+          modifiedTime: now,
+          parentFolderId: 'folder_b',
+        ),
+      ];
 
-        fakeDrive.filesToReturn = folderAFiles;
+      fakeDrive.filesToReturn = folderAFiles;
 
-        // Start sync for Folder A
-        final syncFutureA = libraryRepo.syncLibrary(
-          rootFolderId: 'folder_a',
-          rootFolderName: 'Folder A',
-        );
+      // Start sync for Folder A
+      final syncFutureA = libraryRepo.syncLibrary(
+        rootFolderId: 'folder_a',
+        rootFolderName: 'Folder A',
+      );
 
-        // While Folder A sync is in progress, switch to Folder B
-        fakeDrive.filesToReturn = folderBFiles;
-        final syncFutureB = libraryRepo.syncLibrary(
-          rootFolderId: 'folder_b',
-          rootFolderName: 'Folder B',
-        );
+      // While Folder A sync is in progress, switch to Folder B
+      fakeDrive.filesToReturn = folderBFiles;
+      final syncFutureB = libraryRepo.syncLibrary(
+        rootFolderId: 'folder_b',
+        rootFolderName: 'Folder B',
+      );
 
-        final results = await Future.wait([syncFutureA, syncFutureB]);
-        expect(results[0].isSuccess, isTrue);
-        expect(results[1].isSuccess, isTrue);
+      final results = await Future.wait([syncFutureA, syncFutureB]);
+      expect(results[0].isSuccess, isTrue);
+      expect(results[1].isSuccess, isTrue);
 
-        // Library should contain ONLY tracks from Folder B!
-        final allTracks = await libraryRepo.watchAllTracks().first;
-        expect(allTracks.length, equals(1));
-        expect(allTracks.first.driveFileId, equals('df_b1'));
+      // Library should contain ONLY tracks from Folder B!
+      final allTracks = await libraryRepo.watchAllTracks().first;
+      expect(allTracks.length, equals(1));
+      expect(allTracks.first.driveFileId, equals('df_b1'));
 
-        // Music source should point to Folder B
-        final source = await (db.select(db.musicSources)).getSingle();
-        expect(source.rootFolderId, equals('folder_b'));
-        expect(source.rootFolderName, equals('Folder B'));
-      },
-    );
+      // Music source should point to Folder B
+      final source = await (db.select(db.musicSources)).getSingle();
+      expect(source.rootFolderId, equals('folder_b'));
+      expect(source.rootFolderName, equals('Folder B'));
+    });
 
-    test(
-      'FOLDER SWITCH DURING METADATA EXTRACTION: halts old sync, prunes old tracks, and syncs new folder',
-      () async {
-        final now = DateTime(2026, 9, 17, 12, 0);
+    test('FOLDER SWITCH DURING METADATA EXTRACTION: halts old sync, prunes old tracks, and syncs new folder', () async {
+      final now = DateTime(2026, 9, 17, 12, 0);
 
-        final folderAFiles = [
-          DriveFileItem(
-            id: 'df_a1',
-            name: 'Track A1.mp3',
-            mimeType: 'audio/mpeg',
-            size: 1000,
-            modifiedTime: now,
-            parentFolderId: 'folder_a',
-          ),
-          DriveFileItem(
-            id: 'df_a2',
-            name: 'Track A2.mp3',
-            mimeType: 'audio/mpeg',
-            size: 2000,
-            modifiedTime: now,
-            parentFolderId: 'folder_a',
-          ),
-          DriveFileItem(
-            id: 'df_a3',
-            name: 'Track A3.mp3',
-            mimeType: 'audio/mpeg',
-            size: 3000,
-            modifiedTime: now,
-            parentFolderId: 'folder_a',
-          ),
-        ];
+      final folderAFiles = [
+        DriveFileItem(
+          id: 'df_a1',
+          name: 'Track A1.mp3',
+          mimeType: 'audio/mpeg',
+          size: 1000,
+          modifiedTime: now,
+          parentFolderId: 'folder_a',
+        ),
+        DriveFileItem(
+          id: 'df_a2',
+          name: 'Track A2.mp3',
+          mimeType: 'audio/mpeg',
+          size: 2000,
+          modifiedTime: now,
+          parentFolderId: 'folder_a',
+        ),
+        DriveFileItem(
+          id: 'df_a3',
+          name: 'Track A3.mp3',
+          mimeType: 'audio/mpeg',
+          size: 3000,
+          modifiedTime: now,
+          parentFolderId: 'folder_a',
+        ),
+      ];
 
-        final folderBFiles = [
-          DriveFileItem(
-            id: 'df_b1',
-            name: 'Track B1.mp3',
-            mimeType: 'audio/mpeg',
-            size: 1000,
-            modifiedTime: now,
-            parentFolderId: 'folder_b',
-          ),
-          DriveFileItem(
-            id: 'df_b2',
-            name: 'Track B2.mp3',
-            mimeType: 'audio/mpeg',
-            size: 2000,
-            modifiedTime: now,
-            parentFolderId: 'folder_b',
-          ),
-        ];
+      final folderBFiles = [
+        DriveFileItem(
+          id: 'df_b1',
+          name: 'Track B1.mp3',
+          mimeType: 'audio/mpeg',
+          size: 1000,
+          modifiedTime: now,
+          parentFolderId: 'folder_b',
+        ),
+        DriveFileItem(
+          id: 'df_b2',
+          name: 'Track B2.mp3',
+          mimeType: 'audio/mpeg',
+          size: 2000,
+          modifiedTime: now,
+          parentFolderId: 'folder_b',
+        ),
+      ];
 
-        fakeDrive.filesToReturn = folderAFiles;
+      fakeDrive.filesToReturn = folderAFiles;
 
-        int folderASwitchTriggered = 0;
-        Future<Result<void, AppFailure>>? syncFutureB;
+      int folderASwitchTriggered = 0;
+      Future<Result<void, AppFailure>>? syncFutureB;
 
-        await libraryRepo.syncLibrary(
-          rootFolderId: 'folder_a',
-          rootFolderName: 'Folder A',
-          onProgress: (p) {
-            if (p.filesProcessed == 1 && folderASwitchTriggered == 0) {
-              folderASwitchTriggered++;
-              fakeDrive.filesToReturn = folderBFiles;
-              syncFutureB = libraryRepo.syncLibrary(
-                rootFolderId: 'folder_b',
-                rootFolderName: 'Folder B',
-              );
-            }
-          },
-        );
+      await libraryRepo.syncLibrary(
+        rootFolderId: 'folder_a',
+        rootFolderName: 'Folder A',
+        onProgress: (p) {
+          if (p.filesProcessed == 1 && folderASwitchTriggered == 0) {
+            folderASwitchTriggered++;
+            fakeDrive.filesToReturn = folderBFiles;
+            syncFutureB = libraryRepo.syncLibrary(
+              rootFolderId: 'folder_b',
+              rootFolderName: 'Folder B',
+            );
+          }
+        },
+      );
 
-        if (syncFutureB != null) {
-          final resB = await syncFutureB!;
-          expect(resB.isSuccess, isTrue);
-        }
+      if (syncFutureB != null) {
+        final resB = await syncFutureB!;
+        expect(resB.isSuccess, isTrue);
+      }
 
-        // Library must contain only Folder B tracks!
-        final allTracks = await libraryRepo.watchAllTracks().first;
-        expect(allTracks.length, equals(2));
-        expect(
-          allTracks.map((t) => t.driveFileId),
-          containsAll(['df_b1', 'df_b2']),
-        );
-        expect(
-          allTracks.map((t) => t.driveFileId),
-          isNot(contains('df_a1')),
-        );
-      },
-    );
+      // Library must contain only Folder B tracks!
+      final allTracks = await libraryRepo.watchAllTracks().first;
+      expect(allTracks.length, equals(2));
+      expect(
+        allTracks.map((t) => t.driveFileId),
+        containsAll(['df_b1', 'df_b2']),
+      );
+      expect(allTracks.map((t) => t.driveFileId), isNot(contains('df_a1')));
+    });
 
-    test(
-      'RAPID MULTI-FOLDER SWITCHING: executing Folder A -> B -> C in rapid succession runs only Folder C',
-      () async {
-        final now = DateTime(2026, 9, 17, 12, 0);
+    test('RAPID MULTI-FOLDER SWITCHING: executing Folder A -> B -> C in rapid succession runs only Folder C', () async {
+      final now = DateTime(2026, 9, 17, 12, 0);
 
-        fakeDrive.filesToReturn = [
-          DriveFileItem(
-            id: 'df_c1',
-            name: 'Track C1.mp3',
-            mimeType: 'audio/mpeg',
-            size: 1000,
-            modifiedTime: now,
-            parentFolderId: 'folder_c',
-          ),
-        ];
+      fakeDrive.filesToReturn = [
+        DriveFileItem(
+          id: 'df_c1',
+          name: 'Track C1.mp3',
+          mimeType: 'audio/mpeg',
+          size: 1000,
+          modifiedTime: now,
+          parentFolderId: 'folder_c',
+        ),
+      ];
 
-        final futureA = libraryRepo.syncLibrary(
-          rootFolderId: 'folder_a',
-          rootFolderName: 'Folder A',
-        );
-        final futureB = libraryRepo.syncLibrary(
-          rootFolderId: 'folder_b',
-          rootFolderName: 'Folder B',
-        );
-        final futureC = libraryRepo.syncLibrary(
-          rootFolderId: 'folder_c',
-          rootFolderName: 'Folder C',
-        );
+      final futureA = libraryRepo.syncLibrary(
+        rootFolderId: 'folder_a',
+        rootFolderName: 'Folder A',
+      );
+      final futureB = libraryRepo.syncLibrary(
+        rootFolderId: 'folder_b',
+        rootFolderName: 'Folder B',
+      );
+      final futureC = libraryRepo.syncLibrary(
+        rootFolderId: 'folder_c',
+        rootFolderName: 'Folder C',
+      );
 
-        await Future.wait([futureA, futureB, futureC]);
+      await Future.wait([futureA, futureB, futureC]);
 
-        final allTracks = await libraryRepo.watchAllTracks().first;
-        expect(allTracks.length, equals(1));
-        expect(allTracks.first.driveFileId, equals('df_c1'));
+      final allTracks = await libraryRepo.watchAllTracks().first;
+      expect(allTracks.length, equals(1));
+      expect(allTracks.first.driveFileId, equals('df_c1'));
 
-        final source = await (db.select(db.musicSources)).getSingle();
-        expect(source.rootFolderId, equals('folder_c'));
-      },
-    );
+      final source = await (db.select(db.musicSources)).getSingle();
+      expect(source.rootFolderId, equals('folder_c'));
+    });
 
-    test(
-      'NEW SYNC AFTER COMPLETION RESCANS DRIVE: subsequent sync after completion performs fresh scan',
-      () async {
-        final now = DateTime(2026, 9, 17, 12, 0);
+    test('NEW SYNC AFTER COMPLETION RESCANS DRIVE: subsequent sync after completion performs fresh scan', () async {
+      final now = DateTime(2026, 9, 17, 12, 0);
 
-        fakeDrive.filesToReturn = [
-          DriveFileItem(
-            id: 'df_1',
-            name: 'Track 1.mp3',
-            mimeType: 'audio/mpeg',
-            size: 1000,
-            modifiedTime: now,
-            parentFolderId: 'root',
-          ),
-        ];
+      fakeDrive.filesToReturn = [
+        DriveFileItem(
+          id: 'df_1',
+          name: 'Track 1.mp3',
+          mimeType: 'audio/mpeg',
+          size: 1000,
+          modifiedTime: now,
+          parentFolderId: 'root',
+        ),
+      ];
 
-        // 1. Complete initial sync
-        final res1 = await libraryRepo.syncLibrary(
-          rootFolderId: 'root',
-          rootFolderName: 'Music',
-        );
-        expect(res1.isSuccess, isTrue);
-        expect(fakeDrive.listCallCount, equals(1));
+      // 1. Complete initial sync
+      final res1 = await libraryRepo.syncLibrary(
+        rootFolderId: 'root',
+        rootFolderName: 'Music',
+      );
+      expect(res1.isSuccess, isTrue);
+      expect(fakeDrive.listCallCount, equals(1));
 
-        // 2. Complete subsequent sync (isResume: false)
-        fakeDrive.listCallCount = 0;
-        final res2 = await libraryRepo.syncFromSavedFolder();
-        expect(res2.isSuccess, isTrue);
+      // 2. Complete subsequent sync (isResume: false)
+      fakeDrive.listCallCount = 0;
+      final res2 = await libraryRepo.syncFromSavedFolder();
+      expect(res2.isSuccess, isTrue);
 
-        // A new sync (not resume) MUST rescan Drive!
-        expect(fakeDrive.listCallCount, equals(1));
-      },
-    );
+      // A new sync (not resume) MUST rescan Drive!
+      expect(fakeDrive.listCallCount, equals(1));
+    });
   });
 }

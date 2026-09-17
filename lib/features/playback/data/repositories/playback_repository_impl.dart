@@ -107,13 +107,17 @@ class MusiiAudioHandler extends BaseAudioHandler
     queue.add(_currentQueue.map((item) => _toMediaItem(item.track)).toList());
   }
 
-  void _broadcastPlaybackState({bool isRestore = false, bool jumpStart = false}) {
+  void _broadcastPlaybackState({
+    bool isRestore = false,
+    bool jumpStart = false,
+  }) {
     if (_loadingTrackId != null) return;
     final isPlaying = jumpStart ? true : _player.playing;
     final processing = _player.processingState;
 
     final audioProcessing = switch (processing) {
-      ProcessingState.idle => isRestore ? AudioProcessingState.ready : AudioProcessingState.idle,
+      ProcessingState.idle =>
+        isRestore ? AudioProcessingState.ready : AudioProcessingState.idle,
       ProcessingState.loading => AudioProcessingState.loading,
       ProcessingState.buffering => AudioProcessingState.buffering,
       ProcessingState.ready => AudioProcessingState.ready,

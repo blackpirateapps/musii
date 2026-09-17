@@ -53,15 +53,19 @@ class PlaylistDetailPage extends ConsumerWidget {
     final isDark = CupertinoTheme.brightnessOf(context) == Brightness.dark;
 
     final playlists = playlistsAsync.value ?? <Playlist>[];
-    final playlist = playlists.where((p) => p.id == playlistId).firstOrNull ?? Playlist(
-      id: '',
-      name: 'Playlist',
-      createdAt: DateTime.fromMillisecondsSinceEpoch(0),
-      updatedAt: DateTime.fromMillisecondsSinceEpoch(0),
-    );
+    final playlist =
+        playlists.where((p) => p.id == playlistId).firstOrNull ??
+        Playlist(
+          id: '',
+          name: 'Playlist',
+          createdAt: DateTime.fromMillisecondsSinceEpoch(0),
+          updatedAt: DateTime.fromMillisecondsSinceEpoch(0),
+        );
 
     return CupertinoPageScaffold(
-      backgroundColor: isDark ? CupertinoColors.black : CupertinoColors.systemBackground,
+      backgroundColor: isDark
+          ? CupertinoColors.black
+          : CupertinoColors.systemBackground,
       navigationBar: CupertinoNavigationBar(
         previousPageTitle: 'Library',
         backgroundColor: CupertinoColors.transparent,
@@ -76,7 +80,9 @@ class PlaylistDetailPage extends ConsumerWidget {
           },
           child: Icon(
             CupertinoIcons.trash,
-            color: isDark ? CupertinoColors.white.withOpacity(0.5) : CupertinoColors.black.withOpacity(0.5),
+            color: isDark
+                ? CupertinoColors.white.withOpacity(0.5)
+                : CupertinoColors.black.withOpacity(0.5),
             size: 22,
           ),
         ),
@@ -84,7 +90,8 @@ class PlaylistDetailPage extends ConsumerWidget {
       child: SafeArea(
         bottom: false,
         child: tracksAsync.when(
-          loading: () => const Center(child: CupertinoActivityIndicator(radius: 14)),
+          loading: () =>
+              const Center(child: CupertinoActivityIndicator(radius: 14)),
           error: (e, _) => EmptyState(
             icon: CupertinoIcons.exclamationmark_triangle,
             title: 'Error loading playlist',
@@ -94,7 +101,8 @@ class PlaylistDetailPage extends ConsumerWidget {
             final artworkSize = MediaQuery.of(context).size.width * 0.50;
 
             Widget artworkWidget;
-            if (playlist.artworkPath != null && playlist.artworkPath!.isNotEmpty) {
+            if (playlist.artworkPath != null &&
+                playlist.artworkPath!.isNotEmpty) {
               artworkWidget = AlbumArtwork(
                 artworkPath: playlist.artworkPath,
                 size: artworkSize,
@@ -106,7 +114,7 @@ class PlaylistDetailPage extends ConsumerWidget {
                   .where((p) => p != null && p.isNotEmpty)
                   .take(4)
                   .toList();
-              
+
               if (arts.isEmpty) {
                 artworkWidget = AlbumArtwork(
                   title: playlist.name,
@@ -114,7 +122,7 @@ class PlaylistDetailPage extends ConsumerWidget {
                   borderRadius: 16.0,
                 );
               } else if (arts.length < 4) {
-                 artworkWidget = AlbumArtwork(
+                artworkWidget = AlbumArtwork(
                   artworkPath: arts.first,
                   size: artworkSize,
                   borderRadius: 16.0,
@@ -130,9 +138,21 @@ class PlaylistDetailPage extends ConsumerWidget {
                         Expanded(
                           child: Row(
                             children: [
-                              Expanded(child: AlbumArtwork(artworkPath: arts[0], size: double.infinity, borderRadius: 0)),
+                              Expanded(
+                                child: AlbumArtwork(
+                                  artworkPath: arts[0],
+                                  size: double.infinity,
+                                  borderRadius: 0,
+                                ),
+                              ),
                               const SizedBox(width: 2),
-                              Expanded(child: AlbumArtwork(artworkPath: arts[1], size: double.infinity, borderRadius: 0)),
+                              Expanded(
+                                child: AlbumArtwork(
+                                  artworkPath: arts[1],
+                                  size: double.infinity,
+                                  borderRadius: 0,
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -140,9 +160,21 @@ class PlaylistDetailPage extends ConsumerWidget {
                         Expanded(
                           child: Row(
                             children: [
-                              Expanded(child: AlbumArtwork(artworkPath: arts[2], size: double.infinity, borderRadius: 0)),
+                              Expanded(
+                                child: AlbumArtwork(
+                                  artworkPath: arts[2],
+                                  size: double.infinity,
+                                  borderRadius: 0,
+                                ),
+                              ),
                               const SizedBox(width: 2),
-                              Expanded(child: AlbumArtwork(artworkPath: arts[3], size: double.infinity, borderRadius: 0)),
+                              Expanded(
+                                child: AlbumArtwork(
+                                  artworkPath: arts[3],
+                                  size: double.infinity,
+                                  borderRadius: 0,
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -158,7 +190,10 @@ class PlaylistDetailPage extends ConsumerWidget {
               slivers: [
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.lg),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md,
+                      vertical: AppSpacing.lg,
+                    ),
                     child: Column(
                       children: [
                         Center(
@@ -167,7 +202,9 @@ class PlaylistDetailPage extends ConsumerWidget {
                               borderRadius: BorderRadius.circular(16.0),
                               boxShadow: [
                                 BoxShadow(
-                                  color: CupertinoColors.black.withOpacity(isDark ? 0.4 : 0.15),
+                                  color: CupertinoColors.black.withOpacity(
+                                    isDark ? 0.4 : 0.15,
+                                  ),
                                   blurRadius: 24,
                                   offset: const Offset(0, 12),
                                 ),
@@ -184,7 +221,9 @@ class PlaylistDetailPage extends ConsumerWidget {
                             fontSize: 28,
                             fontWeight: FontWeight.w700,
                             letterSpacing: -0.5,
-                            color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                            color: isDark
+                                ? CupertinoColors.white
+                                : CupertinoColors.black,
                           ),
                         ),
                         const SizedBox(height: 6),
@@ -192,7 +231,9 @@ class PlaylistDetailPage extends ConsumerWidget {
                           '${tracks.length} ${tracks.length == 1 ? 'song' : 'songs'}',
                           style: TextStyle(
                             fontSize: 15,
-                            color: isDark ? CupertinoColors.white.withOpacity(0.6) : CupertinoColors.black.withOpacity(0.6),
+                            color: isDark
+                                ? CupertinoColors.white.withOpacity(0.6)
+                                : CupertinoColors.black.withOpacity(0.6),
                           ),
                         ),
                         const SizedBox(height: 32),
@@ -204,7 +245,9 @@ class PlaylistDetailPage extends ConsumerWidget {
                               Expanded(
                                 child: CupertinoButton(
                                   color: CupertinoColors.systemPink,
-                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 14,
+                                  ),
                                   borderRadius: BorderRadius.circular(100),
                                   onPressed: () => ref
                                       .read(playbackRepositoryProvider)
@@ -212,7 +255,11 @@ class PlaylistDetailPage extends ConsumerWidget {
                                   child: const Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      Icon(CupertinoIcons.play_fill, size: 20, color: CupertinoColors.white),
+                                      Icon(
+                                        CupertinoIcons.play_fill,
+                                        size: 20,
+                                        color: CupertinoColors.white,
+                                      ),
                                       SizedBox(width: 8),
                                       Text(
                                         'Play',
@@ -246,7 +293,8 @@ class PlaylistDetailPage extends ConsumerWidget {
                   SliverList(
                     delegate: SliverChildBuilderDelegate((context, index) {
                       final track = tracks[index];
-                      final isPlaying = playerState?.currentTrack?.id == track.id;
+                      final isPlaying =
+                          playerState?.currentTrack?.id == track.id;
                       return SongRow(
                         track: track,
                         isPlaying: isPlaying,

@@ -75,36 +75,46 @@ void main() {
       verifyZeroInteractions(mockClient);
     });
 
-    test('returns cached file and updates DB if file exists in cache dir', () async {
-      // Seed artist in database
-      await db.into(db.artists).insert(
-        ArtistsCompanion.insert(
-          id: testArtist.id,
-          name: testArtist.name,
-          normalizedName: testArtist.normalizedName,
-        ),
-      );
+    test(
+      'returns cached file and updates DB if file exists in cache dir',
+      () async {
+        // Seed artist in database
+        await db
+            .into(db.artists)
+            .insert(
+              ArtistsCompanion.insert(
+                id: testArtist.id,
+                name: testArtist.name,
+                normalizedName: testArtist.normalizedName,
+              ),
+            );
 
-      final cacheFile = fs.getArtworkCacheFile('artist_${testArtist.normalizedName}');
-      await cacheFile.writeAsString('cached_bytes');
+        final cacheFile = fs.getArtworkCacheFile(
+          'artist_${testArtist.normalizedName}',
+        );
+        await cacheFile.writeAsString('cached_bytes');
 
-      final result = await downloader.downloadArtistArtwork(testArtist);
-      expect(result, equals(cacheFile.path));
+        final result = await downloader.downloadArtistArtwork(testArtist);
+        expect(result, equals(cacheFile.path));
 
-      final row = await (db.select(db.artists)..where((tbl) => tbl.id.equals(testArtist.id)))
-          .getSingle();
-      expect(row.artworkPath, equals(cacheFile.path));
-      verifyZeroInteractions(mockClient);
-    });
+        final row = await (db.select(
+          db.artists,
+        )..where((tbl) => tbl.id.equals(testArtist.id))).getSingle();
+        expect(row.artworkPath, equals(cacheFile.path));
+        verifyZeroInteractions(mockClient);
+      },
+    );
 
     test('fetches from Deezer, downloads bytes, saves to cache, and updates database', () async {
-      await db.into(db.artists).insert(
-        ArtistsCompanion.insert(
-          id: testArtist.id,
-          name: testArtist.name,
-          normalizedName: testArtist.normalizedName,
-        ),
-      );
+      await db
+          .into(db.artists)
+          .insert(
+            ArtistsCompanion.insert(
+              id: testArtist.id,
+              name: testArtist.name,
+              normalizedName: testArtist.normalizedName,
+            ),
+          );
 
       final searchJson = jsonEncode({
         'data': [
@@ -112,27 +122,35 @@ void main() {
             'id': 27,
             'name': 'Daft Punk',
             'picture_big': 'https://example.com/daft_punk_big.jpg',
-          }
-        ]
+          },
+        ],
       });
 
       final fakeImageBytes = [0xFF, 0xD8, 0xFF, 0xE0, 0x01, 0x02];
 
-      when(() => mockClient.get(Uri.parse('https://api.deezer.com/search/artist?q=Daft%20Punk')))
-          .thenAnswer((_) async => http.Response(searchJson, 200));
+      when(
+        () => mockClient.get(
+          Uri.parse('https://api.deezer.com/search/artist?q=Daft%20Punk'),
+        ),
+      ).thenAnswer((_) async => http.Response(searchJson, 200));
 
-      when(() => mockClient.get(Uri.parse('https://example.com/daft_punk_big.jpg')))
-          .thenAnswer((_) async => http.Response.bytes(fakeImageBytes, 200));
+      when(
+        () =>
+            mockClient.get(Uri.parse('https://example.com/daft_punk_big.jpg')),
+      ).thenAnswer((_) async => http.Response.bytes(fakeImageBytes, 200));
 
       final result = await downloader.downloadArtistArtwork(testArtist);
 
-      final expectedFile = fs.getArtworkCacheFile('artist_${testArtist.normalizedName}');
+      final expectedFile = fs.getArtworkCacheFile(
+        'artist_${testArtist.normalizedName}',
+      );
       expect(result, equals(expectedFile.path));
       expect(expectedFile.existsSync(), isTrue);
       expect(expectedFile.readAsBytesSync(), equals(fakeImageBytes));
 
-      final row = await (db.select(db.artists)..where((tbl) => tbl.id.equals(testArtist.id)))
-          .getSingle();
+      final row = await (db.select(
+        db.artists,
+      )..where((tbl) => tbl.id.equals(testArtist.id))).getSingle();
       expect(row.artworkPath, equals(expectedFile.path));
     });
 
@@ -145,7 +163,8 @@ void main() {
     });
 
     test('handles network exceptions gracefully', () async {
-      when(() => mockClient.get(any())).thenThrow(const SocketException('No network'));
+      when(() => mockClient.get(any()))
+          .thenThrow(const SocketException('No network'));
 
       final result = await downloader.downloadArtistArtwork(testArtist);
       expect(result, isNull);

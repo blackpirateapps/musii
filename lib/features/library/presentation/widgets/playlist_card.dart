@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../../app/bootstrap/providers.dart';
 import '../../../playlists/domain/entities/playlist.dart';
 import 'album_artwork.dart';
@@ -8,16 +9,12 @@ class PlaylistCard extends ConsumerWidget {
   final Playlist playlist;
   final VoidCallback onTap;
 
-  const PlaylistCard({
-    super.key,
-    required this.playlist,
-    required this.onTap,
-  });
+  const PlaylistCard({super.key, required this.playlist, required this.onTap});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = CupertinoTheme.brightnessOf(context) == Brightness.dark;
-    
+
     Widget artworkWidget;
     if (playlist.artworkPath != null && playlist.artworkPath!.isNotEmpty) {
       artworkWidget = AlbumArtwork(
@@ -34,7 +31,7 @@ class PlaylistCard extends ConsumerWidget {
               .where((p) => p != null && p.isNotEmpty)
               .take(4)
               .toList();
-          
+
           if (arts.isEmpty) {
             return AlbumArtwork(
               title: playlist.name,
@@ -42,15 +39,15 @@ class PlaylistCard extends ConsumerWidget {
               borderRadius: 16.0,
             );
           }
-          
+
           if (arts.length < 4) {
-             return AlbumArtwork(
+            return AlbumArtwork(
               artworkPath: arts.first,
               size: double.infinity,
               borderRadius: 16.0,
             );
           }
-          
+
           return ClipRRect(
             borderRadius: BorderRadius.circular(16.0),
             child: Column(
@@ -58,9 +55,21 @@ class PlaylistCard extends ConsumerWidget {
                 Expanded(
                   child: Row(
                     children: [
-                      Expanded(child: AlbumArtwork(artworkPath: arts[0], size: double.infinity, borderRadius: 0)),
+                      Expanded(
+                        child: AlbumArtwork(
+                          artworkPath: arts[0],
+                          size: double.infinity,
+                          borderRadius: 0,
+                        ),
+                      ),
                       const SizedBox(width: 2),
-                      Expanded(child: AlbumArtwork(artworkPath: arts[1], size: double.infinity, borderRadius: 0)),
+                      Expanded(
+                        child: AlbumArtwork(
+                          artworkPath: arts[1],
+                          size: double.infinity,
+                          borderRadius: 0,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -68,9 +77,21 @@ class PlaylistCard extends ConsumerWidget {
                 Expanded(
                   child: Row(
                     children: [
-                      Expanded(child: AlbumArtwork(artworkPath: arts[2], size: double.infinity, borderRadius: 0)),
+                      Expanded(
+                        child: AlbumArtwork(
+                          artworkPath: arts[2],
+                          size: double.infinity,
+                          borderRadius: 0,
+                        ),
+                      ),
                       const SizedBox(width: 2),
-                      Expanded(child: AlbumArtwork(artworkPath: arts[3], size: double.infinity, borderRadius: 0)),
+                      Expanded(
+                        child: AlbumArtwork(
+                          artworkPath: arts[3],
+                          size: double.infinity,
+                          borderRadius: 0,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -78,8 +99,16 @@ class PlaylistCard extends ConsumerWidget {
             ),
           );
         },
-        loading: () => AlbumArtwork(title: playlist.name, size: double.infinity, borderRadius: 16.0),
-        error: (e, st) => AlbumArtwork(title: playlist.name, size: double.infinity, borderRadius: 16.0),
+        loading: () => AlbumArtwork(
+          title: playlist.name,
+          size: double.infinity,
+          borderRadius: 16.0,
+        ),
+        error: (e, st) => AlbumArtwork(
+          title: playlist.name,
+          size: double.infinity,
+          borderRadius: 16.0,
+        ),
       );
     }
 
@@ -91,10 +120,7 @@ class PlaylistCard extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          AspectRatio(
-            aspectRatio: 1.0,
-            child: artworkWidget,
-          ),
+          AspectRatio(aspectRatio: 1.0, child: artworkWidget),
           const SizedBox(height: 12),
           Text(
             playlist.name,
@@ -113,7 +139,9 @@ class PlaylistCard extends ConsumerWidget {
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w400,
-              color: isDark ? CupertinoColors.white.withOpacity(0.6) : CupertinoColors.secondaryLabel,
+              color: isDark
+                  ? CupertinoColors.white.withOpacity(0.6)
+                  : CupertinoColors.secondaryLabel,
             ),
           ),
         ],

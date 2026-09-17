@@ -1,5 +1,6 @@
 import "dart:io";
 import "dart:ui";
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -33,14 +34,17 @@ class AlbumDetailPage extends ConsumerWidget {
     final isDark = CupertinoTheme.brightnessOf(context) == Brightness.dark;
 
     return CupertinoPageScaffold(
-      backgroundColor: isDark ? const Color(0xFF0C0D12) : CupertinoColors.systemBackground,
+      backgroundColor: isDark
+          ? const Color(0xFF0C0D12)
+          : CupertinoColors.systemBackground,
       navigationBar: const CupertinoNavigationBar(
-        previousPageTitle: 'Library', 
-        backgroundColor: CupertinoColors.transparent, 
-        border: null
+        previousPageTitle: 'Library',
+        backgroundColor: CupertinoColors.transparent,
+        border: null,
       ),
       child: albumWithTracksAsync.when(
-        loading: () => const Center(child: CupertinoActivityIndicator(radius: 14)),
+        loading: () =>
+            const Center(child: CupertinoActivityIndicator(radius: 14)),
         error: (e, _) => EmptyState(
           icon: CupertinoIcons.exclamationmark_triangle,
           title: 'Error loading album',
@@ -86,7 +90,10 @@ class AlbumDetailPage extends ConsumerWidget {
                   slivers: [
                     SliverToBoxAdapter(
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.lg),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.md,
+                          vertical: AppSpacing.lg,
+                        ),
                         child: Column(
                           children: [
                             Center(
@@ -95,7 +102,9 @@ class AlbumDetailPage extends ConsumerWidget {
                                   borderRadius: BorderRadius.circular(16.0),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: CupertinoColors.black.withOpacity(isDark ? 0.4 : 0.15),
+                                      color: CupertinoColors.black.withOpacity(
+                                        isDark ? 0.4 : 0.15,
+                                      ),
                                       blurRadius: 24,
                                       offset: const Offset(0, 12),
                                     ),
@@ -120,7 +129,9 @@ class AlbumDetailPage extends ConsumerWidget {
                                 fontSize: 24,
                                 fontWeight: FontWeight.w700,
                                 letterSpacing: -0.5,
-                                color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                                color: isDark
+                                    ? CupertinoColors.white
+                                    : CupertinoColors.black,
                               ),
                             ),
                             const SizedBox(height: 6),
@@ -130,7 +141,9 @@ class AlbumDetailPage extends ConsumerWidget {
                               style: TextStyle(
                                 fontSize: 17,
                                 fontWeight: FontWeight.w400,
-                                color: isDark ? CupertinoColors.white.withOpacity(0.8) : CupertinoColors.black.withOpacity(0.8),
+                                color: isDark
+                                    ? CupertinoColors.white.withOpacity(0.8)
+                                    : CupertinoColors.black.withOpacity(0.8),
                               ),
                             ),
                             const SizedBox(height: 6),
@@ -138,7 +151,9 @@ class AlbumDetailPage extends ConsumerWidget {
                               '${album.trackCount} ${album.trackCount == 1 ? 'song' : 'songs'} · ${_formatTotalDuration(album.totalDurationMs)}',
                               style: TextStyle(
                                 fontSize: 13,
-                                color: isDark ? CupertinoColors.white.withOpacity(0.5) : CupertinoColors.black.withOpacity(0.5),
+                                color: isDark
+                                    ? CupertinoColors.white.withOpacity(0.5)
+                                    : CupertinoColors.black.withOpacity(0.5),
                               ),
                             ),
                             const SizedBox(height: 32),
@@ -149,7 +164,9 @@ class AlbumDetailPage extends ConsumerWidget {
                                 Expanded(
                                   child: CupertinoButton(
                                     color: CupertinoColors.systemPink,
-                                    padding: const EdgeInsets.symmetric(vertical: 14),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 14,
+                                    ),
                                     borderRadius: BorderRadius.circular(100),
                                     onPressed: tracks.isNotEmpty
                                         ? () => ref
@@ -157,9 +174,14 @@ class AlbumDetailPage extends ConsumerWidget {
                                               .playAlbum(album, tracks)
                                         : null,
                                     child: const Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
                                       children: [
-                                        Icon(CupertinoIcons.play_fill, size: 20, color: CupertinoColors.white),
+                                        Icon(
+                                          CupertinoIcons.play_fill,
+                                          size: 20,
+                                          color: CupertinoColors.white,
+                                        ),
                                         SizedBox(width: 8),
                                         Text(
                                           'Play',
@@ -185,26 +207,38 @@ class AlbumDetailPage extends ConsumerWidget {
                     SliverList(
                       delegate: SliverChildBuilderDelegate((context, index) {
                         final track = tracks[index];
-                        final isPlaying = playerState?.currentTrack?.id == track.id;
+                        final isPlaying =
+                            playerState?.currentTrack?.id == track.id;
 
                         final showDiscHeader = index == 0
-                            ? (track.discNumber != null && track.discNumber! > 1)
+                            ? (track.discNumber != null &&
+                                  track.discNumber! > 1)
                             : (track.discNumber != null &&
-                                  track.discNumber != tracks[index - 1].discNumber);
+                                  track.discNumber !=
+                                      tracks[index - 1].discNumber);
 
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             if (showDiscHeader)
                               Padding(
-                                padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm, AppSpacing.md, 4),
+                                padding: const EdgeInsets.fromLTRB(
+                                  AppSpacing.md,
+                                  AppSpacing.sm,
+                                  AppSpacing.md,
+                                  4,
+                                ),
                                 child: Text(
                                   'DISC ${track.discNumber}',
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600,
                                     letterSpacing: 0.5,
-                                    color: isDark ? CupertinoColors.white.withOpacity(0.5) : CupertinoColors.black.withOpacity(0.5),
+                                    color: isDark
+                                        ? CupertinoColors.white.withOpacity(0.5)
+                                        : CupertinoColors.black.withOpacity(
+                                            0.5,
+                                          ),
                                   ),
                                 ),
                               ),

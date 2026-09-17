@@ -24,10 +24,17 @@ class ArtistDetailPage extends ConsumerWidget {
     final isDark = CupertinoTheme.brightnessOf(context) == Brightness.dark;
 
     return CupertinoPageScaffold(
-      backgroundColor: isDark ? CupertinoColors.black : CupertinoColors.systemBackground,
-      navigationBar: const CupertinoNavigationBar(previousPageTitle: 'Library', backgroundColor: CupertinoColors.transparent, border: null),
+      backgroundColor: isDark
+          ? CupertinoColors.black
+          : CupertinoColors.systemBackground,
+      navigationBar: const CupertinoNavigationBar(
+        previousPageTitle: 'Library',
+        backgroundColor: CupertinoColors.transparent,
+        border: null,
+      ),
       child: artistWithAlbumsAsync.when(
-        loading: () => const Center(child: CupertinoActivityIndicator(radius: 14)),
+        loading: () =>
+            const Center(child: CupertinoActivityIndicator(radius: 14)),
         error: (e, _) => EmptyState(
           icon: CupertinoIcons.exclamationmark_triangle,
           title: 'Error loading artist',
@@ -59,7 +66,12 @@ class ArtistDetailPage extends ConsumerWidget {
             slivers: [
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(AppSpacing.md, 16, AppSpacing.md, AppSpacing.lg),
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.md,
+                    16,
+                    AppSpacing.md,
+                    AppSpacing.lg,
+                  ),
                   child: Column(
                     children: [
                       // Immersive Image
@@ -81,7 +93,9 @@ class ArtistDetailPage extends ConsumerWidget {
                           fontSize: 32,
                           fontWeight: FontWeight.w700,
                           letterSpacing: -0.5,
-                          color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                          color: isDark
+                              ? CupertinoColors.white
+                              : CupertinoColors.black,
                         ),
                       ),
                       const SizedBox(height: 6),
@@ -90,7 +104,9 @@ class ArtistDetailPage extends ConsumerWidget {
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w400,
-                          color: isDark ? CupertinoColors.white.withOpacity(0.6) : CupertinoColors.black.withOpacity(0.6),
+                          color: isDark
+                              ? CupertinoColors.white.withOpacity(0.6)
+                              : CupertinoColors.black.withOpacity(0.6),
                         ),
                       ),
                       const SizedBox(height: 32),
@@ -105,12 +121,20 @@ class ArtistDetailPage extends ConsumerWidget {
                               onPressed: tracks.isNotEmpty
                                   ? () => ref
                                         .read(playbackRepositoryProvider)
-                                        .playTrack(tracks.first, queue: tracks, queueIndex: 0)
+                                        .playTrack(
+                                          tracks.first,
+                                          queue: tracks,
+                                          queueIndex: 0,
+                                        )
                                   : null,
                               child: const Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Icon(CupertinoIcons.play_fill, size: 20, color: CupertinoColors.white),
+                                  Icon(
+                                    CupertinoIcons.play_fill,
+                                    size: 20,
+                                    color: CupertinoColors.white,
+                                  ),
                                   SizedBox(width: 8),
                                   Text(
                                     'Play',
@@ -156,22 +180,33 @@ class ArtistDetailPage extends ConsumerWidget {
                     );
                   }, childCount: tracks.length > 5 ? 5 : tracks.length),
                 ),
-                const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.lg)),
+                const SliverToBoxAdapter(
+                  child: SizedBox(height: AppSpacing.lg),
+                ),
               ],
 
               // Albums Grid
               if (albums.isNotEmpty) ...[
-                const SliverToBoxAdapter(
-                  child: SectionHeader(title: 'Albums'),
-                ),
+                const SliverToBoxAdapter(child: SectionHeader(title: 'Albums')),
                 SliverPadding(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                  ),
                   sliver: SliverGrid(
                     gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: MediaQuery.of(context).size.width > 600 ? 4 : 2,
+                      crossAxisCount: MediaQuery.of(context).size.width > 600
+                          ? 4
+                          : 2,
                       crossAxisSpacing: AppSpacing.md,
                       mainAxisSpacing: 24.0,
-                      childAspectRatio: (MediaQuery.of(context).size.width - AppSpacing.md * 3) / 2 / ((MediaQuery.of(context).size.width - AppSpacing.md * 3) / 2 + 60),
+                      childAspectRatio:
+                          (MediaQuery.of(context).size.width -
+                              AppSpacing.md * 3) /
+                          2 /
+                          ((MediaQuery.of(context).size.width -
+                                      AppSpacing.md * 3) /
+                                  2 +
+                              60),
                     ),
                     delegate: SliverChildBuilderDelegate((context, index) {
                       final album = albums[index];
@@ -180,7 +215,8 @@ class ArtistDetailPage extends ConsumerWidget {
                         onTap: () {
                           Navigator.of(context).push(
                             CupertinoPageRoute(
-                              builder: (_) => AlbumDetailPage(albumId: album.id),
+                              builder: (_) =>
+                                  AlbumDetailPage(albumId: album.id),
                             ),
                           );
                         },

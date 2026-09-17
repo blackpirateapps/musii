@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:drift/drift.dart';
 
+import '../../../../core/constants/app_constants.dart';
 import '../../../../core/database/app_database.dart';
 import '../../../../core/error/failures.dart';
 import '../../../../core/filesystem/app_file_system.dart';
@@ -17,6 +18,7 @@ import '../../../lyrics/domain/services/lrc_parser.dart';
 import '../../../metadata/data/datasources/artist_artwork_downloader.dart';
 import '../../../metadata/data/repositories/metadata_extractor_impl.dart';
 import '../../../metadata/domain/entities/parsed_audio_metadata.dart';
+import '../../../metadata/domain/services/folder_artwork_resolver.dart';
 import '../../../metadata/domain/services/metadata_normalization_service.dart';
 import '../../domain/entities/music_entities.dart';
 import '../../domain/entities/sync_progress.dart';
@@ -58,7 +60,8 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
        _lyricsRepository =
            lyricsRepository ?? LyricsRepositoryImpl(database: database),
        _fileSystem = fileSystem ?? AppFileSystem.instance,
-       _artistArtworkDownloader = artistArtworkDownloader ??
+       _artistArtworkDownloader =
+           artistArtworkDownloader ??
            ArtistArtworkDownloader(
              fileSystem: fileSystem ?? AppFileSystem.instance,
              database: database,
@@ -411,8 +414,9 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
       final file = File(row.artworkPath!);
       if (file.existsSync()) return row.artworkPath;
     }
-    final cachedFile =
-        _fileSystem.getArtworkCacheFile('artist_${row.normalizedName}');
+    final cachedFile = _fileSystem.getArtworkCacheFile(
+      'artist_${row.normalizedName}',
+    );
     if (cachedFile.existsSync()) {
       return cachedFile.path;
     }
@@ -506,7 +510,10 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
       var artistEntity = _mapDbArtistToEntity(artistData);
       if (artistEntity.artworkPath == null && albums.isNotEmpty) {
         final albumArt = albums
-            .map((a) => a.artworkPath ?? _resolveArtworkPath(a.title, a.artistName))
+            .map(
+              (a) =>
+                  a.artworkPath ?? _resolveArtworkPath(a.title, a.artistName),
+            )
             .where((p) => p != null && p.isNotEmpty && File(p).existsSync())
             .firstOrNull;
         if (albumArt != null) {
@@ -716,6 +723,7 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
                 md5Checksum: r.md5Checksum,
                 parentFolderId: r.parentFolderId,
                 isLrc: r.isLrc,
+                isImage: AppImageConstants.isImageFile(r.name, r.mimeType),
               ),
             );
           }
@@ -755,11 +763,14 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
                 md5Checksum: r.md5Checksum,
                 parentFolderId: r.parentFolderId,
                 isLrc: r.isLrc,
+                isImage: AppImageConstants.isImageFile(r.name, r.mimeType),
               ),
             );
           }
         }
       }
+
+      final Map<String, String?> folderParentMap = {};
 
       if (!discoveryAlreadyComplete) {
         _updateProgress(
@@ -768,7 +779,9 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
             phase: SyncPhase.scanning,
             rootFolderId: rootFolderId,
             rootFolderName: rootFolderName,
-            filesDiscovered: allDriveFiles.where((f) => !f.isLrc).length,
+            filesDiscovered: allDriveFiles
+                .where((f) => !f.isLrc && !f.isImage)
+                .length,
             filesProcessed: isResume ? _currentProgress.filesProcessed : 0,
             filesAdded: isResume ? _currentProgress.filesAdded : 0,
             filesUpdated: isResume ? _currentProgress.filesUpdated : 0,
@@ -789,9 +802,11 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
           rootFolderId,
           initialFolderQueue: initialPendingFolders,
           initialVisitedFolders: initialVisitedFolders,
+          folderParentMap: folderParentMap,
           onProgress: (count) {
             final totalDiscovered =
-                allDriveFiles.where((f) => !f.isLrc).length + count;
+                allDriveFiles.where((f) => !f.isLrc && !f.isImage).length +
+                count;
             _updateProgress(
               _currentProgress.copyWith(filesDiscovered: totalDiscovered),
             );
@@ -867,15 +882,20 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
             discoveryCompleted: const Value(true),
             pendingFoldersJson: const Value(null),
             visitedFoldersJson: const Value(null),
-            filesDiscovered: Value(allDriveFiles.where((f) => !f.isLrc).length),
+            filesDiscovered: Value(
+              allDriveFiles.where((f) => !f.isLrc && !f.isImage).length,
+            ),
             updatedAt: Value(DateTime.now()),
             lastCheckpointAt: Value(DateTime.now()),
           ),
         );
       }
 
-      final driveAudioFiles = allDriveFiles.where((f) => !f.isLrc).toList();
+      final driveAudioFiles = allDriveFiles
+          .where((f) => !f.isLrc && !f.isImage)
+          .toList();
       final driveLrcFiles = allDriveFiles.where((f) => f.isLrc).toList();
+      final driveImageFiles = allDriveFiles.where((f) => f.isImage).toList();
 
       // Build map of sidecar LRC files keyed by folder and base filename
       final Map<String, DriveFileItem> lrcMap = {};
@@ -883,6 +903,13 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
         final folder = lrc.parentFolderId ?? '';
         final base = _cleanBaseName(lrc.name);
         lrcMap['${folder}_$base'] = lrc;
+      }
+
+      // Build map of folder image files keyed by parentFolderId
+      final Map<String, List<DriveFileItem>> folderImagesMap = {};
+      for (final img in driveImageFiles) {
+        final folder = img.parentFolderId ?? '';
+        folderImagesMap.putIfAbsent(folder, () => []).add(img);
       }
 
       final driveFileMap = {for (final f in driveAudioFiles) f.id: f};
@@ -1025,6 +1052,14 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
             final currentProgressPercent = totalDiscovered > 0
                 ? (currentProcessed / totalDiscovered)
                 : 1.0;
+
+            // Ensure album artwork is downloaded (from folder if embedded is missing)
+            await _ensureAlbumArtwork(
+              meta: normalized,
+              driveFile: driveFile,
+              folderImagesMap: folderImagesMap,
+              folderParentMap: folderParentMap,
+            );
 
             // Atomically commit track, lyrics, and sync checkpoint
             await _database.transaction(() async {
@@ -1183,7 +1218,11 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
 
       // 7. Reconcile duplicate albums and recompute library aggregates
       await _database.reconcileDuplicateAlbums();
-      await _recomputeLibraryAggregates();
+      await _recomputeLibraryAggregates(
+        folderImagesMap: folderImagesMap,
+        folderParentMap: folderParentMap,
+        driveFileMap: driveFileMap,
+      );
 
       // 8. Finalize sync run record
       await (_database.update(
@@ -1555,7 +1594,57 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
         );
   }
 
-  Future<void> _recomputeLibraryAggregates() async {
+  Future<void> _ensureAlbumArtwork({
+    required NormalizedMetadata meta,
+    required DriveFileItem driveFile,
+    required Map<String, List<DriveFileItem>> folderImagesMap,
+    required Map<String, String?> folderParentMap,
+  }) async {
+    try {
+      final effectiveAlbumArtist =
+          (meta.albumArtist != null && meta.albumArtist!.trim().isNotEmpty)
+          ? meta.albumArtist!
+          : meta.artist;
+      final artworkKey = MetadataNormalizationService.computeArtworkKey(
+        meta.album,
+        effectiveAlbumArtist,
+      );
+      final artworkFile = _fileSystem.getArtworkCacheFile(artworkKey);
+      if (artworkFile.existsSync()) return;
+
+      final candidate = FolderArtworkResolver.resolveCandidate(
+        folderId: driveFile.parentFolderId,
+        folderImages: folderImagesMap,
+        folderParentMap: folderParentMap,
+      );
+
+      if (candidate != null) {
+        final dlRes = await _driveRepository.downloadFile(
+          fileId: candidate.id,
+          destinationFile: artworkFile,
+        );
+        if (dlRes.isSuccess && artworkFile.existsSync()) {
+          AppLogger.info(
+            LogCategory.metadata,
+            'Downloaded folder artwork for "${meta.album}" from "${candidate.name}" (${artworkFile.lengthSync()} bytes)',
+          );
+        }
+      }
+    } catch (e, st) {
+      AppLogger.warning(
+        LogCategory.metadata,
+        'Failed to resolve/download folder artwork for ${meta.album}',
+        e,
+        st,
+      );
+    }
+  }
+
+  Future<void> _recomputeLibraryAggregates({
+    Map<String, List<DriveFileItem>>? folderImagesMap,
+    Map<String, String?>? folderParentMap,
+    Map<String, DriveFileItem>? driveFileMap,
+  }) async {
     final albums = await _database.select(_database.albums).get();
     for (final alb in albums) {
       final tracks = await (_database.select(
@@ -1570,12 +1659,53 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
       }
 
       final totalMs = tracks.fold<int>(0, (sum, t) => sum + t.durationMs);
+
+      String? currentArtwork = alb.artworkPath;
+      if (currentArtwork == null ||
+          currentArtwork.isEmpty ||
+          !File(currentArtwork).existsSync()) {
+        final key = MetadataNormalizationService.computeArtworkKey(
+          alb.title,
+          alb.artistName,
+        );
+        final file = _fileSystem.getArtworkCacheFile(key);
+        if (file.existsSync()) {
+          currentArtwork = file.path;
+        } else if (folderImagesMap != null && driveFileMap != null) {
+          for (final track in tracks) {
+            final df = driveFileMap[track.driveFileId];
+            if (df?.parentFolderId != null) {
+              final candidate = FolderArtworkResolver.resolveCandidate(
+                folderId: df!.parentFolderId,
+                folderImages: folderImagesMap,
+                folderParentMap: folderParentMap,
+              );
+              if (candidate != null) {
+                try {
+                  final dlRes = await _driveRepository.downloadFile(
+                    fileId: candidate.id,
+                    destinationFile: file,
+                  );
+                  if (dlRes.isSuccess && file.existsSync()) {
+                    currentArtwork = file.path;
+                    break;
+                  }
+                } catch (_) {}
+              }
+            }
+          }
+        }
+      }
+
       await (_database.update(
         _database.albums,
       )..where((tbl) => tbl.id.equals(alb.id))).write(
         AlbumsCompanion(
           trackCount: Value(tracks.length),
           totalDurationMs: Value(totalMs),
+          artworkPath: currentArtwork != null
+              ? Value(currentArtwork)
+              : const Value.absent(),
         ),
       );
     }
@@ -1600,20 +1730,24 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
       if (resolvedArtwork == null ||
           resolvedArtwork.isEmpty ||
           !File(resolvedArtwork).existsSync()) {
-        final artistCache =
-            _fileSystem.getArtworkCacheFile('artist_${art.normalizedName}');
+        final artistCache = _fileSystem.getArtworkCacheFile(
+          'artist_${art.normalizedName}',
+        );
         if (artistCache.existsSync()) {
           resolvedArtwork = artistCache.path;
         } else {
-          final albumWithArt = albums
-              .where((a) {
-                final p = a.artworkPath ?? _resolveArtworkPath(a.title, a.artistName);
-                return p != null && p.isNotEmpty && File(p).existsSync();
-              })
-              .firstOrNull;
+          final albumWithArt = albums.where((a) {
+            final p =
+                a.artworkPath ?? _resolveArtworkPath(a.title, a.artistName);
+            return p != null && p.isNotEmpty && File(p).existsSync();
+          }).firstOrNull;
           if (albumWithArt != null) {
-            resolvedArtwork = albumWithArt.artworkPath ??
-                _resolveArtworkPath(albumWithArt.title, albumWithArt.artistName);
+            resolvedArtwork =
+                albumWithArt.artworkPath ??
+                _resolveArtworkPath(
+                  albumWithArt.title,
+                  albumWithArt.artistName,
+                );
           }
         }
       }

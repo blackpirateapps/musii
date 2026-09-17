@@ -77,6 +77,39 @@ abstract final class AppAudioConstants {
   static const int maxCacheSizeBytes = 50 * 1024 * 1024 * 1024; // 50 GB
 }
 
+abstract final class AppImageConstants {
+  static const List<String> supportedExtensions = [
+    'jpg',
+    'jpeg',
+    'png',
+    'webp',
+  ];
+
+  static const List<String> supportedMimeTypes = [
+    'image/jpeg',
+    'image/png',
+    'image/webp',
+  ];
+
+  static const List<String> standardCoverNames = [
+    'cover',
+    'folder',
+    'front',
+    'albumart',
+    'album',
+    'artwork',
+  ];
+
+  static bool isImageFile(String filename, [String? mimeType]) {
+    final mime = (mimeType ?? '').toLowerCase().trim();
+    if (mime.startsWith('image/')) return true;
+    final dotIndex = filename.lastIndexOf('.');
+    if (dotIndex == -1 || dotIndex == filename.length - 1) return false;
+    final ext = filename.substring(dotIndex + 1).toLowerCase().trim();
+    return supportedExtensions.contains(ext);
+  }
+}
+
 abstract final class AppGreeting {
   static String getGreeting([DateTime? now]) {
     final time = now ?? DateTime.now();

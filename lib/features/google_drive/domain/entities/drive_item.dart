@@ -40,6 +40,7 @@ class DriveFileItem {
   final String? md5Checksum;
   final String? parentFolderId;
   final bool isLrc;
+  final bool isImage;
 
   const DriveFileItem({
     required this.id,
@@ -50,6 +51,7 @@ class DriveFileItem {
     this.md5Checksum,
     this.parentFolderId,
     this.isLrc = false,
+    this.isImage = false,
   });
 
   @override
@@ -61,7 +63,7 @@ class DriveFileItem {
 
   @override
   String toString() =>
-      'DriveFileItem(id: $id, name: $name, size: $size, isLrc: $isLrc)';
+      'DriveFileItem(id: $id, name: $name, size: $size, isLrc: $isLrc, isImage: $isImage)';
 }
 
 abstract class GoogleDriveRepository {
@@ -74,10 +76,11 @@ abstract class GoogleDriveRepository {
     void Function(int discoveredCount)? onProgress,
     void Function(DriveFileItem file)? onFileDiscovered,
     void Function(List<String> pendingFolders, Set<String> visitedFolders)?
-        onFolderStateChanged,
+    onFolderStateChanged,
     List<String>? initialFolderQueue,
     Set<String>? initialVisitedFolders,
     bool Function()? isCancelled,
+    Map<String, String?>? folderParentMap,
   });
 
   Future<Result<File, AppFailure>> downloadFile({

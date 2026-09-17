@@ -22,50 +22,52 @@ void main() {
   });
 
   group('SettingsPage Appearance & Theme Mode Selector', () {
-    testWidgets('displays Follow System by default and opens action sheet on tap', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            appDatabaseProvider.overrideWithValue(db),
-            settingsRepositoryProvider.overrideWithValue(settingsRepo),
-          ],
-          child: const CupertinoApp(
-            home: SettingsPage(),
+    testWidgets(
+      'displays Follow System by default and opens action sheet on tap',
+      (tester) async {
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              appDatabaseProvider.overrideWithValue(db),
+              settingsRepositoryProvider.overrideWithValue(settingsRepo),
+            ],
+            child: const CupertinoApp(home: SettingsPage()),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
+        );
+        await tester.pumpAndSettle();
 
-      // Verify Appearance section and Theme tile
-      expect(find.text('APPEARANCE'), findsOneWidget);
-      expect(find.text('Theme'), findsOneWidget);
-      expect(find.text('Follow System'), findsOneWidget);
+        // Verify Appearance section and Theme tile
+        expect(find.text('APPEARANCE'), findsOneWidget);
+        expect(find.text('Theme'), findsOneWidget);
+        expect(find.text('Follow System'), findsOneWidget);
 
-      // Tap Theme tile
-      await tester.tap(find.text('Theme'));
-      await tester.pumpAndSettle();
+        // Tap Theme tile
+        await tester.tap(find.text('Theme'));
+        await tester.pumpAndSettle();
 
-      // Action sheet should appear with options
-      expect(find.text('Appearance Theme'), findsOneWidget);
-      expect(find.text('Choose how Musii looks on your device'), findsOneWidget);
-      expect(find.text('Dark Mode'), findsOneWidget);
-      expect(find.text('Light Mode'), findsOneWidget);
-      expect(find.text('Cancel'), findsOneWidget);
+        // Action sheet should appear with options
+        expect(find.text('Appearance Theme'), findsOneWidget);
+        expect(
+          find.text('Choose how Musii looks on your device'),
+          findsOneWidget,
+        );
+        expect(find.text('Dark Mode'), findsOneWidget);
+        expect(find.text('Light Mode'), findsOneWidget);
+        expect(find.text('Cancel'), findsOneWidget);
 
-      // Tap Dark Mode
-      await tester.tap(find.text('Dark Mode'));
-      await tester.pumpAndSettle();
+        // Tap Dark Mode
+        await tester.tap(find.text('Dark Mode'));
+        await tester.pumpAndSettle();
 
-      // Action sheet should dismiss and theme should update to Dark
-      expect(find.text('Appearance Theme'), findsNothing);
-      expect(find.text('Dark'), findsOneWidget);
+        // Action sheet should dismiss and theme should update to Dark
+        expect(find.text('Appearance Theme'), findsNothing);
+        expect(find.text('Dark'), findsOneWidget);
 
-      // Verify DB persistence
-      final persistedMode = await settingsRepo.getThemeMode();
-      expect(persistedMode, equals(AppThemeMode.dark));
-    });
+        // Verify DB persistence
+        final persistedMode = await settingsRepo.getThemeMode();
+        expect(persistedMode, equals(AppThemeMode.dark));
+      },
+    );
 
     testWidgets('selecting Light Mode updates state and persistence', (
       tester,
@@ -76,9 +78,7 @@ void main() {
             appDatabaseProvider.overrideWithValue(db),
             settingsRepositoryProvider.overrideWithValue(settingsRepo),
           ],
-          child: const CupertinoApp(
-            home: SettingsPage(),
-          ),
+          child: const CupertinoApp(home: SettingsPage()),
         ),
       );
       await tester.pumpAndSettle();

@@ -102,22 +102,23 @@ class GoogleDriveRepositoryImpl implements GoogleDriveRepository {
     void Function(int discoveredCount)? onProgress,
     void Function(DriveFileItem file)? onFileDiscovered,
     void Function(List<String> pendingFolders, Set<String> visitedFolders)?
-        onFolderStateChanged,
+    onFolderStateChanged,
     List<String>? initialFolderQueue,
     Set<String>? initialVisitedFolders,
     bool Function()? isCancelled,
+    Map<String, String?>? folderParentMap,
   }) async {
     try {
       final driveApi = _getDriveApi();
       final List<DriveFileItem> discoveredAudio = [];
       final List<String> folderQueue =
           (initialFolderQueue != null && initialFolderQueue.isNotEmpty)
-              ? List<String>.from(initialFolderQueue)
-              : [rootFolderId];
+          ? List<String>.from(initialFolderQueue)
+          : [rootFolderId];
       final Set<String> visitedFolders =
           (initialVisitedFolders != null && initialVisitedFolders.isNotEmpty)
-              ? Set<String>.from(initialVisitedFolders)
-              : {};
+          ? Set<String>.from(initialVisitedFolders)
+          : {};
 
       AppLogger.info(
         LogCategory.drive,
@@ -149,8 +150,7 @@ class GoogleDriveRepositoryImpl implements GoogleDriveRepository {
           final query = "'$currentFolderId' in parents and trashed = false";
           final result = await driveApi.files.list(
             q: query,
-            $fields:
-                'nextPageToken, files(id, name, mimeType, size, modifiedTime, md5Checksum, parents)',
+            $fields: 'nextPageToken, files(id, name, mimeType, size, modifiedTime, md5Checksum, parents)',
             pageSize: 100,
             pageToken: pageToken,
             spaces: 'drive',
@@ -164,8 +164,8 @@ class GoogleDriveRepositoryImpl implements GoogleDriveRepository {
             if (fId == null) continue;
 
             if (mime == 'application/vnd.google-apps.folder') {
-              if (!visitedFolders.contains(fId) &&
-                  !folderQueue.contains(fId)) {
+              folderParentMap?[fId] = currentFolderId;
+              if (!visitedFolders.contains(fId) && !folderQueue.contains(fId)) {
                 folderQueue.add(fId);
                 onFolderStateChanged?.call(folderQueue, visitedFolders);
               }
@@ -180,26 +180,32 @@ class GoogleDriveRepositoryImpl implements GoogleDriveRepository {
                   mime.startsWith('audio/') ||
                   AppAudioConstants.supportedMimeTypes.contains(mime);
               final isLrc = ext == 'lrc';
+              final isImage = AppImageConstants.isImageFile(name, mime);
 
-              if (isAudioExt || isAudioMime || isLrc) {
+              if (isAudioExt || isAudioMime || isLrc || isImage) {
                 final sizeBytes = int.tryParse(f.size ?? '0') ?? 0;
                 final fileItem = DriveFileItem(
                   id: fId,
                   name: name,
                   mimeType: mime.isNotEmpty
                       ? mime
-                      : (isLrc ? 'text/plain' : 'audio/mpeg'),
+                      : (isLrc
+                            ? 'text/plain'
+                            : (isImage ? 'image/jpeg' : 'audio/mpeg')),
                   size: sizeBytes,
                   modifiedTime: f.modifiedTime,
                   md5Checksum: f.md5Checksum,
                   parentFolderId: currentFolderId,
                   isLrc: isLrc,
+                  isImage: isImage,
                 );
                 discoveredAudio.add(fileItem);
                 onFileDiscovered?.call(fileItem);
-                if (!isLrc) {
+                if (!isLrc && !isImage) {
                   onProgress?.call(
-                    discoveredAudio.where((item) => !item.isLrc).length,
+                    discoveredAudio
+                        .where((item) => !item.isLrc && !item.isImage)
+                        .length,
                   );
                 }
               }
@@ -213,7 +219,7 @@ class GoogleDriveRepositoryImpl implements GoogleDriveRepository {
 
       AppLogger.info(
         LogCategory.drive,
-        'Recursive scan completed. Discovered ${discoveredAudio.length} items (${discoveredAudio.where((i) => !i.isLrc).length} audio, ${discoveredAudio.where((i) => i.isLrc).length} lrc).',
+        'Recursive scan completed. Discovered ${discoveredAudio.length} items (${discoveredAudio.where((i) => !i.isLrc && !i.isImage).length} audio, ${discoveredAudio.where((i) => i.isLrc).length} lrc, ${discoveredAudio.where((i) => i.isImage).length} image).',
       );
 
       return Result.success(discoveredAudio);

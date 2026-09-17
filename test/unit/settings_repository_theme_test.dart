@@ -35,13 +35,16 @@ void main() {
       expect(mode, equals(AppThemeMode.light));
     });
 
-    test('persists and retrieves AppThemeMode.system after modification', () async {
-      await repository.setThemeMode(AppThemeMode.dark);
-      expect(await repository.getThemeMode(), equals(AppThemeMode.dark));
+    test(
+      'persists and retrieves AppThemeMode.system after modification',
+      () async {
+        await repository.setThemeMode(AppThemeMode.dark);
+        expect(await repository.getThemeMode(), equals(AppThemeMode.dark));
 
-      await repository.setThemeMode(AppThemeMode.system);
-      expect(await repository.getThemeMode(), equals(AppThemeMode.system));
-    });
+        await repository.setThemeMode(AppThemeMode.system);
+        expect(await repository.getThemeMode(), equals(AppThemeMode.system));
+      },
+    );
   });
 
   group('AppThemeMode enum & parser', () {
@@ -53,7 +56,10 @@ void main() {
       expect(AppThemeMode.fromString('system'), equals(AppThemeMode.system));
       expect(AppThemeMode.fromString(''), equals(AppThemeMode.system));
       expect(AppThemeMode.fromString(null), equals(AppThemeMode.system));
-      expect(AppThemeMode.fromString('invalid_mode'), equals(AppThemeMode.system));
+      expect(
+        AppThemeMode.fromString('invalid_mode'),
+        equals(AppThemeMode.system),
+      );
     });
 
     test('label returns human-readable titles', () {

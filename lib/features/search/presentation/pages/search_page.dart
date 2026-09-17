@@ -163,11 +163,14 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                       SizedBox(
                         height: 200,
                         child: ListView.separated(
-                          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.md,
+                          ),
                           scrollDirection: Axis.horizontal,
                           physics: const BouncingScrollPhysics(),
                           itemCount: results.artists.length,
-                          separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.md),
+                          separatorBuilder: (_, _) =>
+                              const SizedBox(width: AppSpacing.md),
                           itemBuilder: (context, index) {
                             final artist = results.artists[index];
                             return SizedBox(
@@ -177,7 +180,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                                 onTap: () {
                                   Navigator.of(context).push(
                                     CupertinoPageRoute(
-                                      builder: (_) => ArtistDetailPage(artistId: artist.id),
+                                      builder: (_) =>
+                                          ArtistDetailPage(artistId: artist.id),
                                     ),
                                   );
                                 },
