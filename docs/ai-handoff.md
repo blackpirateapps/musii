@@ -1,10 +1,10 @@
 # Musii — AI Engineering Handoff Document
 
-> **Document Version**: 1.11.1  
+> **Document Version**: 1.12.0  
 > **Target Audience**: Incoming AI Coding Assistants & Human Software Engineers  
 > **Last Verified**: September 2026  
 > **App Identifier**: `com.blackpirateapps.musii`  
-> **Test Status**: 228 / 228 Passing (`flutter test`), 0 Analyzer Warnings (`flutter analyze`)
+> **Test Status**: 237 / 237 Passing (`flutter test`), 0 Analyzer Warnings (`flutter analyze`)
 
 ---
 
@@ -345,6 +345,9 @@ Located in `lib/features/last_fm/`, `lib/core/storage/secure_credential_store.da
     - The Last.fm 2.0 API requires parameter indexing (`track[0]`, `artist[0]`, `timestamp[0]`) only when submitting batches of multiple tracks. Submitting a single track with indexed `[0]` parameters causes Last.fm to return empty responses or parse errors on some endpoints. `LastFmApiClient.scrobbleBatch` dynamically selects un-indexed parameter names (`track`, `artist`) when `batch.length == 1`, and indexed parameter names when `batch.length > 1`.
 19. **Last.fm Custom API Key & Shared Secret Precedence**:
     - `LastFmRepositoryImpl.getAuthUrl` must be asynchronous to query `SecureCredentialStore` (`_getEffectiveApiKey()`). If `getAuthUrl` synchronously only referenced build-time `--dart-define` (`envApiKey`), user-entered custom credentials would be omitted from the browser authorization URL (`https://www.last.fm/api/auth?api_key=&token=...`), causing Last.fm to reject requests with `"Invalid API key"`. Custom credentials stored in secure hardware storage take precedence over empty or fallback build-time keys, and inputs are trimmed and sanitized against accidental surrounding quotation marks. In widget tests, `_showConfigDialog()` is async and loads current API credentials from the repository before presenting the dialog, requiring `lastFmRepositoryProvider` to be overridden with `MockLastFmRepository`.
+20. **`AlbumArtwork` Finite Sizing Constraints & Dynamic AspectRatio / Grid Collages**:
+    - **Issue**: In `ArtistCard` (3:4 aspect ratio), `PlaylistCard` (1:1 aspect ratio and 2x2 collage), `ArtistDetailPage`, and `PlaylistDetailPage`, callers supply `size: double.infinity` so `AlbumArtwork` expands to fill the parent flex or aspect ratio box. In Dart, calling `(size * dpr).round()` on `double.infinity` throws an unhandled `UnsupportedError: Cannot convert to int: Infinity`, completely breaking the widget build and preventing artist portraits and generated playlist collages from appearing in the Library tabs. Furthermore, in `_buildFallback()`, passing `fontSize: size * 0.4` triggers Flutter's `assert(fontSize.isFinite)` check.
+    - **Solution**: `AlbumArtwork` guards `size.isFinite`. When finite, it computes exact target cache thumbnails (`(size * dpr).round().clamp(64, 800)`) and sets `width: size, height: size`. When non-finite (`double.infinity`), it bounds the thumbnail cache size to `800`, passes `width: null, height: null` with `fit: BoxFit.cover` (allowing smooth expansion into tight `AspectRatio` and `Expanded` bounds), and resolves fallback initials font sizes dynamically via `LayoutBuilder` clamped between 12px and 72px. Additionally, `PlaylistCard` and `PlaylistDetailPage` deduplicate distinct album artworks from tracks so multi-album playlists render 2x2 collages while single-album playlists render clean full-size covers.
 
 ---
 

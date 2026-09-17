@@ -17,8 +17,8 @@ class LastFmSyncService {
   LastFmSyncService({
     required LastFmRepository repository,
     required ConnectivityService connectivity,
-  })  : _repository = repository,
-        _connectivity = connectivity;
+  }) : _repository = repository,
+       _connectivity = connectivity;
 
   void start() {
     _connectivitySub?.cancel();

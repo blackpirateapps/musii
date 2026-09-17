@@ -18,7 +18,7 @@ class LastFmPlaybackCoordinator {
       StreamController<Track>.broadcast();
 
   LastFmPlaybackCoordinator({required LastFmRepository repository})
-      : _repository = repository;
+    : _repository = repository;
 
   Stream<Track> get onScrobbleSuccess => _scrobbleSuccessController.stream;
 

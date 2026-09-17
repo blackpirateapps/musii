@@ -336,7 +336,8 @@ class LastFmAccounts extends Table {
   TextColumn get avatarUrl => text().nullable()();
   TextColumn get profileUrl => text()();
   IntColumn get scrobbleCount => integer().withDefault(const Constant(0))();
-  TextColumn get status => text()(); // 'connected', 'reauth_required', 'disconnected'
+  TextColumn get status =>
+      text()(); // 'connected', 'reauth_required', 'disconnected'
   DateTimeColumn get lastSyncedAt => dateTime().nullable()();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
@@ -355,7 +356,8 @@ class PendingScrobbles extends Table {
   TextColumn get albumArtist => text().nullable()();
   IntColumn get durationMs => integer().withDefault(const Constant(0))();
   IntColumn get timestamp => integer()(); // Unix timestamp in seconds
-  TextColumn get status => text()(); // 'pending', 'sending', 'failed_retryable', 'failed_reauth'
+  TextColumn get status =>
+      text()(); // 'pending', 'sending', 'failed_retryable', 'failed_reauth'
   IntColumn get attempts => integer().withDefault(const Constant(0))();
   DateTimeColumn get lastAttemptAt => dateTime().nullable()();
   TextColumn get errorMessage => text().nullable()();
@@ -378,4 +380,3 @@ class ScrobbleHistory extends Table {
   @override
   Set<Column> get primaryKey => {id};
 }
-

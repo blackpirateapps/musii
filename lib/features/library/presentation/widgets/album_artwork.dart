@@ -26,14 +26,16 @@ class AlbumArtwork extends StatelessWidget {
       final file = File(artworkPath!);
       if (file.existsSync()) {
         final dpr = MediaQuery.maybeDevicePixelRatioOf(context) ?? 2.0;
-        final targetCacheDim = (size * dpr).round().clamp(64, 800);
+        final targetCacheDim = size.isFinite
+            ? (size * dpr).round().clamp(64, 800)
+            : 800;
 
         return ClipRRect(
           borderRadius: BorderRadius.circular(borderRadius),
           child: Image.file(
             file,
-            width: size,
-            height: size,
+            width: size.isFinite ? size : null,
+            height: size.isFinite ? size : null,
             cacheWidth: targetCacheDim,
             cacheHeight: targetCacheDim,
             fit: BoxFit.cover,
@@ -60,27 +62,40 @@ class AlbumArtwork extends StatelessWidget {
         ? title!.trim()[0].toUpperCase()
         : '♫';
 
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(borderRadius),
-        gradient: LinearGradient(
-          colors: [color1, color2],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
-      child: Center(
-        child: Text(
-          initials,
-          style: TextStyle(
-            color: CupertinoColors.white.withOpacity(0.85),
-            fontSize: size * 0.4,
-            fontWeight: FontWeight.w600,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final dim = size.isFinite
+            ? size
+            : (constraints.hasBoundedWidth
+                  ? constraints.maxWidth
+                  : (constraints.hasBoundedHeight
+                        ? constraints.maxHeight
+                        : 56.0));
+        final fontSize = (dim * 0.4).clamp(12.0, 72.0);
+
+        return Container(
+          width: size.isFinite ? size : null,
+          height: size.isFinite ? size : null,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(borderRadius),
+            gradient: LinearGradient(
+              colors: [color1, color2],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
           ),
-        ),
-      ),
+          child: Center(
+            child: Text(
+              initials,
+              style: TextStyle(
+                color: CupertinoColors.white.withOpacity(0.85),
+                fontSize: fontSize,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

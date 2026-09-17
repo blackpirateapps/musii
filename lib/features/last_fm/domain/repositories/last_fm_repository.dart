@@ -15,7 +15,9 @@ abstract class LastFmRepository {
 
   /// Completes authentication by exchanging [token] for a 32-character session key
   /// and fetching the user's profile metadata.
-  Future<Result<LastFmAccount, AppFailure>> completeAuthentication(String token);
+  Future<Result<LastFmAccount, AppFailure>> completeAuthentication(
+    String token,
+  );
 
   /// Disconnects the Last.fm account, clears sensitive session keys from secure storage,
   /// and marks the account as disconnected.

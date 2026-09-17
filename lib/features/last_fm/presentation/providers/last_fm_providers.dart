@@ -47,20 +47,23 @@ final lastFmSettingsProvider = StreamProvider<ScrobbleSettings>((ref) {
   return repo.watchSettings();
 });
 
-final lastFmPendingScrobblesProvider =
-    StreamProvider<List<PendingScrobble>>((ref) {
+final lastFmPendingScrobblesProvider = StreamProvider<List<PendingScrobble>>((
+  ref,
+) {
   final repo = ref.watch(lastFmRepositoryProvider);
   return repo.watchPendingScrobbles();
 });
 
-final lastFmScrobbleHistoryProvider =
-    StreamProvider<List<ScrobbleHistoryItem>>((ref) {
-  final repo = ref.watch(lastFmRepositoryProvider);
-  return repo.watchScrobbleHistory();
-});
+final lastFmScrobbleHistoryProvider = StreamProvider<List<ScrobbleHistoryItem>>(
+  (ref) {
+    final repo = ref.watch(lastFmRepositoryProvider);
+    return repo.watchScrobbleHistory();
+  },
+);
 
-final lastFmPlaybackCoordinatorProvider =
-    Provider<LastFmPlaybackCoordinator>((ref) {
+final lastFmPlaybackCoordinatorProvider = Provider<LastFmPlaybackCoordinator>((
+  ref,
+) {
   final repo = ref.watch(lastFmRepositoryProvider);
   final coordinator = LastFmPlaybackCoordinator(repository: repo);
   ref.onDispose(() => coordinator.dispose());

@@ -55,8 +55,8 @@ void main() {
 
     LastFmRepositoryImpl createRepo({http.Client? client}) {
       final apiClient = LastFmApiClient(
-        client: client ??
-            MockClient((request) async => http.Response('{}', 200)),
+        client:
+            client ?? MockClient((request) async => http.Response('{}', 200)),
       );
       return LastFmRepositoryImpl(
         database: db,
@@ -108,20 +108,26 @@ void main() {
         expect(result.dataOrNull, equals('token_abc_123'));
       });
 
-      test('getAuthUrl uses effective custom API key configured in credentials', () async {
-        final repo = createRepo();
-        await repo.setApiCredentials(
-          apiKey: '979031f3a1b042ab166295f2b7bbfce3',
-          apiSecret: 'my_secret',
-        );
+      test(
+        'getAuthUrl uses effective custom API key configured in credentials',
+        () async {
+          final repo = createRepo();
+          await repo.setApiCredentials(
+            apiKey: '979031f3a1b042ab166295f2b7bbfce3',
+            apiSecret: 'my_secret',
+          );
 
-        final authUrl = await repo.getAuthUrl('sample_token_xyz');
-        expect(authUrl.queryParameters['api_key'], equals('979031f3a1b042ab166295f2b7bbfce3'));
-        expect(authUrl.queryParameters['token'], equals('sample_token_xyz'));
+          final authUrl = await repo.getAuthUrl('sample_token_xyz');
+          expect(
+            authUrl.queryParameters['api_key'],
+            equals('979031f3a1b042ab166295f2b7bbfce3'),
+          );
+          expect(authUrl.queryParameters['token'], equals('sample_token_xyz'));
 
-        final secret = await repo.getApiSecret();
-        expect(secret, equals('my_secret'));
-      });
+          final secret = await repo.getApiSecret();
+          expect(secret, equals('my_secret'));
+        },
+      );
     });
 
     group('Authentication Flow', () {
@@ -135,7 +141,7 @@ void main() {
                   'name': 'city_pop_listener',
                   'key': sampleSessionKey,
                   'subscriber': 0,
-                }
+                },
               }),
               200,
             );
@@ -148,9 +154,12 @@ void main() {
                   'playcount': '250',
                   'url': 'https://www.last.fm/user/city_pop_listener',
                   'image': [
-                    {'#text': 'https://lastfm.freetls.fastly.net/avatar.png', 'size': 'medium'}
+                    {
+                      '#text': 'https://lastfm.freetls.fastly.net/avatar.png',
+                      'size': 'medium',
+                    },
                   ],
-                }
+                },
               }),
               200,
             );
@@ -186,39 +195,44 @@ void main() {
         expect(persistedAccount.status, equals(LastFmAccountStatus.connected));
       });
 
-      test('disconnect clears session key and marks account disconnected', () async {
-        final repo = createRepo();
+      test(
+        'disconnect clears session key and marks account disconnected',
+        () async {
+          final repo = createRepo();
 
-        // Seed account
-        await credentialStore.write(
-          LastFmRepositoryImpl.sessionKeyStorageKey,
-          sampleSessionKey,
-        );
-        await db.into(db.lastFmAccounts).insert(
-              LastFmAccountsCompanion.insert(
-                id: 'current',
-                username: 'listener_1',
-                profileUrl: 'https://www.last.fm/user/listener_1',
-                scrobbleCount: const Value(10),
-                status: LastFmAccountStatus.connected.toDbString(),
-                createdAt: DateTime.now(),
-                updatedAt: DateTime.now(),
-              ),
-            );
+          // Seed account
+          await credentialStore.write(
+            LastFmRepositoryImpl.sessionKeyStorageKey,
+            sampleSessionKey,
+          );
+          await db
+              .into(db.lastFmAccounts)
+              .insert(
+                LastFmAccountsCompanion.insert(
+                  id: 'current',
+                  username: 'listener_1',
+                  profileUrl: 'https://www.last.fm/user/listener_1',
+                  scrobbleCount: const Value(10),
+                  status: LastFmAccountStatus.connected.toDbString(),
+                  createdAt: DateTime.now(),
+                  updatedAt: DateTime.now(),
+                ),
+              );
 
-        final disconnectResult = await repo.disconnect();
-        expect(disconnectResult.isSuccess, isTrue);
+          final disconnectResult = await repo.disconnect();
+          expect(disconnectResult.isSuccess, isTrue);
 
-        // Session key removed
-        final key = await credentialStore.read(
-          LastFmRepositoryImpl.sessionKeyStorageKey,
-        );
-        expect(key, isNull);
+          // Session key removed
+          final key = await credentialStore.read(
+            LastFmRepositoryImpl.sessionKeyStorageKey,
+          );
+          expect(key, isNull);
 
-        // Status updated to disconnected
-        final account = await repo.getAccount();
-        expect(account?.status, equals(LastFmAccountStatus.disconnected));
-      });
+          // Status updated to disconnected
+          final account = await repo.getAccount();
+          expect(account?.status, equals(LastFmAccountStatus.disconnected));
+        },
+      );
     });
 
     group('Settings Persistence', () {
@@ -256,7 +270,9 @@ void main() {
           LastFmRepositoryImpl.customApiSecretStorageKey,
           sampleApiSecret,
         );
-        await db.into(db.lastFmAccounts).insert(
+        await db
+            .into(db.lastFmAccounts)
+            .insert(
               LastFmAccountsCompanion.insert(
                 id: 'current',
                 username: 'listener_1',
@@ -285,16 +301,19 @@ void main() {
         expect(pendingItems.first.artistName, equals('Tatsuro Yamashita'));
       });
 
-      test('recordScrobble does nothing when scrobbling setting is disabled', () async {
-        final repo = createRepo();
-        await repo.setScrobblingEnabled(false);
+      test(
+        'recordScrobble does nothing when scrobbling setting is disabled',
+        () async {
+          final repo = createRepo();
+          await repo.setScrobblingEnabled(false);
 
-        final result = await repo.recordScrobble(testTrack, 123456);
-        expect(result.isSuccess, isTrue);
+          final result = await repo.recordScrobble(testTrack, 123456);
+          expect(result.isSuccess, isTrue);
 
-        final pendingCount = await repo.getPendingCount();
-        expect(pendingCount, equals(0));
-      });
+          final pendingCount = await repo.getPendingCount();
+          expect(pendingCount, equals(0));
+        },
+      );
 
       test('syncPendingScrobbles moves accepted tracks to ScrobbleHistory and increments count', () async {
         final mockClient = MockClient((request) async {
@@ -306,8 +325,8 @@ void main() {
                 'scrobble': {
                   'track': {'#text': 'Daydream'},
                   'ignoredMessage': {'code': '0', '#text': ''},
-                }
-              }
+                },
+              },
             }),
             200,
           );
@@ -339,33 +358,39 @@ void main() {
         expect(account?.scrobbleCount, equals(51));
       });
 
-      test('syncPendingScrobbles marks reauth_required on authentication failure', () async {
-        final mockClient = MockClient((request) async {
-          return http.Response(
-            jsonEncode({
-              'error': 9,
-              'message': 'Invalid session key - Please re-authenticate',
-            }),
-            200,
+      test(
+        'syncPendingScrobbles marks reauth_required on authentication failure',
+        () async {
+          final mockClient = MockClient((request) async {
+            return http.Response(
+              jsonEncode({
+                'error': 9,
+                'message': 'Invalid session key - Please re-authenticate',
+              }),
+              200,
+            );
+          });
+
+          final repo = createRepo(client: mockClient);
+          connectivity.online = false;
+          await repo.recordScrobble(testTrack, 1700000000);
+
+          connectivity.online = true;
+          final syncResult = await repo.syncPendingScrobbles();
+
+          expect(syncResult.isFailure, isTrue);
+          expect(syncResult.failureOrNull, isA<LastFmAuthenticationFailure>());
+
+          final account = await repo.getAccount();
+          expect(account?.status, equals(LastFmAccountStatus.reauthRequired));
+
+          final pendingItems = await repo.watchPendingScrobbles().first;
+          expect(
+            pendingItems.first.status.toDbString(),
+            equals('failed_reauth'),
           );
-        });
-
-        final repo = createRepo(client: mockClient);
-        connectivity.online = false;
-        await repo.recordScrobble(testTrack, 1700000000);
-
-        connectivity.online = true;
-        final syncResult = await repo.syncPendingScrobbles();
-
-        expect(syncResult.isFailure, isTrue);
-        expect(syncResult.failureOrNull, isA<LastFmAuthenticationFailure>());
-
-        final account = await repo.getAccount();
-        expect(account?.status, equals(LastFmAccountStatus.reauthRequired));
-
-        final pendingItems = await repo.watchPendingScrobbles().first;
-        expect(pendingItems.first.status.toDbString(), equals('failed_reauth'));
-      });
+        },
+      );
     });
 
     group('Now Playing Updates', () {
@@ -382,7 +407,9 @@ void main() {
           LastFmRepositoryImpl.customApiSecretStorageKey,
           sampleApiSecret,
         );
-        await db.into(db.lastFmAccounts).insert(
+        await db
+            .into(db.lastFmAccounts)
+            .insert(
               LastFmAccountsCompanion.insert(
                 id: 'current',
                 username: 'listener_1',
@@ -397,7 +424,10 @@ void main() {
       test('updateNowPlaying sends track when enabled and connected', () async {
         var called = false;
         final mockClient = MockClient((request) async {
-          expect(request.bodyFields['method'], equals('track.updateNowPlaying'));
+          expect(
+            request.bodyFields['method'],
+            equals('track.updateNowPlaying'),
+          );
           expect(request.bodyFields['track'], equals('Daydream'));
           called = true;
           return http.Response(
@@ -405,7 +435,7 @@ void main() {
               'nowplaying': {
                 'track': {'#text': 'Daydream'},
                 'artist': {'#text': 'Tatsuro Yamashita'},
-              }
+              },
             }),
             200,
           );

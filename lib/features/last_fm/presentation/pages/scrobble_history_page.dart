@@ -38,8 +38,7 @@ class ScrobbleHistoryPage extends ConsumerWidget {
                 child: EmptyState(
                   icon: CupertinoIcons.clock,
                   title: 'No Scrobbles Yet',
-                  subtitle:
-                      'Songs you listen to in Musii will appear here once submitted to Last.fm.',
+                  subtitle: 'Songs you listen to in Musii will appear here once submitted to Last.fm.',
                 ),
               )
             : ListView.separated(

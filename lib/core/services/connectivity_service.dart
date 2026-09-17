@@ -45,5 +45,4 @@ class ConnectivityService {
   /// Broadcast stream of connectivity changes.
   Stream<List<ConnectivityResult>> get onConnectivityChanged =>
       _connectivity.onConnectivityChanged;
-
 }

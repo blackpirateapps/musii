@@ -25,7 +25,9 @@ void main() {
         // String: "api_keyabcmethodauth.getSessiontokenxyz" + testApiSecret
         const expectedString =
             'api_keyabcmethodauth.getSessiontokenxyz$testApiSecret';
-        final expectedHash = md5.convert(utf8.encode(expectedString)).toString();
+        final expectedHash = md5
+            .convert(utf8.encode(expectedString))
+            .toString();
 
         final sig = LastFmApiClient.generateSignature(params, testApiSecret);
         expect(sig, equals(expectedHash));
@@ -60,13 +62,11 @@ void main() {
       });
 
       test('properly encodes multi-byte UTF-8 characters', () {
-        final params = {
-          'track': 'プラスティック・ラヴ',
-          'artist': '竹内まりや',
-        };
-        const expectedString =
-            'artist竹内まりやtrackプラスティック・ラヴ$testApiSecret';
-        final expectedHash = md5.convert(utf8.encode(expectedString)).toString();
+        final params = {'track': 'プラスティック・ラヴ', 'artist': '竹内まりや'};
+        const expectedString = 'artist竹内まりやtrackプラスティック・ラヴ$testApiSecret';
+        final expectedHash = md5
+            .convert(utf8.encode(expectedString))
+            .toString();
 
         final sig = LastFmApiClient.generateSignature(params, testApiSecret);
         expect(sig, equals(expectedHash));
@@ -102,7 +102,10 @@ void main() {
     group('getToken', () {
       test('returns token string on successful response', () async {
         final mockClient = MockClient((request) async {
-          expect(request.url.queryParameters['method'], equals('auth.getToken'));
+          expect(
+            request.url.queryParameters['method'],
+            equals('auth.getToken'),
+          );
           expect(request.url.queryParameters['api_key'], equals(testApiKey));
           expect(request.url.queryParameters['format'], equals('json'));
 
@@ -135,71 +138,83 @@ void main() {
         expect(result.failureOrNull?.message, contains('Invalid API key'));
       });
 
-      test('returns LastFmNetworkFailure on client error or socket exception', () async {
-        final mockClient = MockClient((request) async {
-          throw const SocketException('Connection failed');
-        });
+      test(
+        'returns LastFmNetworkFailure on client error or socket exception',
+        () async {
+          final mockClient = MockClient((request) async {
+            throw const SocketException('Connection failed');
+          });
 
-        final client = LastFmApiClient(client: mockClient);
-        final result = await client.getToken(apiKey: testApiKey);
+          final client = LastFmApiClient(client: mockClient);
+          final result = await client.getToken(apiKey: testApiKey);
 
-        expect(result.isFailure, isTrue);
-        expect(result.failureOrNull, isA<LastFmNetworkFailure>());
-      });
+          expect(result.isFailure, isTrue);
+          expect(result.failureOrNull, isA<LastFmNetworkFailure>());
+        },
+      );
     });
 
     group('getSession', () {
-      test('returns session map and verifies signed request parameters', () async {
-        final mockClient = MockClient((request) async {
-          expect(request.url.queryParameters['method'], equals('auth.getSession'));
-          expect(request.url.queryParameters['token'], equals('my_token'));
-          expect(request.url.queryParameters.containsKey('api_sig'), isTrue);
+      test(
+        'returns session map and verifies signed request parameters',
+        () async {
+          final mockClient = MockClient((request) async {
+            expect(
+              request.url.queryParameters['method'],
+              equals('auth.getSession'),
+            );
+            expect(request.url.queryParameters['token'], equals('my_token'));
+            expect(request.url.queryParameters.containsKey('api_sig'), isTrue);
 
-          return http.Response(
-            jsonEncode({
-              'session': {
-                'name': 'tatsuro_fan',
-                'key': 'session_key_999',
-                'subscriber': 0,
-              }
-            }),
-            200,
+            return http.Response(
+              jsonEncode({
+                'session': {
+                  'name': 'tatsuro_fan',
+                  'key': 'session_key_999',
+                  'subscriber': 0,
+                },
+              }),
+              200,
+            );
+          });
+
+          final client = LastFmApiClient(client: mockClient);
+          final result = await client.getSession(
+            apiKey: testApiKey,
+            apiSecret: testApiSecret,
+            token: 'my_token',
           );
-        });
 
-        final client = LastFmApiClient(client: mockClient);
-        final result = await client.getSession(
-          apiKey: testApiKey,
-          apiSecret: testApiSecret,
-          token: 'my_token',
-        );
+          expect(result.isSuccess, isTrue);
+          final session = result.dataOrNull!;
+          expect(session['name'], equals('tatsuro_fan'));
+          expect(session['key'], equals('session_key_999'));
+        },
+      );
 
-        expect(result.isSuccess, isTrue);
-        final session = result.dataOrNull!;
-        expect(session['name'], equals('tatsuro_fan'));
-        expect(session['key'], equals('session_key_999'));
-      });
+      test(
+        'returns LastFmAuthenticationFailure when error is auth-related',
+        () async {
+          final mockClient = MockClient((request) async {
+            return http.Response(
+              jsonEncode({'error': 4, 'message': 'Authentication Failed'}),
+              200,
+            );
+          });
 
-      test('returns LastFmAuthenticationFailure when error is auth-related', () async {
-        final mockClient = MockClient((request) async {
-          return http.Response(
-            jsonEncode({'error': 4, 'message': 'Authentication Failed'}),
-            200,
+          final client = LastFmApiClient(client: mockClient);
+          final result = await client.getSession(
+            apiKey: testApiKey,
+            apiSecret: testApiSecret,
+            token: 'invalid_token',
           );
-        });
 
-        final client = LastFmApiClient(client: mockClient);
-        final result = await client.getSession(
-          apiKey: testApiKey,
-          apiSecret: testApiSecret,
-          token: 'invalid_token',
-        );
-
-        expect(result.isFailure, isTrue);
-        expect(result.failureOrNull, isA<LastFmAuthenticationFailure>());
-        final authFail = result.failureOrNull as LastFmAuthenticationFailure;
-        expect(authFail.errorCode, equals(4));
-      });
+          expect(result.isFailure, isTrue);
+          expect(result.failureOrNull, isA<LastFmAuthenticationFailure>());
+          final authFail = result.failureOrNull as LastFmAuthenticationFailure;
+          expect(authFail.errorCode, equals(4));
+        },
+      );
     });
 
     group('getUserInfo', () {
@@ -215,8 +230,8 @@ void main() {
                 'playcount': '1520',
                 'image': [
                   {'#text': 'http://avatar.jpg', 'size': 'medium'},
-                ]
-              }
+                ],
+              },
             }),
             200,
           );
@@ -239,7 +254,10 @@ void main() {
       test('submits valid POST request with track and artist', () async {
         final mockClient = MockClient((request) async {
           expect(request.method, equals('POST'));
-          expect(request.bodyFields['method'], equals('track.updateNowPlaying'));
+          expect(
+            request.bodyFields['method'],
+            equals('track.updateNowPlaying'),
+          );
           expect(request.bodyFields['track'], equals('Sparkle'));
           expect(request.bodyFields['artist'], equals('Tatsuro Yamashita'));
           expect(request.bodyFields['album'], equals('For You'));
@@ -251,7 +269,7 @@ void main() {
               'nowplaying': {
                 'track': {'#text': 'Sparkle'},
                 'artist': {'#text': 'Tatsuro Yamashita'},
-              }
+              },
             }),
             200,
           );
@@ -293,25 +311,28 @@ void main() {
         );
       }
 
-      test('returns immediately without HTTP call when list is empty', () async {
-        var called = false;
-        final mockClient = MockClient((request) async {
-          called = true;
-          return http.Response('{}', 200);
-        });
+      test(
+        'returns immediately without HTTP call when list is empty',
+        () async {
+          var called = false;
+          final mockClient = MockClient((request) async {
+            called = true;
+            return http.Response('{}', 200);
+          });
 
-        final client = LastFmApiClient(client: mockClient);
-        final result = await client.scrobbleBatch(
-          apiKey: testApiKey,
-          apiSecret: testApiSecret,
-          sessionKey: 'session_key_123',
-          scrobbles: [],
-        );
+          final client = LastFmApiClient(client: mockClient);
+          final result = await client.scrobbleBatch(
+            apiKey: testApiKey,
+            apiSecret: testApiSecret,
+            sessionKey: 'session_key_123',
+            scrobbles: [],
+          );
 
-        expect(called, isFalse);
-        expect(result.isSuccess, isTrue);
-        expect(result.dataOrNull?.accepted, equals(0));
-      });
+          expect(called, isFalse);
+          expect(result.isSuccess, isTrue);
+          expect(result.dataOrNull?.accepted, equals(0));
+        },
+      );
 
       test('submits single track using un-indexed parameters', () async {
         final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
@@ -340,8 +361,8 @@ void main() {
                 'scrobble': {
                   'track': {'#text': 'Silent Screamer'},
                   'ignoredMessage': {'code': '0', '#text': ''},
-                }
-              }
+                },
+              },
             }),
             200,
           );
@@ -397,9 +418,9 @@ void main() {
                   {
                     'track': {'#text': 'Track 2'},
                     'ignoredMessage': {'code': '0', '#text': ''},
-                  }
-                ]
-              }
+                  },
+                ],
+              },
             }),
             200,
           );

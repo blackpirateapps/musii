@@ -22,11 +22,13 @@ class MockLastFmRepository implements LastFmRepository {
   }
 
   @override
-  Future<Result<LastFmAccount, AppFailure>> completeAuthentication(String token) async =>
-      throw UnimplementedError();
+  Future<Result<LastFmAccount, AppFailure>> completeAuthentication(
+    String token,
+  ) async => throw UnimplementedError();
 
   @override
-  Future<Result<void, AppFailure>> disconnect() async => throw UnimplementedError();
+  Future<Result<void, AppFailure>> disconnect() async =>
+      throw UnimplementedError();
 
   @override
   Future<LastFmAccount?> getAccount() async => null;
@@ -39,7 +41,8 @@ class MockLastFmRepository implements LastFmRepository {
       throw UnimplementedError();
 
   @override
-  Future<Uri> getAuthUrl(String token) async => Uri.parse('https://example.com');
+  Future<Uri> getAuthUrl(String token) async =>
+      Uri.parse('https://example.com');
 
   @override
   Future<String?> getApiSecret() async => null;
@@ -63,11 +66,16 @@ class MockLastFmRepository implements LastFmRepository {
   Future<bool> hasSession() async => true;
 
   @override
-  Future<Result<void, AppFailure>> recordScrobble(Track track, int startTimestampSeconds) async =>
-      const Success(null);
+  Future<Result<void, AppFailure>> recordScrobble(
+    Track track,
+    int startTimestampSeconds,
+  ) async => const Success(null);
 
   @override
-  Future<void> setApiCredentials({required String apiKey, required String apiSecret}) async {}
+  Future<void> setApiCredentials({
+    required String apiKey,
+    required String apiSecret,
+  }) async {}
 
   @override
   Future<void> setNowPlayingEnabled(bool enabled) async {}
@@ -90,16 +98,21 @@ class MockLastFmRepository implements LastFmRepository {
       Stream.value([]);
 
   @override
-  Stream<ScrobbleSettings> watchSettings() => Stream.value(const ScrobbleSettings());
+  Stream<ScrobbleSettings> watchSettings() =>
+      Stream.value(const ScrobbleSettings());
 }
 
 void main() {
   group('PendingScrobblesPage', () {
-    testWidgets('renders empty state when no scrobbles are pending', (tester) async {
+    testWidgets('renders empty state when no scrobbles are pending', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            lastFmPendingScrobblesProvider.overrideWith((ref) => Stream.value([])),
+            lastFmPendingScrobblesProvider.overrideWith(
+              (ref) => Stream.value([]),
+            ),
           ],
           child: const CupertinoApp(home: PendingScrobblesPage()),
         ),
@@ -110,77 +123,80 @@ void main() {
       expect(find.text('Offline Scrobbles'), findsOneWidget);
       expect(find.text('All Scrobbles Synced'), findsOneWidget);
       expect(
-        find.text('There are no pending scrobbles waiting in the offline queue.'),
+        find.text(
+          'There are no pending scrobbles waiting in the offline queue.',
+        ),
         findsOneWidget,
       );
       // No Sync Now button in empty state
       expect(find.text('Sync Now'), findsNothing);
     });
 
-    testWidgets('renders pending tracks list with badges and triggers manual sync', (
-      tester,
-    ) async {
-      final mockRepo = MockLastFmRepository();
+    testWidgets(
+      'renders pending tracks list with badges and triggers manual sync',
+      (tester) async {
+        final mockRepo = MockLastFmRepository();
 
-      final pendingItems = [
-        PendingScrobble(
-          id: 'ps_1',
-          trackId: 't_1',
-          trackTitle: 'Plastic Love',
-          artistName: 'Mariya Takeuchi',
-          albumName: 'Variety',
-          durationMs: 290000,
-          timestamp: 1700000000,
-          status: ScrobbleStatus.pending,
-          createdAt: DateTime.now(),
-        ),
-        PendingScrobble(
-          id: 'ps_2',
-          trackId: 't_2',
-          trackTitle: 'Ride on Time',
-          artistName: 'Tatsuro Yamashita',
-          albumName: 'Ride on Time',
-          durationMs: 310000,
-          timestamp: 1700000300,
-          status: ScrobbleStatus.failedRetryable,
-          attempts: 2,
-          errorMessage: 'Connection reset',
-          createdAt: DateTime.now(),
-        ),
-      ];
+        final pendingItems = [
+          PendingScrobble(
+            id: 'ps_1',
+            trackId: 't_1',
+            trackTitle: 'Plastic Love',
+            artistName: 'Mariya Takeuchi',
+            albumName: 'Variety',
+            durationMs: 290000,
+            timestamp: 1700000000,
+            status: ScrobbleStatus.pending,
+            createdAt: DateTime.now(),
+          ),
+          PendingScrobble(
+            id: 'ps_2',
+            trackId: 't_2',
+            trackTitle: 'Ride on Time',
+            artistName: 'Tatsuro Yamashita',
+            albumName: 'Ride on Time',
+            durationMs: 310000,
+            timestamp: 1700000300,
+            status: ScrobbleStatus.failedRetryable,
+            attempts: 2,
+            errorMessage: 'Connection reset',
+            createdAt: DateTime.now(),
+          ),
+        ];
 
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            lastFmRepositoryProvider.overrideWithValue(mockRepo),
-            lastFmPendingScrobblesProvider.overrideWith(
-              (ref) => Stream.value(pendingItems),
-            ),
-          ],
-          child: const CupertinoApp(home: PendingScrobblesPage()),
-        ),
-      );
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              lastFmRepositoryProvider.overrideWithValue(mockRepo),
+              lastFmPendingScrobblesProvider.overrideWith(
+                (ref) => Stream.value(pendingItems),
+              ),
+            ],
+            child: const CupertinoApp(home: PendingScrobblesPage()),
+          ),
+        );
 
-      await tester.pumpAndSettle();
+        await tester.pumpAndSettle();
 
-      expect(find.text('Offline Scrobbles'), findsOneWidget);
-      expect(find.text('2 tracks waiting to sync'), findsOneWidget);
+        expect(find.text('Offline Scrobbles'), findsOneWidget);
+        expect(find.text('2 tracks waiting to sync'), findsOneWidget);
 
-      // Track titles and artists
-      expect(find.text('Plastic Love'), findsOneWidget);
-      expect(find.text('Mariya Takeuchi · Variety'), findsOneWidget);
-      expect(find.text('Waiting'), findsOneWidget);
+        // Track titles and artists
+        expect(find.text('Plastic Love'), findsOneWidget);
+        expect(find.text('Mariya Takeuchi · Variety'), findsOneWidget);
+        expect(find.text('Waiting'), findsOneWidget);
 
-      expect(find.text('Ride on Time'), findsOneWidget);
-      expect(find.text('Tatsuro Yamashita · Ride on Time'), findsOneWidget);
-      expect(find.text('Retry scheduled'), findsOneWidget);
+        expect(find.text('Ride on Time'), findsOneWidget);
+        expect(find.text('Tatsuro Yamashita · Ride on Time'), findsOneWidget);
+        expect(find.text('Retry scheduled'), findsOneWidget);
 
-      // Tap Sync Now
-      expect(find.text('Sync Now'), findsOneWidget);
-      await tester.tap(find.text('Sync Now'));
-      await tester.pumpAndSettle();
+        // Tap Sync Now
+        expect(find.text('Sync Now'), findsOneWidget);
+        await tester.tap(find.text('Sync Now'));
+        await tester.pumpAndSettle();
 
-      expect(mockRepo.syncCallCount, equals(1));
-    });
+        expect(mockRepo.syncCallCount, equals(1));
+      },
+    );
   });
 }

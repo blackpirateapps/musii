@@ -344,74 +344,73 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
                                                 .withOpacity(0.55),
                                           ),
                                         ),
-                                         if (track != null) ...[
-                                           const SizedBox(height: 8),
-                                           Wrap(
-                                             crossAxisAlignment:
-                                                 WrapCrossAlignment.center,
-                                             spacing: 8,
-                                             runSpacing: 4,
-                                             children: [
-                                               TechnicalBadge(
-                                                 track: track,
-                                                 isDarkBackground: true,
-                                                 onTap: () =>
-                                                     showAudioInfoSheet(
-                                                   context,
-                                                   track,
-                                                 ),
-                                               ),
-                                               if (lastScrobbledTrack?.id ==
-                                                   track.id)
-                                                 Container(
-                                                   padding:
-                                                       const EdgeInsets.symmetric(
-                                                     horizontal: 8,
-                                                     vertical: 3,
-                                                   ),
-                                                   decoration: BoxDecoration(
-                                                     color: CupertinoColors
-                                                         .activeGreen
-                                                         .withOpacity(0.2),
-                                                     borderRadius:
-                                                         BorderRadius.circular(
-                                                       999,
-                                                     ),
-                                                     border: Border.all(
-                                                       color: CupertinoColors
-                                                           .activeGreen
-                                                           .withOpacity(0.5),
-                                                       width: 0.5,
-                                                     ),
-                                                   ),
-                                                   child: const Row(
-                                                     mainAxisSize:
-                                                         MainAxisSize.min,
-                                                     children: [
-                                                       Icon(
-                                                         CupertinoIcons
-                                                             .checkmark_alt,
-                                                         size: 11,
-                                                         color: CupertinoColors
-                                                             .activeGreen,
-                                                       ),
-                                                       SizedBox(width: 4),
-                                                       Text(
-                                                         'Scrobbled',
-                                                         style: TextStyle(
-                                                           fontSize: 11,
-                                                           fontWeight:
-                                                               FontWeight.w600,
-                                                           color: CupertinoColors
-                                                               .activeGreen,
-                                                         ),
-                                                       ),
-                                                     ],
-                                                   ),
-                                                 ),
-                                             ],
-                                           ),
-                                         ],
+                                        if (track != null) ...[
+                                          const SizedBox(height: 8),
+                                          Wrap(
+                                            crossAxisAlignment:
+                                                WrapCrossAlignment.center,
+                                            spacing: 8,
+                                            runSpacing: 4,
+                                            children: [
+                                              TechnicalBadge(
+                                                track: track,
+                                                isDarkBackground: true,
+                                                onTap: () => showAudioInfoSheet(
+                                                  context,
+                                                  track,
+                                                ),
+                                              ),
+                                              if (lastScrobbledTrack?.id ==
+                                                  track.id)
+                                                Container(
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 8,
+                                                        vertical: 3,
+                                                      ),
+                                                  decoration: BoxDecoration(
+                                                    color: CupertinoColors
+                                                        .activeGreen
+                                                        .withOpacity(0.2),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          999,
+                                                        ),
+                                                    border: Border.all(
+                                                      color: CupertinoColors
+                                                          .activeGreen
+                                                          .withOpacity(0.5),
+                                                      width: 0.5,
+                                                    ),
+                                                  ),
+                                                  child: const Row(
+                                                    mainAxisSize:
+                                                        MainAxisSize.min,
+                                                    children: [
+                                                      Icon(
+                                                        CupertinoIcons
+                                                            .checkmark_alt,
+                                                        size: 11,
+                                                        color: CupertinoColors
+                                                            .activeGreen,
+                                                      ),
+                                                      SizedBox(width: 4),
+                                                      Text(
+                                                        'Scrobbled',
+                                                        style: TextStyle(
+                                                          fontSize: 11,
+                                                          fontWeight:
+                                                              FontWeight.w600,
+                                                          color: CupertinoColors
+                                                              .activeGreen,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                        ],
                                       ],
                                     ),
                                   ),

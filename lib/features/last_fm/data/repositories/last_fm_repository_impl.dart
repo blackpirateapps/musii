@@ -26,7 +26,9 @@ class LastFmRepositoryImpl implements LastFmRepository {
 
   // Environment defines (injected at build time via --dart-define)
   static const String envApiKey = String.fromEnvironment('LASTFM_API_KEY');
-  static const String envApiSecret = String.fromEnvironment('LASTFM_SHARED_SECRET');
+  static const String envApiSecret = String.fromEnvironment(
+    'LASTFM_SHARED_SECRET',
+  );
 
   final AppDatabase _database;
   final SecureCredentialStore _credentialStore;
@@ -38,10 +40,10 @@ class LastFmRepositoryImpl implements LastFmRepository {
     required SecureCredentialStore credentialStore,
     LastFmApiClient? apiClient,
     ConnectivityService? connectivity,
-  })  : _database = database,
-        _credentialStore = credentialStore,
-        _apiClient = apiClient ?? LastFmApiClient(),
-        _connectivity = connectivity ?? ConnectivityService();
+  }) : _database = database,
+       _credentialStore = credentialStore,
+       _apiClient = apiClient ?? LastFmApiClient(),
+       _connectivity = connectivity ?? ConnectivityService();
 
   Future<String?> _getEffectiveApiKey() async {
     if (envApiKey.isNotEmpty) return envApiKey;
@@ -67,8 +69,10 @@ class LastFmRepositoryImpl implements LastFmRepository {
     required String apiSecret,
   }) async {
     final cleanKey = apiKey.replaceAll('"', '').replaceAll("'", '').trim();
-    final cleanSecret =
-        apiSecret.replaceAll('"', '').replaceAll("'", '').trim();
+    final cleanSecret = apiSecret
+        .replaceAll('"', '')
+        .replaceAll("'", '')
+        .trim();
     await _credentialStore.write(customApiKeyStorageKey, cleanKey);
     await _credentialStore.write(customApiSecretStorageKey, cleanSecret);
   }
@@ -99,7 +103,10 @@ class LastFmRepositoryImpl implements LastFmRepository {
     final apiKey = await _getEffectiveApiKey();
     final apiSecret = await _getEffectiveApiSecret();
 
-    if (apiKey == null || apiKey.isEmpty || apiSecret == null || apiSecret.isEmpty) {
+    if (apiKey == null ||
+        apiKey.isEmpty ||
+        apiSecret == null ||
+        apiSecret.isEmpty) {
       return const Failure(
         LastFmConfigurationFailure(
           'Last.fm credentials not configured. Please supply API key and secret.',
@@ -154,7 +161,9 @@ class LastFmRepositoryImpl implements LastFmRepository {
     }
 
     final now = DateTime.now();
-    await _database.into(_database.lastFmAccounts).insertOnConflictUpdate(
+    await _database
+        .into(_database.lastFmAccounts)
+        .insertOnConflictUpdate(
           LastFmAccountsCompanion(
             id: const Value('current'),
             username: Value(username),
@@ -192,14 +201,14 @@ class LastFmRepositoryImpl implements LastFmRepository {
     try {
       await _credentialStore.delete(sessionKeyStorageKey);
 
-      final existing = await (_database.select(_database.lastFmAccounts)
-            ..where((tbl) => tbl.id.equals('current')))
-          .getSingleOrNull();
+      final existing = await (_database.select(
+        _database.lastFmAccounts,
+      )..where((tbl) => tbl.id.equals('current'))).getSingleOrNull();
 
       if (existing != null) {
-        await (_database.update(_database.lastFmAccounts)
-              ..where((tbl) => tbl.id.equals('current')))
-            .write(
+        await (_database.update(
+          _database.lastFmAccounts,
+        )..where((tbl) => tbl.id.equals('current'))).write(
           LastFmAccountsCompanion(
             status: Value(LastFmAccountStatus.disconnected.toDbString()),
             updatedAt: Value(DateTime.now()),
@@ -210,7 +219,12 @@ class LastFmRepositoryImpl implements LastFmRepository {
       AppLogger.info(LogCategory.lastFm, 'Last.fm disconnected successfully');
       return const Success(null);
     } catch (e, st) {
-      AppLogger.error(LogCategory.lastFm, 'Failed to disconnect Last.fm', e, st);
+      AppLogger.error(
+        LogCategory.lastFm,
+        'Failed to disconnect Last.fm',
+        e,
+        st,
+      );
       return Failure(DatabaseFailure('Could not disconnect Last.fm', cause: e));
     }
   }
@@ -225,9 +239,9 @@ class LastFmRepositoryImpl implements LastFmRepository {
 
   @override
   Future<LastFmAccount?> getAccount() async {
-    final row = await (_database.select(_database.lastFmAccounts)
-          ..where((tbl) => tbl.id.equals('current')))
-        .getSingleOrNull();
+    final row = await (_database.select(
+      _database.lastFmAccounts,
+    )..where((tbl) => tbl.id.equals('current'))).getSingleOrNull();
     return _mapAccountRow(row);
   }
 
@@ -252,41 +266,35 @@ class LastFmRepositoryImpl implements LastFmRepository {
 
   @override
   Stream<ScrobbleSettings> watchSettings() {
-    return (_database.select(_database.appSettings)
-          ..where(
-            (tbl) => tbl.key.isIn([
-              scrobblingSettingKey,
-              nowPlayingSettingKey,
-            ]),
-          ))
+    return (_database.select(_database.appSettings)..where(
+          (tbl) => tbl.key.isIn([scrobblingSettingKey, nowPlayingSettingKey]),
+        ))
         .watch()
         .map((rows) {
-      bool scrobbling = true;
-      bool nowPlaying = true;
-      for (final r in rows) {
-        if (r.key == scrobblingSettingKey) {
-          scrobbling = r.value != 'false';
-        } else if (r.key == nowPlayingSettingKey) {
-          nowPlaying = r.value != 'false';
-        }
-      }
-      return ScrobbleSettings(
-        scrobblingEnabled: scrobbling,
-        nowPlayingEnabled: nowPlaying,
-      );
-    });
+          bool scrobbling = true;
+          bool nowPlaying = true;
+          for (final r in rows) {
+            if (r.key == scrobblingSettingKey) {
+              scrobbling = r.value != 'false';
+            } else if (r.key == nowPlayingSettingKey) {
+              nowPlaying = r.value != 'false';
+            }
+          }
+          return ScrobbleSettings(
+            scrobblingEnabled: scrobbling,
+            nowPlayingEnabled: nowPlaying,
+          );
+        });
   }
 
   @override
   Future<ScrobbleSettings> getSettings() async {
-    final rows = await (_database.select(_database.appSettings)
-          ..where(
-            (tbl) => tbl.key.isIn([
-              scrobblingSettingKey,
-              nowPlayingSettingKey,
-            ]),
-          ))
-        .get();
+    final rows =
+        await (_database.select(_database.appSettings)..where(
+              (tbl) =>
+                  tbl.key.isIn([scrobblingSettingKey, nowPlayingSettingKey]),
+            ))
+            .get();
 
     bool scrobbling = true;
     bool nowPlaying = true;
@@ -305,7 +313,9 @@ class LastFmRepositoryImpl implements LastFmRepository {
 
   @override
   Future<void> setScrobblingEnabled(bool enabled) async {
-    await _database.into(_database.appSettings).insertOnConflictUpdate(
+    await _database
+        .into(_database.appSettings)
+        .insertOnConflictUpdate(
           AppSettingsCompanion(
             key: const Value(scrobblingSettingKey),
             value: Value(enabled.toString()),
@@ -315,7 +325,9 @@ class LastFmRepositoryImpl implements LastFmRepository {
 
   @override
   Future<void> setNowPlayingEnabled(bool enabled) async {
-    await _database.into(_database.appSettings).insertOnConflictUpdate(
+    await _database
+        .into(_database.appSettings)
+        .insertOnConflictUpdate(
           AppSettingsCompanion(
             key: const Value(nowPlayingSettingKey),
             value: Value(enabled.toString()),
@@ -350,7 +362,8 @@ class LastFmRepositoryImpl implements LastFmRepository {
       trackNumber: track.trackNumber,
     );
 
-    if (result.isFailure && result.failureOrNull is LastFmAuthenticationFailure) {
+    if (result.isFailure &&
+        result.failureOrNull is LastFmAuthenticationFailure) {
       await _handleReauthRequired(result.failureOrNull!.message);
     }
 
@@ -459,11 +472,12 @@ class LastFmRepositoryImpl implements LastFmRepository {
     }
 
     // Fetch pending scrobbles (batch of up to 50)
-    final pendingRows = await (_database.select(_database.pendingScrobbles)
-          ..where((tbl) => tbl.status.isNotValue('failed_reauth'))
-          ..orderBy([(t) => OrderingTerm.asc(t.timestamp)])
-          ..limit(50))
-        .get();
+    final pendingRows =
+        await (_database.select(_database.pendingScrobbles)
+              ..where((tbl) => tbl.status.isNotValue('failed_reauth'))
+              ..orderBy([(t) => OrderingTerm.asc(t.timestamp)])
+              ..limit(50))
+            .get();
 
     if (pendingRows.isEmpty) {
       return const Success(0);
@@ -473,9 +487,9 @@ class LastFmRepositoryImpl implements LastFmRepository {
 
     // Mark as sending
     final ids = pendingList.map((p) => p.id).toList();
-    await (_database.update(_database.pendingScrobbles)
-          ..where((tbl) => tbl.id.isIn(ids)))
-        .write(
+    await (_database.update(
+      _database.pendingScrobbles,
+    )..where((tbl) => tbl.id.isIn(ids))).write(
       PendingScrobblesCompanion(
         status: Value(ScrobbleStatus.sending.toDbString()),
         lastAttemptAt: Value(DateTime.now()),
@@ -494,9 +508,9 @@ class LastFmRepositoryImpl implements LastFmRepository {
       if (failure is LastFmAuthenticationFailure) {
         await _handleReauthRequired(failure.message);
         // Mark all as failed_reauth to avoid retry loops
-        await (_database.update(_database.pendingScrobbles)
-              ..where((tbl) => tbl.id.isIn(ids)))
-            .write(
+        await (_database.update(
+          _database.pendingScrobbles,
+        )..where((tbl) => tbl.id.isIn(ids))).write(
           PendingScrobblesCompanion(
             status: Value(ScrobbleStatus.failedReauth.toDbString()),
             errorMessage: Value(failure.message),
@@ -507,9 +521,9 @@ class LastFmRepositoryImpl implements LastFmRepository {
 
       // Transient failure: increment attempt count and mark retryable
       for (final p in pendingList) {
-        await (_database.update(_database.pendingScrobbles)
-              ..where((tbl) => tbl.id.equals(p.id)))
-            .write(
+        await (_database.update(
+          _database.pendingScrobbles,
+        )..where((tbl) => tbl.id.equals(p.id))).write(
           PendingScrobblesCompanion(
             status: Value(ScrobbleStatus.failedRetryable.toDbString()),
             attempts: Value(p.attempts + 1),
@@ -527,7 +541,9 @@ class LastFmRepositoryImpl implements LastFmRepository {
     // Process accepted records: move to ScrobbleHistory and remove from PendingScrobbles
     for (final p in pendingList) {
       if (acceptedSet.contains(p.id)) {
-        await _database.into(_database.scrobbleHistory).insert(
+        await _database
+            .into(_database.scrobbleHistory)
+            .insert(
               ScrobbleHistoryCompanion(
                 id: Value(p.id),
                 trackId: Value(p.trackId),
@@ -539,16 +555,17 @@ class LastFmRepositoryImpl implements LastFmRepository {
               ),
             );
 
-        await (_database.delete(_database.pendingScrobbles)
-              ..where((tbl) => tbl.id.equals(p.id)))
-            .go();
+        await (_database.delete(
+          _database.pendingScrobbles,
+        )..where((tbl) => tbl.id.equals(p.id))).go();
       } else {
         // Track was ignored by Last.fm (e.g. timestamp too old)
-        final reason = result.ignoredReasons[p.id] ?? 'Track ignored by Last.fm';
+        final reason =
+            result.ignoredReasons[p.id] ?? 'Track ignored by Last.fm';
         // Remove permanently invalid scrobbles to not block queue
-        await (_database.delete(_database.pendingScrobbles)
-              ..where((tbl) => tbl.id.equals(p.id)))
-            .go();
+        await (_database.delete(
+          _database.pendingScrobbles,
+        )..where((tbl) => tbl.id.equals(p.id))).go();
         AppLogger.warning(
           LogCategory.lastFm,
           'Scrobble ignored by Last.fm ($reason): ${p.trackTitle}',
@@ -558,9 +575,9 @@ class LastFmRepositoryImpl implements LastFmRepository {
 
     // Update account stats
     if (result.accepted > 0) {
-      await (_database.update(_database.lastFmAccounts)
-            ..where((tbl) => tbl.id.equals('current')))
-          .write(
+      await (_database.update(
+        _database.lastFmAccounts,
+      )..where((tbl) => tbl.id.equals('current'))).write(
         LastFmAccountsCompanion(
           scrobbleCount: Value(account.scrobbleCount + result.accepted),
           lastSyncedAt: Value(now),
@@ -587,9 +604,9 @@ class LastFmRepositoryImpl implements LastFmRepository {
       LogCategory.lastFm,
       'Last.fm authentication expired or invalid: $reason',
     );
-    await (_database.update(_database.lastFmAccounts)
-          ..where((tbl) => tbl.id.equals('current')))
-        .write(
+    await (_database.update(
+      _database.lastFmAccounts,
+    )..where((tbl) => tbl.id.equals('current'))).write(
       LastFmAccountsCompanion(
         status: Value(LastFmAccountStatus.reauthRequired.toDbString()),
         updatedAt: Value(DateTime.now()),
@@ -607,9 +624,9 @@ class LastFmRepositoryImpl implements LastFmRepository {
 
   @override
   Future<List<PendingScrobble>> getPendingScrobbles() async {
-    final rows = await (_database.select(_database.pendingScrobbles)
-          ..orderBy([(t) => OrderingTerm.asc(t.timestamp)]))
-        .get();
+    final rows = await (_database.select(
+      _database.pendingScrobbles,
+    )..orderBy([(t) => OrderingTerm.asc(t.timestamp)])).get();
     return rows.map(_mapPendingRow).toList();
   }
 

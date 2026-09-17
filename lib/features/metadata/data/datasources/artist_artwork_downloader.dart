@@ -13,6 +13,7 @@ class ArtistArtworkDownloader {
   final http.Client _client;
   final AppFileSystem _fileSystem;
   final AppDatabase _database;
+  final Set<String> _failedArtistNames = {};
 
   ArtistArtworkDownloader({
     http.Client? client,
@@ -27,6 +28,7 @@ class ArtistArtworkDownloader {
   Future<String?> downloadArtistArtwork(Artist artist) async {
     final artistName = artist.name.trim();
     if (artistName.isEmpty) return null;
+    if (_failedArtistNames.contains(artist.normalizedName)) return null;
 
     // 1. If artist already has an existing valid artwork file on disk, return it.
     if (artist.artworkPath != null && artist.artworkPath!.isNotEmpty) {
@@ -67,6 +69,7 @@ class ArtistArtworkDownloader {
       final json = jsonDecode(response.body) as Map<String, dynamic>;
       final data = json['data'] as List<dynamic>?;
       if (data == null || data.isEmpty) {
+        _failedArtistNames.add(artist.normalizedName);
         AppLogger.debug(
           LogCategory.metadata,
           'No artist found on Deezer for "$artistName"',
@@ -83,6 +86,7 @@ class ArtistArtworkDownloader {
               as String?;
 
       if (pictureUrl == null || pictureUrl.isEmpty) {
+        _failedArtistNames.add(artist.normalizedName);
         return null;
       }
 
@@ -102,6 +106,7 @@ class ArtistArtworkDownloader {
               ..where((tbl) => tbl.id.equals(artist.id)))
             .write(ArtistsCompanion(artworkPath: Value(cacheFile.path)));
 
+        _failedArtistNames.remove(artist.normalizedName);
         AppLogger.info(
           LogCategory.metadata,
           'Successfully downloaded artist artwork for "$artistName" (${imgResponse.bodyBytes.length} bytes)',
@@ -109,6 +114,7 @@ class ArtistArtworkDownloader {
         return cacheFile.path;
       }
     } catch (e, st) {
+      _failedArtistNames.add(artist.normalizedName);
       AppLogger.debug(
         LogCategory.metadata,
         'Failed to fetch artist artwork for "$artistName"',

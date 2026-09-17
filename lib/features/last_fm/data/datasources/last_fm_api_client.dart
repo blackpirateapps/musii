@@ -74,9 +74,7 @@ class LastFmApiClient {
   }
 
   /// Requests an unauthorized request token (auth.getToken).
-  Future<Result<String, AppFailure>> getToken({
-    required String apiKey,
-  }) async {
+  Future<Result<String, AppFailure>> getToken({required String apiKey}) async {
     final uri = Uri.parse(baseUrl).replace(
       queryParameters: {
         'method': 'auth.getToken',
@@ -169,7 +167,10 @@ class LastFmApiClient {
         st,
       );
       return Failure(
-        LastFmNetworkFailure('Network failure during session exchange', cause: e),
+        LastFmNetworkFailure(
+          'Network failure during session exchange',
+          cause: e,
+        ),
       );
     }
   }
@@ -302,11 +303,7 @@ class LastFmApiClient {
   }) async {
     if (scrobbles.isEmpty) {
       return const Success(
-        LastFmScrobbleBatchResult(
-          accepted: 0,
-          ignored: 0,
-          acceptedIds: [],
-        ),
+        LastFmScrobbleBatchResult(accepted: 0, ignored: 0, acceptedIds: []),
       );
     }
 
@@ -358,7 +355,8 @@ class LastFmApiClient {
 
       final scrobblesJson = json['scrobbles'] as Map<String, dynamic>?;
       final attr = scrobblesJson?['@attr'] as Map<String, dynamic>?;
-      final acceptedCount = int.tryParse('${attr?['accepted']}') ?? batch.length;
+      final acceptedCount =
+          int.tryParse('${attr?['accepted']}') ?? batch.length;
       final ignoredCount = int.tryParse('${attr?['ignored']}') ?? 0;
 
       final acceptedIds = <String>[];
@@ -368,13 +366,15 @@ class LastFmApiClient {
       if (scrobbleEntries is List) {
         for (int i = 0; i < scrobbleEntries.length && i < batch.length; i++) {
           final entry = scrobbleEntries[i] as Map<String, dynamic>;
-          final ignoredMessage = entry['ignoredMessage'] as Map<String, dynamic>?;
+          final ignoredMessage =
+              entry['ignoredMessage'] as Map<String, dynamic>?;
           final code = int.tryParse('${ignoredMessage?['code']}') ?? 0;
           if (code == 0) {
             acceptedIds.add(batch[i].id);
           } else {
             ignoredReasons[batch[i].id] =
-                ignoredMessage?['#text'] as String? ?? 'Track ignored (code: $code)';
+                ignoredMessage?['#text'] as String? ??
+                'Track ignored (code: $code)';
           }
         }
       } else if (scrobbleEntries is Map<String, dynamic> && batch.isNotEmpty) {
@@ -385,7 +385,8 @@ class LastFmApiClient {
           acceptedIds.add(batch.first.id);
         } else {
           ignoredReasons[batch.first.id] =
-              ignoredMessage?['#text'] as String? ?? 'Track ignored (code: $code)';
+              ignoredMessage?['#text'] as String? ??
+              'Track ignored (code: $code)';
         }
       } else {
         // Fallback if list structure isn't populated
@@ -405,7 +406,9 @@ class LastFmApiClient {
     } on SocketException catch (e) {
       return Failure(LastFmNetworkFailure('No internet connection', cause: e));
     } on TimeoutException catch (e) {
-      return Failure(LastFmNetworkFailure('Scrobble batch timed out', cause: e));
+      return Failure(
+        LastFmNetworkFailure('Scrobble batch timed out', cause: e),
+      );
     } catch (e, st) {
       AppLogger.warning(
         LogCategory.lastFm,
@@ -414,7 +417,10 @@ class LastFmApiClient {
         st,
       );
       return Failure(
-        LastFmNetworkFailure('Network failure submitting scrobble batch', cause: e),
+        LastFmNetworkFailure(
+          'Network failure submitting scrobble batch',
+          cause: e,
+        ),
       );
     }
   }
@@ -423,26 +429,13 @@ class LastFmApiClient {
     final code = json['error'] as int? ?? 0;
     final message = json['message'] as String? ?? 'Unknown Last.fm error';
 
-    AppLogger.warning(
-      LogCategory.lastFm,
-      'Last.fm API error $code: $message',
-    );
+    AppLogger.warning(LogCategory.lastFm, 'Last.fm API error $code: $message');
 
     return switch (code) {
-      4 || 9 || 14 => LastFmAuthenticationFailure(
-        message,
-        errorCode: code,
-      ),
-      29 => LastFmRateLimitFailure(
-        message,
-      ),
-      11 || 16 => LastFmNetworkFailure(
-        message,
-      ),
-      _ => LastFmApiFailure(
-        message,
-        errorCode: code,
-      ),
+      4 || 9 || 14 => LastFmAuthenticationFailure(message, errorCode: code),
+      29 => LastFmRateLimitFailure(message),
+      11 || 16 => LastFmNetworkFailure(message),
+      _ => LastFmApiFailure(message, errorCode: code),
     };
   }
 }

@@ -109,21 +109,24 @@ class PlaylistDetailPage extends ConsumerWidget {
                 borderRadius: 16.0,
               );
             } else {
-              final arts = tracks
-                  .map((t) => t.artworkPath)
-                  .where((p) => p != null && p.isNotEmpty)
-                  .take(4)
-                  .toList();
+              final distinctArts = <String>[];
+              for (final t in tracks) {
+                final p = t.artworkPath;
+                if (p != null && p.isNotEmpty && !distinctArts.contains(p)) {
+                  distinctArts.add(p);
+                  if (distinctArts.length == 4) break;
+                }
+              }
 
-              if (arts.isEmpty) {
+              if (distinctArts.isEmpty) {
                 artworkWidget = AlbumArtwork(
                   title: playlist.name,
                   size: artworkSize,
                   borderRadius: 16.0,
                 );
-              } else if (arts.length < 4) {
+              } else if (distinctArts.length < 4) {
                 artworkWidget = AlbumArtwork(
-                  artworkPath: arts.first,
+                  artworkPath: distinctArts.first,
                   size: artworkSize,
                   borderRadius: 16.0,
                 );
@@ -140,7 +143,7 @@ class PlaylistDetailPage extends ConsumerWidget {
                             children: [
                               Expanded(
                                 child: AlbumArtwork(
-                                  artworkPath: arts[0],
+                                  artworkPath: distinctArts[0],
                                   size: double.infinity,
                                   borderRadius: 0,
                                 ),
@@ -148,7 +151,7 @@ class PlaylistDetailPage extends ConsumerWidget {
                               const SizedBox(width: 2),
                               Expanded(
                                 child: AlbumArtwork(
-                                  artworkPath: arts[1],
+                                  artworkPath: distinctArts[1],
                                   size: double.infinity,
                                   borderRadius: 0,
                                 ),
@@ -162,7 +165,7 @@ class PlaylistDetailPage extends ConsumerWidget {
                             children: [
                               Expanded(
                                 child: AlbumArtwork(
-                                  artworkPath: arts[2],
+                                  artworkPath: distinctArts[2],
                                   size: double.infinity,
                                   borderRadius: 0,
                                 ),
@@ -170,7 +173,7 @@ class PlaylistDetailPage extends ConsumerWidget {
                               const SizedBox(width: 2),
                               Expanded(
                                 child: AlbumArtwork(
-                                  artworkPath: arts[3],
+                                  artworkPath: distinctArts[3],
                                   size: double.infinity,
                                   borderRadius: 0,
                                 ),

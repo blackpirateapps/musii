@@ -81,7 +81,8 @@ class _LastFmSettingsPageState extends ConsumerState<LastFmSettingsPage> {
       final failure = result.failureOrNull!;
       setState(() {
         _isConnecting = false;
-        _authErrorMessage = failure.message.contains('not been authorized') ||
+        _authErrorMessage =
+            failure.message.contains('not been authorized') ||
                 failure.message.contains('Authentication Failed')
             ? 'Authorization not yet completed on Last.fm. Please approve Musii in your browser and try again.'
             : failure.message;
@@ -139,8 +140,9 @@ class _LastFmSettingsPageState extends ConsumerState<LastFmSettingsPage> {
     if (!mounted) return;
 
     final apiKeyController = TextEditingController(text: currentKey ?? '');
-    final apiSecretController =
-        TextEditingController(text: currentSecret ?? '');
+    final apiSecretController = TextEditingController(
+      text: currentSecret ?? '',
+    );
 
     await showCupertinoDialog(
       context: context,
@@ -353,7 +355,9 @@ class _LastFmSettingsPageState extends ConsumerState<LastFmSettingsPage> {
                   child: CupertinoButton.filled(
                     onPressed: _isConnecting ? null : _completeAuth,
                     child: _isConnecting
-                        ? const CupertinoActivityIndicator(color: CupertinoColors.white)
+                        ? const CupertinoActivityIndicator(
+                            color: CupertinoColors.white,
+                          )
                         : const Text('Complete Connection'),
                   ),
                 ),
@@ -371,7 +375,9 @@ class _LastFmSettingsPageState extends ConsumerState<LastFmSettingsPage> {
             child: CupertinoButton.filled(
               onPressed: _isConnecting ? null : _startAuth,
               child: _isConnecting
-                  ? const CupertinoActivityIndicator(color: CupertinoColors.white)
+                  ? const CupertinoActivityIndicator(
+                      color: CupertinoColors.white,
+                    )
                   : const Text(
                       'Connect Last.fm',
                       style: TextStyle(fontWeight: FontWeight.w600),
@@ -411,11 +417,13 @@ class _LastFmSettingsPageState extends ConsumerState<LastFmSettingsPage> {
                       : const Color(0xFFE5E5EA),
                 ),
                 clipBehavior: Clip.antiAlias,
-                child: account.avatarUrl != null && account.avatarUrl!.isNotEmpty
+                child:
+                    account.avatarUrl != null && account.avatarUrl!.isNotEmpty
                     ? Image.network(
                         account.avatarUrl!,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, _, _) => _buildAvatarFallback(account),
+                        errorBuilder: (_, _, _) =>
+                            _buildAvatarFallback(account),
                       )
                     : _buildAvatarFallback(account),
               ),
@@ -501,7 +509,10 @@ class _LastFmSettingsPageState extends ConsumerState<LastFmSettingsPage> {
                       vertical: 8,
                     ),
                     onPressed: _startAuth,
-                    child: const Text('Reconnect', style: TextStyle(fontSize: 14)),
+                    child: const Text(
+                      'Reconnect',
+                      style: TextStyle(fontSize: 14),
+                    ),
                   ),
                 ],
               ),
@@ -523,9 +534,7 @@ class _LastFmSettingsPageState extends ConsumerState<LastFmSettingsPage> {
               trailing: CupertinoSwitch(
                 value: settings.scrobblingEnabled,
                 onChanged: (val) {
-                  ref
-                      .read(lastFmRepositoryProvider)
-                      .setScrobblingEnabled(val);
+                  ref.read(lastFmRepositoryProvider).setScrobblingEnabled(val);
                 },
               ),
             ),
@@ -537,9 +546,7 @@ class _LastFmSettingsPageState extends ConsumerState<LastFmSettingsPage> {
               trailing: CupertinoSwitch(
                 value: settings.nowPlayingEnabled,
                 onChanged: (val) {
-                  ref
-                      .read(lastFmRepositoryProvider)
-                      .setNowPlayingEnabled(val);
+                  ref.read(lastFmRepositoryProvider).setNowPlayingEnabled(val);
                 },
               ),
             ),

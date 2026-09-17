@@ -83,8 +83,7 @@ class _PendingScrobblesPageState extends ConsumerState<PendingScrobblesPage> {
                 child: EmptyState(
                   icon: CupertinoIcons.checkmark_seal_fill,
                   title: 'All Scrobbles Synced',
-                  subtitle:
-                      'There are no pending scrobbles waiting in the offline queue.',
+                  subtitle: 'There are no pending scrobbles waiting in the offline queue.',
                 ),
               )
             : Column(
@@ -196,9 +195,7 @@ class _PendingScrobblesPageState extends ConsumerState<PendingScrobblesPage> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          _isSyncing
-                              ? 'Syncing scrobbles with Last.fm…'
-                              : 'Scrobbles will sync automatically when online.',
+                          _isSyncing ? 'Syncing scrobbles with Last.fm…' : 'Scrobbles will sync automatically when online.',
                           style: TextStyle(
                             fontSize: 12,
                             color: isDark

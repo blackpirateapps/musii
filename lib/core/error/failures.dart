@@ -136,4 +136,3 @@ final class LastFmConfigurationFailure extends AppFailure {
     super.cause,
   });
 }
-

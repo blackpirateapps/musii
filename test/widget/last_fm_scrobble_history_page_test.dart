@@ -11,7 +11,9 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            lastFmScrobbleHistoryProvider.overrideWith((ref) => Stream.value([])),
+            lastFmScrobbleHistoryProvider.overrideWith(
+              (ref) => Stream.value([]),
+            ),
           ],
           child: const CupertinoApp(home: ScrobbleHistoryPage()),
         ),
@@ -29,7 +31,9 @@ void main() {
       );
     });
 
-    testWidgets('renders scrobbled history list with track details', (tester) async {
+    testWidgets('renders scrobbled history list with track details', (
+      tester,
+    ) async {
       final now = DateTime.now();
       final historyItems = [
         ScrobbleHistoryItem(

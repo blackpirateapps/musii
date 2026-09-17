@@ -217,6 +217,8 @@ void main() {
                   ),
                 ]),
               ),
+              playlistTracksProvider('pl_1')
+                  .overrideWith((ref) => Stream.value([])),
             ],
             child: const CupertinoApp(home: LibraryPage()),
           ),
@@ -232,6 +234,20 @@ void main() {
 
         // Default tab is Albums: sampleAlbum is rendered
         expect(find.text('Ride on Time'), findsWidgets);
+
+        // Switch to Artists tab
+        await tester.tap(find.text('Artists'));
+        await tester.pumpAndSettle();
+        expect(find.text('Tatsuro Yamashita'), findsOneWidget);
+
+        // Switch to Playlists tab
+        await tester.tap(find.text('Playlists'));
+        await tester.pumpAndSettle();
+        expect(find.text('Summer Vibes'), findsOneWidget);
+
+        // Unmount and flush pending Drift query cleanup timers
+        await tester.pumpWidget(const SizedBox());
+        await tester.pump(const Duration(milliseconds: 100));
       },
     );
   });

@@ -11,10 +11,11 @@ class FlutterSecureCredentialStore implements SecureCredentialStore {
   final FlutterSecureStorage _storage;
 
   FlutterSecureCredentialStore({FlutterSecureStorage? storage})
-      : _storage = storage ??
-            const FlutterSecureStorage(
-              aOptions: AndroidOptions(resetOnError: true),
-            );
+    : _storage =
+          storage ??
+          const FlutterSecureStorage(
+            aOptions: AndroidOptions(resetOnError: true),
+          );
 
   @override
   Future<String?> read(String key) => _storage.read(key: key);

@@ -26,13 +26,16 @@ class PlaylistCard extends ConsumerWidget {
       final tracksAsync = ref.watch(playlistTracksProvider(playlist.id));
       artworkWidget = tracksAsync.when(
         data: (tracks) {
-          final arts = tracks
-              .map((t) => t.artworkPath)
-              .where((p) => p != null && p.isNotEmpty)
-              .take(4)
-              .toList();
+          final distinctArts = <String>[];
+          for (final t in tracks) {
+            final p = t.artworkPath;
+            if (p != null && p.isNotEmpty && !distinctArts.contains(p)) {
+              distinctArts.add(p);
+              if (distinctArts.length == 4) break;
+            }
+          }
 
-          if (arts.isEmpty) {
+          if (distinctArts.isEmpty) {
             return AlbumArtwork(
               title: playlist.name,
               size: double.infinity,
@@ -40,9 +43,9 @@ class PlaylistCard extends ConsumerWidget {
             );
           }
 
-          if (arts.length < 4) {
+          if (distinctArts.length < 4) {
             return AlbumArtwork(
-              artworkPath: arts.first,
+              artworkPath: distinctArts.first,
               size: double.infinity,
               borderRadius: 16.0,
             );
@@ -57,7 +60,7 @@ class PlaylistCard extends ConsumerWidget {
                     children: [
                       Expanded(
                         child: AlbumArtwork(
-                          artworkPath: arts[0],
+                          artworkPath: distinctArts[0],
                           size: double.infinity,
                           borderRadius: 0,
                         ),
@@ -65,7 +68,7 @@ class PlaylistCard extends ConsumerWidget {
                       const SizedBox(width: 2),
                       Expanded(
                         child: AlbumArtwork(
-                          artworkPath: arts[1],
+                          artworkPath: distinctArts[1],
                           size: double.infinity,
                           borderRadius: 0,
                         ),
@@ -79,7 +82,7 @@ class PlaylistCard extends ConsumerWidget {
                     children: [
                       Expanded(
                         child: AlbumArtwork(
-                          artworkPath: arts[2],
+                          artworkPath: distinctArts[2],
                           size: double.infinity,
                           borderRadius: 0,
                         ),
@@ -87,7 +90,7 @@ class PlaylistCard extends ConsumerWidget {
                       const SizedBox(width: 2),
                       Expanded(
                         child: AlbumArtwork(
-                          artworkPath: arts[3],
+                          artworkPath: distinctArts[3],
                           size: double.infinity,
                           borderRadius: 0,
                         ),

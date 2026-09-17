@@ -29,15 +29,11 @@ void main() {
 
       test('returns false when title is empty or whitespace', () {
         expect(
-          ScrobbleEligibilityService.isTrackEligible(
-            createTrack(title: ''),
-          ),
+          ScrobbleEligibilityService.isTrackEligible(createTrack(title: '')),
           isFalse,
         );
         expect(
-          ScrobbleEligibilityService.isTrackEligible(
-            createTrack(title: '   '),
-          ),
+          ScrobbleEligibilityService.isTrackEligible(createTrack(title: '   ')),
           isFalse,
         );
       });
@@ -63,20 +59,23 @@ void main() {
         );
       });
 
-      test('returns false when track duration is strictly less than 30 seconds', () {
-        expect(
-          ScrobbleEligibilityService.isTrackEligible(
-            createTrack(durationMs: 29999),
-          ),
-          isFalse,
-        );
-        expect(
-          ScrobbleEligibilityService.isTrackEligible(
-            createTrack(durationMs: 15000),
-          ),
-          isFalse,
-        );
-      });
+      test(
+        'returns false when track duration is strictly less than 30 seconds',
+        () {
+          expect(
+            ScrobbleEligibilityService.isTrackEligible(
+              createTrack(durationMs: 29999),
+            ),
+            isFalse,
+          );
+          expect(
+            ScrobbleEligibilityService.isTrackEligible(
+              createTrack(durationMs: 15000),
+            ),
+            isFalse,
+          );
+        },
+      );
 
       test('returns true when track meets all criteria', () {
         expect(
@@ -105,30 +104,57 @@ void main() {
 
     group('calculateThresholdMs', () {
       test('returns max 4 minutes (240,000 ms) for unknown/zero duration', () {
-        expect(ScrobbleEligibilityService.calculateThresholdMs(0), equals(240000));
-        expect(ScrobbleEligibilityService.calculateThresholdMs(-10), equals(240000));
+        expect(
+          ScrobbleEligibilityService.calculateThresholdMs(0),
+          equals(240000),
+        );
+        expect(
+          ScrobbleEligibilityService.calculateThresholdMs(-10),
+          equals(240000),
+        );
       });
 
       test('returns 30,000 ms for tracks shorter than 30s', () {
-        expect(ScrobbleEligibilityService.calculateThresholdMs(20000), equals(30000));
+        expect(
+          ScrobbleEligibilityService.calculateThresholdMs(20000),
+          equals(30000),
+        );
       });
 
       test('calculates half-duration for tracks under 8 minutes', () {
         // 60s track -> 30s threshold
-        expect(ScrobbleEligibilityService.calculateThresholdMs(60000), equals(30000));
+        expect(
+          ScrobbleEligibilityService.calculateThresholdMs(60000),
+          equals(30000),
+        );
         // 180s track -> 90s threshold
-        expect(ScrobbleEligibilityService.calculateThresholdMs(180000), equals(90000));
+        expect(
+          ScrobbleEligibilityService.calculateThresholdMs(180000),
+          equals(90000),
+        );
         // 400s track -> 200s threshold
-        expect(ScrobbleEligibilityService.calculateThresholdMs(400000), equals(200000));
+        expect(
+          ScrobbleEligibilityService.calculateThresholdMs(400000),
+          equals(200000),
+        );
       });
 
       test('caps threshold at 4 minutes (240,000 ms) for tracks longer than 8 minutes', () {
         // 8 min track (480,000 ms) -> exactly 240,000 ms
-        expect(ScrobbleEligibilityService.calculateThresholdMs(480000), equals(240000));
+        expect(
+          ScrobbleEligibilityService.calculateThresholdMs(480000),
+          equals(240000),
+        );
         // 10 min track (600,000 ms) -> 240,000 ms (capped)
-        expect(ScrobbleEligibilityService.calculateThresholdMs(600000), equals(240000));
+        expect(
+          ScrobbleEligibilityService.calculateThresholdMs(600000),
+          equals(240000),
+        );
         // 20 min track (1,200,000 ms) -> 240,000 ms (capped)
-        expect(ScrobbleEligibilityService.calculateThresholdMs(1200000), equals(240000));
+        expect(
+          ScrobbleEligibilityService.calculateThresholdMs(1200000),
+          equals(240000),
+        );
       });
     });
 

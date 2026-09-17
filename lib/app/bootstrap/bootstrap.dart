@@ -97,8 +97,9 @@ Future<void> bootstrap() async {
   );
 
   // Link audio handler to root container coordinator
-  audioHandler.lastFmCoordinator =
-      rootContainer.read(lastFmPlaybackCoordinatorProvider);
+  audioHandler.lastFmCoordinator = rootContainer.read(
+    lastFmPlaybackCoordinatorProvider,
+  );
 
   // Start background Last.fm connectivity sync watcher
   rootContainer.read(lastFmSyncServiceProvider);

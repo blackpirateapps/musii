@@ -438,9 +438,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                       lastFmAccount != null && lastFmAccount.isConnected
                           ? 'Connected as @${lastFmAccount.username}'
                           : (lastFmAccount != null &&
-                                  lastFmAccount.requiresReauth
-                              ? 'Reconnect needed'
-                              : 'Scrobbling & listening history'),
+                                    lastFmAccount.requiresReauth
+                                ? 'Reconnect needed'
+                                : 'Scrobbling & listening history'),
                     ),
                     trailing: const Icon(
                       CupertinoIcons.chevron_forward,

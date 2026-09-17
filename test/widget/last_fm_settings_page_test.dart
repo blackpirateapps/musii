@@ -14,11 +14,13 @@ import 'package:musii/features/library/domain/entities/music_entities.dart';
 
 class MockLastFmRepository implements LastFmRepository {
   @override
-  Future<Result<int, AppFailure>> syncPendingScrobbles() async => const Success(0);
+  Future<Result<int, AppFailure>> syncPendingScrobbles() async =>
+      const Success(0);
 
   @override
-  Future<Result<LastFmAccount, AppFailure>> completeAuthentication(String token) async =>
-      throw UnimplementedError();
+  Future<Result<LastFmAccount, AppFailure>> completeAuthentication(
+    String token,
+  ) async => throw UnimplementedError();
 
   @override
   Future<Result<void, AppFailure>> disconnect() async => const Success(null);
@@ -34,7 +36,8 @@ class MockLastFmRepository implements LastFmRepository {
       throw UnimplementedError();
 
   @override
-  Future<Uri> getAuthUrl(String token) async => Uri.parse('https://example.com');
+  Future<Uri> getAuthUrl(String token) async =>
+      Uri.parse('https://example.com');
 
   @override
   Future<String?> getApiSecret() async => null;
@@ -58,11 +61,16 @@ class MockLastFmRepository implements LastFmRepository {
   Future<bool> hasSession() async => true;
 
   @override
-  Future<Result<void, AppFailure>> recordScrobble(Track track, int startTimestampSeconds) async =>
-      const Success(null);
+  Future<Result<void, AppFailure>> recordScrobble(
+    Track track,
+    int startTimestampSeconds,
+  ) async => const Success(null);
 
   @override
-  Future<void> setApiCredentials({required String apiKey, required String apiSecret}) async {}
+  Future<void> setApiCredentials({
+    required String apiKey,
+    required String apiSecret,
+  }) async {}
 
   @override
   Future<void> setNowPlayingEnabled(bool enabled) async {}
@@ -85,58 +93,65 @@ class MockLastFmRepository implements LastFmRepository {
       Stream.value([]);
 
   @override
-  Stream<ScrobbleSettings> watchSettings() => Stream.value(const ScrobbleSettings());
+  Stream<ScrobbleSettings> watchSettings() =>
+      Stream.value(const ScrobbleSettings());
 }
 
 void main() {
   group('LastFmSettingsPage', () {
-    testWidgets('renders disconnected view with Connect button and API credentials dialog', (
-      tester,
-    ) async {
-      tester.view.physicalSize = const Size(800, 1400);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
+    testWidgets(
+      'renders disconnected view with Connect button and API credentials dialog',
+      (tester) async {
+        tester.view.physicalSize = const Size(800, 1400);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
 
-      final mockRepo = MockLastFmRepository();
+        final mockRepo = MockLastFmRepository();
 
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            lastFmRepositoryProvider.overrideWithValue(mockRepo),
-            lastFmAccountProvider.overrideWith((ref) => Stream.value(null)),
-            lastFmSettingsProvider.overrideWith(
-              (ref) => Stream.value(const ScrobbleSettings()),
-            ),
-            lastFmPendingScrobblesProvider.overrideWith((ref) => Stream.value([])),
-          ],
-          child: const CupertinoApp(home: LastFmSettingsPage()),
-        ),
-      );
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              lastFmRepositoryProvider.overrideWithValue(mockRepo),
+              lastFmAccountProvider.overrideWith((ref) => Stream.value(null)),
+              lastFmSettingsProvider.overrideWith(
+                (ref) => Stream.value(const ScrobbleSettings()),
+              ),
+              lastFmPendingScrobblesProvider.overrideWith(
+                (ref) => Stream.value([]),
+              ),
+            ],
+            child: const CupertinoApp(home: LastFmSettingsPage()),
+          ),
+        );
 
-      await tester.pumpAndSettle();
+        await tester.pumpAndSettle();
 
-      expect(find.text('Last.fm'), findsOneWidget);
-      expect(find.text('Keep your listening\nhistory in sync.'), findsOneWidget);
-      expect(find.text('Connect Last.fm'), findsOneWidget);
+        expect(find.text('Last.fm'), findsOneWidget);
+        expect(
+          find.text('Keep your listening\nhistory in sync.'),
+          findsOneWidget,
+        );
+        expect(find.text('Connect Last.fm'), findsOneWidget);
 
-      // Tap gear icon to open credentials dialog
-      await tester.tap(find.byIcon(CupertinoIcons.gear_alt));
-      await tester.pump();
-      await tester.pumpAndSettle();
+        // Tap gear icon to open credentials dialog
+        await tester.tap(find.byIcon(CupertinoIcons.gear_alt));
+        await tester.pump();
+        await tester.pumpAndSettle();
 
-      expect(find.text('Last.fm API Credentials'), findsOneWidget);
-      expect(find.text('API Key'), findsOneWidget);
-      expect(find.text('Shared Secret'), findsOneWidget);
-      expect(find.text('Cancel'), findsOneWidget);
-      expect(find.text('Save'), findsOneWidget);
+        expect(find.text('Last.fm API Credentials'), findsOneWidget);
+        expect(find.text('API Key'), findsOneWidget);
+        expect(find.text('Shared Secret'), findsOneWidget);
+        expect(find.text('Cancel'), findsOneWidget);
+        expect(find.text('Save'), findsOneWidget);
 
-      // Tap Cancel to dismiss dialog
-      await tester.tap(find.text('Cancel'));
-      await tester.pumpAndSettle();
+        // Tap Cancel to dismiss dialog
+        await tester.tap(find.text('Cancel'));
+        await tester.pumpAndSettle();
 
-      expect(find.text('Last.fm API Credentials'), findsNothing);
-    });
+        expect(find.text('Last.fm API Credentials'), findsNothing);
+      },
+    );
 
     testWidgets('renders connected view with profile, switches, and sections', (
       tester,
@@ -162,12 +177,16 @@ void main() {
               (ref) => Stream.value(connectedAccount),
             ),
             lastFmSettingsProvider.overrideWith(
-              (ref) => Stream.value(const ScrobbleSettings(
-                scrobblingEnabled: true,
-                nowPlayingEnabled: true,
-              )),
+              (ref) => Stream.value(
+                const ScrobbleSettings(
+                  scrobblingEnabled: true,
+                  nowPlayingEnabled: true,
+                ),
+              ),
             ),
-            lastFmPendingScrobblesProvider.overrideWith((ref) => Stream.value([])),
+            lastFmPendingScrobblesProvider.overrideWith(
+              (ref) => Stream.value([]),
+            ),
           ],
           child: const CupertinoApp(home: LastFmSettingsPage()),
         ),
@@ -214,42 +233,45 @@ void main() {
       expect(find.text('Disconnect Last.fm?'), findsNothing);
     });
 
-    testWidgets('renders reauth needed banner when account status is reauthRequired', (
-      tester,
-    ) async {
-      tester.view.physicalSize = const Size(800, 1400);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
+    testWidgets(
+      'renders reauth needed banner when account status is reauthRequired',
+      (tester) async {
+        tester.view.physicalSize = const Size(800, 1400);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
 
-      final reauthAccount = LastFmAccount(
-        username: 'citypop_lover',
-        profileUrl: 'https://www.last.fm/user/citypop_lover',
-        scrobbleCount: 1420,
-        status: LastFmAccountStatus.reauthRequired,
-        lastSyncedAt: DateTime.now(),
-      );
+        final reauthAccount = LastFmAccount(
+          username: 'citypop_lover',
+          profileUrl: 'https://www.last.fm/user/citypop_lover',
+          scrobbleCount: 1420,
+          status: LastFmAccountStatus.reauthRequired,
+          lastSyncedAt: DateTime.now(),
+        );
 
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            lastFmAccountProvider.overrideWith(
-              (ref) => Stream.value(reauthAccount),
-            ),
-            lastFmSettingsProvider.overrideWith(
-              (ref) => Stream.value(const ScrobbleSettings()),
-            ),
-            lastFmPendingScrobblesProvider.overrideWith((ref) => Stream.value([])),
-          ],
-          child: const CupertinoApp(home: LastFmSettingsPage()),
-        ),
-      );
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              lastFmAccountProvider.overrideWith(
+                (ref) => Stream.value(reauthAccount),
+              ),
+              lastFmSettingsProvider.overrideWith(
+                (ref) => Stream.value(const ScrobbleSettings()),
+              ),
+              lastFmPendingScrobblesProvider.overrideWith(
+                (ref) => Stream.value([]),
+              ),
+            ],
+            child: const CupertinoApp(home: LastFmSettingsPage()),
+          ),
+        );
 
-      await tester.pumpAndSettle();
+        await tester.pumpAndSettle();
 
-      expect(find.text('Reconnect needed'), findsOneWidget);
-      expect(find.text('Last.fm needs you to reconnect.'), findsOneWidget);
-      expect(find.text('Reconnect'), findsOneWidget);
-    });
+        expect(find.text('Reconnect needed'), findsOneWidget);
+        expect(find.text('Last.fm needs you to reconnect.'), findsOneWidget);
+        expect(find.text('Reconnect'), findsOneWidget);
+      },
+    );
   });
 }
