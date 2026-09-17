@@ -107,9 +107,9 @@ class MusiiAudioHandler extends BaseAudioHandler
     queue.add(_currentQueue.map((item) => _toMediaItem(item.track)).toList());
   }
 
-  void _broadcastPlaybackState({bool isRestore = false}) {
+  void _broadcastPlaybackState({bool isRestore = false, bool jumpStart = false}) {
     if (_loadingTrackId != null) return;
-    final isPlaying = _player.playing;
+    final isPlaying = jumpStart ? true : _player.playing;
     final processing = _player.processingState;
 
     final audioProcessing = switch (processing) {
@@ -903,7 +903,10 @@ class MusiiAudioHandler extends BaseAudioHandler
           );
         }
 
-        _broadcastPlaybackState(isRestore: true);
+        _broadcastPlaybackState(isRestore: true, jumpStart: true);
+        Future.delayed(const Duration(milliseconds: 150), () {
+          _broadcastPlaybackState(isRestore: true, jumpStart: false);
+        });
       }
     } catch (e) {
       AppLogger.warning(
