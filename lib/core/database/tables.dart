@@ -209,6 +209,27 @@ class SyncRuns extends Table {
   IntColumn get filesUpdated => integer().withDefault(const Constant(0))();
   IntColumn get filesRemoved => integer().withDefault(const Constant(0))();
   IntColumn get errorsCount => integer().withDefault(const Constant(0))();
+  BoolColumn get discoveryCompleted =>
+      boolean().withDefault(const Constant(false))();
+  TextColumn get pendingFoldersJson => text().nullable()();
+  TextColumn get visitedFoldersJson => text().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+@DataClassName('DiscoveredFileRow')
+class DiscoveredFiles extends Table {
+  TextColumn get id => text()(); // '${syncRunId}_${driveFileId}'
+  TextColumn get syncRunId => text()();
+  TextColumn get driveFileId => text()();
+  TextColumn get name => text()();
+  TextColumn get mimeType => text()();
+  IntColumn get size => integer().withDefault(const Constant(0))();
+  DateTimeColumn get modifiedTime => dateTime()();
+  TextColumn get md5Checksum => text().nullable()();
+  TextColumn get parentFolderId => text().nullable()();
+  BoolColumn get isLrc => boolean().withDefault(const Constant(false))();
 
   @override
   Set<Column> get primaryKey => {id};

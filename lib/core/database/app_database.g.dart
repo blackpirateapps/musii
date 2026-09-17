@@ -6840,6 +6840,42 @@ class $SyncRunsTable extends SyncRuns
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
   );
+  static const VerificationMeta _discoveryCompletedMeta =
+      const VerificationMeta('discoveryCompleted');
+  @override
+  late final GeneratedColumn<bool> discoveryCompleted = GeneratedColumn<bool>(
+    'discovery_completed',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("discovery_completed" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _pendingFoldersJsonMeta =
+      const VerificationMeta('pendingFoldersJson');
+  @override
+  late final GeneratedColumn<String> pendingFoldersJson =
+      GeneratedColumn<String>(
+        'pending_folders_json',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _visitedFoldersJsonMeta =
+      const VerificationMeta('visitedFoldersJson');
+  @override
+  late final GeneratedColumn<String> visitedFoldersJson =
+      GeneratedColumn<String>(
+        'visited_folders_json',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -6861,6 +6897,9 @@ class $SyncRunsTable extends SyncRuns
     filesUpdated,
     filesRemoved,
     errorsCount,
+    discoveryCompleted,
+    pendingFoldersJson,
+    visitedFoldersJson,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -7029,6 +7068,33 @@ class $SyncRunsTable extends SyncRuns
         ),
       );
     }
+    if (data.containsKey('discovery_completed')) {
+      context.handle(
+        _discoveryCompletedMeta,
+        discoveryCompleted.isAcceptableOrUnknown(
+          data['discovery_completed']!,
+          _discoveryCompletedMeta,
+        ),
+      );
+    }
+    if (data.containsKey('pending_folders_json')) {
+      context.handle(
+        _pendingFoldersJsonMeta,
+        pendingFoldersJson.isAcceptableOrUnknown(
+          data['pending_folders_json']!,
+          _pendingFoldersJsonMeta,
+        ),
+      );
+    }
+    if (data.containsKey('visited_folders_json')) {
+      context.handle(
+        _visitedFoldersJsonMeta,
+        visitedFoldersJson.isAcceptableOrUnknown(
+          data['visited_folders_json']!,
+          _visitedFoldersJsonMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -7114,6 +7180,18 @@ class $SyncRunsTable extends SyncRuns
         DriftSqlType.int,
         data['${effectivePrefix}errors_count'],
       )!,
+      discoveryCompleted: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}discovery_completed'],
+      )!,
+      pendingFoldersJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}pending_folders_json'],
+      ),
+      visitedFoldersJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}visited_folders_json'],
+      ),
     );
   }
 
@@ -7143,6 +7221,9 @@ class SyncRunRow extends DataClass implements Insertable<SyncRunRow> {
   final int filesUpdated;
   final int filesRemoved;
   final int errorsCount;
+  final bool discoveryCompleted;
+  final String? pendingFoldersJson;
+  final String? visitedFoldersJson;
   const SyncRunRow({
     required this.id,
     required this.sourceId,
@@ -7163,6 +7244,9 @@ class SyncRunRow extends DataClass implements Insertable<SyncRunRow> {
     required this.filesUpdated,
     required this.filesRemoved,
     required this.errorsCount,
+    required this.discoveryCompleted,
+    this.pendingFoldersJson,
+    this.visitedFoldersJson,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -7202,6 +7286,13 @@ class SyncRunRow extends DataClass implements Insertable<SyncRunRow> {
     map['files_updated'] = Variable<int>(filesUpdated);
     map['files_removed'] = Variable<int>(filesRemoved);
     map['errors_count'] = Variable<int>(errorsCount);
+    map['discovery_completed'] = Variable<bool>(discoveryCompleted);
+    if (!nullToAbsent || pendingFoldersJson != null) {
+      map['pending_folders_json'] = Variable<String>(pendingFoldersJson);
+    }
+    if (!nullToAbsent || visitedFoldersJson != null) {
+      map['visited_folders_json'] = Variable<String>(visitedFoldersJson);
+    }
     return map;
   }
 
@@ -7242,6 +7333,13 @@ class SyncRunRow extends DataClass implements Insertable<SyncRunRow> {
       filesUpdated: Value(filesUpdated),
       filesRemoved: Value(filesRemoved),
       errorsCount: Value(errorsCount),
+      discoveryCompleted: Value(discoveryCompleted),
+      pendingFoldersJson: pendingFoldersJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(pendingFoldersJson),
+      visitedFoldersJson: visitedFoldersJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(visitedFoldersJson),
     );
   }
 
@@ -7272,6 +7370,13 @@ class SyncRunRow extends DataClass implements Insertable<SyncRunRow> {
       filesUpdated: serializer.fromJson<int>(json['filesUpdated']),
       filesRemoved: serializer.fromJson<int>(json['filesRemoved']),
       errorsCount: serializer.fromJson<int>(json['errorsCount']),
+      discoveryCompleted: serializer.fromJson<bool>(json['discoveryCompleted']),
+      pendingFoldersJson: serializer.fromJson<String?>(
+        json['pendingFoldersJson'],
+      ),
+      visitedFoldersJson: serializer.fromJson<String?>(
+        json['visitedFoldersJson'],
+      ),
     );
   }
   @override
@@ -7297,6 +7402,9 @@ class SyncRunRow extends DataClass implements Insertable<SyncRunRow> {
       'filesUpdated': serializer.toJson<int>(filesUpdated),
       'filesRemoved': serializer.toJson<int>(filesRemoved),
       'errorsCount': serializer.toJson<int>(errorsCount),
+      'discoveryCompleted': serializer.toJson<bool>(discoveryCompleted),
+      'pendingFoldersJson': serializer.toJson<String?>(pendingFoldersJson),
+      'visitedFoldersJson': serializer.toJson<String?>(visitedFoldersJson),
     };
   }
 
@@ -7320,6 +7428,9 @@ class SyncRunRow extends DataClass implements Insertable<SyncRunRow> {
     int? filesUpdated,
     int? filesRemoved,
     int? errorsCount,
+    bool? discoveryCompleted,
+    Value<String?> pendingFoldersJson = const Value.absent(),
+    Value<String?> visitedFoldersJson = const Value.absent(),
   }) => SyncRunRow(
     id: id ?? this.id,
     sourceId: sourceId ?? this.sourceId,
@@ -7344,6 +7455,13 @@ class SyncRunRow extends DataClass implements Insertable<SyncRunRow> {
     filesUpdated: filesUpdated ?? this.filesUpdated,
     filesRemoved: filesRemoved ?? this.filesRemoved,
     errorsCount: errorsCount ?? this.errorsCount,
+    discoveryCompleted: discoveryCompleted ?? this.discoveryCompleted,
+    pendingFoldersJson: pendingFoldersJson.present
+        ? pendingFoldersJson.value
+        : this.pendingFoldersJson,
+    visitedFoldersJson: visitedFoldersJson.present
+        ? visitedFoldersJson.value
+        : this.visitedFoldersJson,
   );
   SyncRunRow copyWithCompanion(SyncRunsCompanion data) {
     return SyncRunRow(
@@ -7392,6 +7510,15 @@ class SyncRunRow extends DataClass implements Insertable<SyncRunRow> {
       errorsCount: data.errorsCount.present
           ? data.errorsCount.value
           : this.errorsCount,
+      discoveryCompleted: data.discoveryCompleted.present
+          ? data.discoveryCompleted.value
+          : this.discoveryCompleted,
+      pendingFoldersJson: data.pendingFoldersJson.present
+          ? data.pendingFoldersJson.value
+          : this.pendingFoldersJson,
+      visitedFoldersJson: data.visitedFoldersJson.present
+          ? data.visitedFoldersJson.value
+          : this.visitedFoldersJson,
     );
   }
 
@@ -7416,13 +7543,16 @@ class SyncRunRow extends DataClass implements Insertable<SyncRunRow> {
           ..write('filesAdded: $filesAdded, ')
           ..write('filesUpdated: $filesUpdated, ')
           ..write('filesRemoved: $filesRemoved, ')
-          ..write('errorsCount: $errorsCount')
+          ..write('errorsCount: $errorsCount, ')
+          ..write('discoveryCompleted: $discoveryCompleted, ')
+          ..write('pendingFoldersJson: $pendingFoldersJson, ')
+          ..write('visitedFoldersJson: $visitedFoldersJson')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     id,
     sourceId,
     rootFolderId,
@@ -7442,7 +7572,10 @@ class SyncRunRow extends DataClass implements Insertable<SyncRunRow> {
     filesUpdated,
     filesRemoved,
     errorsCount,
-  );
+    discoveryCompleted,
+    pendingFoldersJson,
+    visitedFoldersJson,
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -7465,7 +7598,10 @@ class SyncRunRow extends DataClass implements Insertable<SyncRunRow> {
           other.filesAdded == this.filesAdded &&
           other.filesUpdated == this.filesUpdated &&
           other.filesRemoved == this.filesRemoved &&
-          other.errorsCount == this.errorsCount);
+          other.errorsCount == this.errorsCount &&
+          other.discoveryCompleted == this.discoveryCompleted &&
+          other.pendingFoldersJson == this.pendingFoldersJson &&
+          other.visitedFoldersJson == this.visitedFoldersJson);
 }
 
 class SyncRunsCompanion extends UpdateCompanion<SyncRunRow> {
@@ -7488,6 +7624,9 @@ class SyncRunsCompanion extends UpdateCompanion<SyncRunRow> {
   final Value<int> filesUpdated;
   final Value<int> filesRemoved;
   final Value<int> errorsCount;
+  final Value<bool> discoveryCompleted;
+  final Value<String?> pendingFoldersJson;
+  final Value<String?> visitedFoldersJson;
   final Value<int> rowid;
   const SyncRunsCompanion({
     this.id = const Value.absent(),
@@ -7509,6 +7648,9 @@ class SyncRunsCompanion extends UpdateCompanion<SyncRunRow> {
     this.filesUpdated = const Value.absent(),
     this.filesRemoved = const Value.absent(),
     this.errorsCount = const Value.absent(),
+    this.discoveryCompleted = const Value.absent(),
+    this.pendingFoldersJson = const Value.absent(),
+    this.visitedFoldersJson = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   SyncRunsCompanion.insert({
@@ -7531,6 +7673,9 @@ class SyncRunsCompanion extends UpdateCompanion<SyncRunRow> {
     this.filesUpdated = const Value.absent(),
     this.filesRemoved = const Value.absent(),
     this.errorsCount = const Value.absent(),
+    this.discoveryCompleted = const Value.absent(),
+    this.pendingFoldersJson = const Value.absent(),
+    this.visitedFoldersJson = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        sourceId = Value(sourceId),
@@ -7556,6 +7701,9 @@ class SyncRunsCompanion extends UpdateCompanion<SyncRunRow> {
     Expression<int>? filesUpdated,
     Expression<int>? filesRemoved,
     Expression<int>? errorsCount,
+    Expression<bool>? discoveryCompleted,
+    Expression<String>? pendingFoldersJson,
+    Expression<String>? visitedFoldersJson,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -7578,6 +7726,11 @@ class SyncRunsCompanion extends UpdateCompanion<SyncRunRow> {
       if (filesUpdated != null) 'files_updated': filesUpdated,
       if (filesRemoved != null) 'files_removed': filesRemoved,
       if (errorsCount != null) 'errors_count': errorsCount,
+      if (discoveryCompleted != null) 'discovery_completed': discoveryCompleted,
+      if (pendingFoldersJson != null)
+        'pending_folders_json': pendingFoldersJson,
+      if (visitedFoldersJson != null)
+        'visited_folders_json': visitedFoldersJson,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -7602,6 +7755,9 @@ class SyncRunsCompanion extends UpdateCompanion<SyncRunRow> {
     Value<int>? filesUpdated,
     Value<int>? filesRemoved,
     Value<int>? errorsCount,
+    Value<bool>? discoveryCompleted,
+    Value<String?>? pendingFoldersJson,
+    Value<String?>? visitedFoldersJson,
     Value<int>? rowid,
   }) {
     return SyncRunsCompanion(
@@ -7624,6 +7780,9 @@ class SyncRunsCompanion extends UpdateCompanion<SyncRunRow> {
       filesUpdated: filesUpdated ?? this.filesUpdated,
       filesRemoved: filesRemoved ?? this.filesRemoved,
       errorsCount: errorsCount ?? this.errorsCount,
+      discoveryCompleted: discoveryCompleted ?? this.discoveryCompleted,
+      pendingFoldersJson: pendingFoldersJson ?? this.pendingFoldersJson,
+      visitedFoldersJson: visitedFoldersJson ?? this.visitedFoldersJson,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -7688,6 +7847,15 @@ class SyncRunsCompanion extends UpdateCompanion<SyncRunRow> {
     if (errorsCount.present) {
       map['errors_count'] = Variable<int>(errorsCount.value);
     }
+    if (discoveryCompleted.present) {
+      map['discovery_completed'] = Variable<bool>(discoveryCompleted.value);
+    }
+    if (pendingFoldersJson.present) {
+      map['pending_folders_json'] = Variable<String>(pendingFoldersJson.value);
+    }
+    if (visitedFoldersJson.present) {
+      map['visited_folders_json'] = Variable<String>(visitedFoldersJson.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -7716,6 +7884,635 @@ class SyncRunsCompanion extends UpdateCompanion<SyncRunRow> {
           ..write('filesUpdated: $filesUpdated, ')
           ..write('filesRemoved: $filesRemoved, ')
           ..write('errorsCount: $errorsCount, ')
+          ..write('discoveryCompleted: $discoveryCompleted, ')
+          ..write('pendingFoldersJson: $pendingFoldersJson, ')
+          ..write('visitedFoldersJson: $visitedFoldersJson, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $DiscoveredFilesTable extends DiscoveredFiles
+    with TableInfo<$DiscoveredFilesTable, DiscoveredFileRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $DiscoveredFilesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _syncRunIdMeta = const VerificationMeta(
+    'syncRunId',
+  );
+  @override
+  late final GeneratedColumn<String> syncRunId = GeneratedColumn<String>(
+    'sync_run_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _driveFileIdMeta = const VerificationMeta(
+    'driveFileId',
+  );
+  @override
+  late final GeneratedColumn<String> driveFileId = GeneratedColumn<String>(
+    'drive_file_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _mimeTypeMeta = const VerificationMeta(
+    'mimeType',
+  );
+  @override
+  late final GeneratedColumn<String> mimeType = GeneratedColumn<String>(
+    'mime_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sizeMeta = const VerificationMeta('size');
+  @override
+  late final GeneratedColumn<int> size = GeneratedColumn<int>(
+    'size',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _modifiedTimeMeta = const VerificationMeta(
+    'modifiedTime',
+  );
+  @override
+  late final GeneratedColumn<DateTime> modifiedTime = GeneratedColumn<DateTime>(
+    'modified_time',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _md5ChecksumMeta = const VerificationMeta(
+    'md5Checksum',
+  );
+  @override
+  late final GeneratedColumn<String> md5Checksum = GeneratedColumn<String>(
+    'md5_checksum',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _parentFolderIdMeta = const VerificationMeta(
+    'parentFolderId',
+  );
+  @override
+  late final GeneratedColumn<String> parentFolderId = GeneratedColumn<String>(
+    'parent_folder_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _isLrcMeta = const VerificationMeta('isLrc');
+  @override
+  late final GeneratedColumn<bool> isLrc = GeneratedColumn<bool>(
+    'is_lrc',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_lrc" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    syncRunId,
+    driveFileId,
+    name,
+    mimeType,
+    size,
+    modifiedTime,
+    md5Checksum,
+    parentFolderId,
+    isLrc,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'discovered_files';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<DiscoveredFileRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('sync_run_id')) {
+      context.handle(
+        _syncRunIdMeta,
+        syncRunId.isAcceptableOrUnknown(data['sync_run_id']!, _syncRunIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_syncRunIdMeta);
+    }
+    if (data.containsKey('drive_file_id')) {
+      context.handle(
+        _driveFileIdMeta,
+        driveFileId.isAcceptableOrUnknown(
+          data['drive_file_id']!,
+          _driveFileIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_driveFileIdMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('mime_type')) {
+      context.handle(
+        _mimeTypeMeta,
+        mimeType.isAcceptableOrUnknown(data['mime_type']!, _mimeTypeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_mimeTypeMeta);
+    }
+    if (data.containsKey('size')) {
+      context.handle(
+        _sizeMeta,
+        size.isAcceptableOrUnknown(data['size']!, _sizeMeta),
+      );
+    }
+    if (data.containsKey('modified_time')) {
+      context.handle(
+        _modifiedTimeMeta,
+        modifiedTime.isAcceptableOrUnknown(
+          data['modified_time']!,
+          _modifiedTimeMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_modifiedTimeMeta);
+    }
+    if (data.containsKey('md5_checksum')) {
+      context.handle(
+        _md5ChecksumMeta,
+        md5Checksum.isAcceptableOrUnknown(
+          data['md5_checksum']!,
+          _md5ChecksumMeta,
+        ),
+      );
+    }
+    if (data.containsKey('parent_folder_id')) {
+      context.handle(
+        _parentFolderIdMeta,
+        parentFolderId.isAcceptableOrUnknown(
+          data['parent_folder_id']!,
+          _parentFolderIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('is_lrc')) {
+      context.handle(
+        _isLrcMeta,
+        isLrc.isAcceptableOrUnknown(data['is_lrc']!, _isLrcMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  DiscoveredFileRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return DiscoveredFileRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      syncRunId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sync_run_id'],
+      )!,
+      driveFileId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}drive_file_id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      mimeType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}mime_type'],
+      )!,
+      size: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}size'],
+      )!,
+      modifiedTime: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}modified_time'],
+      )!,
+      md5Checksum: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}md5_checksum'],
+      ),
+      parentFolderId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}parent_folder_id'],
+      ),
+      isLrc: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_lrc'],
+      )!,
+    );
+  }
+
+  @override
+  $DiscoveredFilesTable createAlias(String alias) {
+    return $DiscoveredFilesTable(attachedDatabase, alias);
+  }
+}
+
+class DiscoveredFileRow extends DataClass
+    implements Insertable<DiscoveredFileRow> {
+  final String id;
+  final String syncRunId;
+  final String driveFileId;
+  final String name;
+  final String mimeType;
+  final int size;
+  final DateTime modifiedTime;
+  final String? md5Checksum;
+  final String? parentFolderId;
+  final bool isLrc;
+  const DiscoveredFileRow({
+    required this.id,
+    required this.syncRunId,
+    required this.driveFileId,
+    required this.name,
+    required this.mimeType,
+    required this.size,
+    required this.modifiedTime,
+    this.md5Checksum,
+    this.parentFolderId,
+    required this.isLrc,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['sync_run_id'] = Variable<String>(syncRunId);
+    map['drive_file_id'] = Variable<String>(driveFileId);
+    map['name'] = Variable<String>(name);
+    map['mime_type'] = Variable<String>(mimeType);
+    map['size'] = Variable<int>(size);
+    map['modified_time'] = Variable<DateTime>(modifiedTime);
+    if (!nullToAbsent || md5Checksum != null) {
+      map['md5_checksum'] = Variable<String>(md5Checksum);
+    }
+    if (!nullToAbsent || parentFolderId != null) {
+      map['parent_folder_id'] = Variable<String>(parentFolderId);
+    }
+    map['is_lrc'] = Variable<bool>(isLrc);
+    return map;
+  }
+
+  DiscoveredFilesCompanion toCompanion(bool nullToAbsent) {
+    return DiscoveredFilesCompanion(
+      id: Value(id),
+      syncRunId: Value(syncRunId),
+      driveFileId: Value(driveFileId),
+      name: Value(name),
+      mimeType: Value(mimeType),
+      size: Value(size),
+      modifiedTime: Value(modifiedTime),
+      md5Checksum: md5Checksum == null && nullToAbsent
+          ? const Value.absent()
+          : Value(md5Checksum),
+      parentFolderId: parentFolderId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(parentFolderId),
+      isLrc: Value(isLrc),
+    );
+  }
+
+  factory DiscoveredFileRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return DiscoveredFileRow(
+      id: serializer.fromJson<String>(json['id']),
+      syncRunId: serializer.fromJson<String>(json['syncRunId']),
+      driveFileId: serializer.fromJson<String>(json['driveFileId']),
+      name: serializer.fromJson<String>(json['name']),
+      mimeType: serializer.fromJson<String>(json['mimeType']),
+      size: serializer.fromJson<int>(json['size']),
+      modifiedTime: serializer.fromJson<DateTime>(json['modifiedTime']),
+      md5Checksum: serializer.fromJson<String?>(json['md5Checksum']),
+      parentFolderId: serializer.fromJson<String?>(json['parentFolderId']),
+      isLrc: serializer.fromJson<bool>(json['isLrc']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'syncRunId': serializer.toJson<String>(syncRunId),
+      'driveFileId': serializer.toJson<String>(driveFileId),
+      'name': serializer.toJson<String>(name),
+      'mimeType': serializer.toJson<String>(mimeType),
+      'size': serializer.toJson<int>(size),
+      'modifiedTime': serializer.toJson<DateTime>(modifiedTime),
+      'md5Checksum': serializer.toJson<String?>(md5Checksum),
+      'parentFolderId': serializer.toJson<String?>(parentFolderId),
+      'isLrc': serializer.toJson<bool>(isLrc),
+    };
+  }
+
+  DiscoveredFileRow copyWith({
+    String? id,
+    String? syncRunId,
+    String? driveFileId,
+    String? name,
+    String? mimeType,
+    int? size,
+    DateTime? modifiedTime,
+    Value<String?> md5Checksum = const Value.absent(),
+    Value<String?> parentFolderId = const Value.absent(),
+    bool? isLrc,
+  }) => DiscoveredFileRow(
+    id: id ?? this.id,
+    syncRunId: syncRunId ?? this.syncRunId,
+    driveFileId: driveFileId ?? this.driveFileId,
+    name: name ?? this.name,
+    mimeType: mimeType ?? this.mimeType,
+    size: size ?? this.size,
+    modifiedTime: modifiedTime ?? this.modifiedTime,
+    md5Checksum: md5Checksum.present ? md5Checksum.value : this.md5Checksum,
+    parentFolderId: parentFolderId.present
+        ? parentFolderId.value
+        : this.parentFolderId,
+    isLrc: isLrc ?? this.isLrc,
+  );
+  DiscoveredFileRow copyWithCompanion(DiscoveredFilesCompanion data) {
+    return DiscoveredFileRow(
+      id: data.id.present ? data.id.value : this.id,
+      syncRunId: data.syncRunId.present ? data.syncRunId.value : this.syncRunId,
+      driveFileId: data.driveFileId.present
+          ? data.driveFileId.value
+          : this.driveFileId,
+      name: data.name.present ? data.name.value : this.name,
+      mimeType: data.mimeType.present ? data.mimeType.value : this.mimeType,
+      size: data.size.present ? data.size.value : this.size,
+      modifiedTime: data.modifiedTime.present
+          ? data.modifiedTime.value
+          : this.modifiedTime,
+      md5Checksum: data.md5Checksum.present
+          ? data.md5Checksum.value
+          : this.md5Checksum,
+      parentFolderId: data.parentFolderId.present
+          ? data.parentFolderId.value
+          : this.parentFolderId,
+      isLrc: data.isLrc.present ? data.isLrc.value : this.isLrc,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DiscoveredFileRow(')
+          ..write('id: $id, ')
+          ..write('syncRunId: $syncRunId, ')
+          ..write('driveFileId: $driveFileId, ')
+          ..write('name: $name, ')
+          ..write('mimeType: $mimeType, ')
+          ..write('size: $size, ')
+          ..write('modifiedTime: $modifiedTime, ')
+          ..write('md5Checksum: $md5Checksum, ')
+          ..write('parentFolderId: $parentFolderId, ')
+          ..write('isLrc: $isLrc')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    syncRunId,
+    driveFileId,
+    name,
+    mimeType,
+    size,
+    modifiedTime,
+    md5Checksum,
+    parentFolderId,
+    isLrc,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is DiscoveredFileRow &&
+          other.id == this.id &&
+          other.syncRunId == this.syncRunId &&
+          other.driveFileId == this.driveFileId &&
+          other.name == this.name &&
+          other.mimeType == this.mimeType &&
+          other.size == this.size &&
+          other.modifiedTime == this.modifiedTime &&
+          other.md5Checksum == this.md5Checksum &&
+          other.parentFolderId == this.parentFolderId &&
+          other.isLrc == this.isLrc);
+}
+
+class DiscoveredFilesCompanion extends UpdateCompanion<DiscoveredFileRow> {
+  final Value<String> id;
+  final Value<String> syncRunId;
+  final Value<String> driveFileId;
+  final Value<String> name;
+  final Value<String> mimeType;
+  final Value<int> size;
+  final Value<DateTime> modifiedTime;
+  final Value<String?> md5Checksum;
+  final Value<String?> parentFolderId;
+  final Value<bool> isLrc;
+  final Value<int> rowid;
+  const DiscoveredFilesCompanion({
+    this.id = const Value.absent(),
+    this.syncRunId = const Value.absent(),
+    this.driveFileId = const Value.absent(),
+    this.name = const Value.absent(),
+    this.mimeType = const Value.absent(),
+    this.size = const Value.absent(),
+    this.modifiedTime = const Value.absent(),
+    this.md5Checksum = const Value.absent(),
+    this.parentFolderId = const Value.absent(),
+    this.isLrc = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  DiscoveredFilesCompanion.insert({
+    required String id,
+    required String syncRunId,
+    required String driveFileId,
+    required String name,
+    required String mimeType,
+    this.size = const Value.absent(),
+    required DateTime modifiedTime,
+    this.md5Checksum = const Value.absent(),
+    this.parentFolderId = const Value.absent(),
+    this.isLrc = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       syncRunId = Value(syncRunId),
+       driveFileId = Value(driveFileId),
+       name = Value(name),
+       mimeType = Value(mimeType),
+       modifiedTime = Value(modifiedTime);
+  static Insertable<DiscoveredFileRow> custom({
+    Expression<String>? id,
+    Expression<String>? syncRunId,
+    Expression<String>? driveFileId,
+    Expression<String>? name,
+    Expression<String>? mimeType,
+    Expression<int>? size,
+    Expression<DateTime>? modifiedTime,
+    Expression<String>? md5Checksum,
+    Expression<String>? parentFolderId,
+    Expression<bool>? isLrc,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (syncRunId != null) 'sync_run_id': syncRunId,
+      if (driveFileId != null) 'drive_file_id': driveFileId,
+      if (name != null) 'name': name,
+      if (mimeType != null) 'mime_type': mimeType,
+      if (size != null) 'size': size,
+      if (modifiedTime != null) 'modified_time': modifiedTime,
+      if (md5Checksum != null) 'md5_checksum': md5Checksum,
+      if (parentFolderId != null) 'parent_folder_id': parentFolderId,
+      if (isLrc != null) 'is_lrc': isLrc,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  DiscoveredFilesCompanion copyWith({
+    Value<String>? id,
+    Value<String>? syncRunId,
+    Value<String>? driveFileId,
+    Value<String>? name,
+    Value<String>? mimeType,
+    Value<int>? size,
+    Value<DateTime>? modifiedTime,
+    Value<String?>? md5Checksum,
+    Value<String?>? parentFolderId,
+    Value<bool>? isLrc,
+    Value<int>? rowid,
+  }) {
+    return DiscoveredFilesCompanion(
+      id: id ?? this.id,
+      syncRunId: syncRunId ?? this.syncRunId,
+      driveFileId: driveFileId ?? this.driveFileId,
+      name: name ?? this.name,
+      mimeType: mimeType ?? this.mimeType,
+      size: size ?? this.size,
+      modifiedTime: modifiedTime ?? this.modifiedTime,
+      md5Checksum: md5Checksum ?? this.md5Checksum,
+      parentFolderId: parentFolderId ?? this.parentFolderId,
+      isLrc: isLrc ?? this.isLrc,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (syncRunId.present) {
+      map['sync_run_id'] = Variable<String>(syncRunId.value);
+    }
+    if (driveFileId.present) {
+      map['drive_file_id'] = Variable<String>(driveFileId.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (mimeType.present) {
+      map['mime_type'] = Variable<String>(mimeType.value);
+    }
+    if (size.present) {
+      map['size'] = Variable<int>(size.value);
+    }
+    if (modifiedTime.present) {
+      map['modified_time'] = Variable<DateTime>(modifiedTime.value);
+    }
+    if (md5Checksum.present) {
+      map['md5_checksum'] = Variable<String>(md5Checksum.value);
+    }
+    if (parentFolderId.present) {
+      map['parent_folder_id'] = Variable<String>(parentFolderId.value);
+    }
+    if (isLrc.present) {
+      map['is_lrc'] = Variable<bool>(isLrc.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DiscoveredFilesCompanion(')
+          ..write('id: $id, ')
+          ..write('syncRunId: $syncRunId, ')
+          ..write('driveFileId: $driveFileId, ')
+          ..write('name: $name, ')
+          ..write('mimeType: $mimeType, ')
+          ..write('size: $size, ')
+          ..write('modifiedTime: $modifiedTime, ')
+          ..write('md5Checksum: $md5Checksum, ')
+          ..write('parentFolderId: $parentFolderId, ')
+          ..write('isLrc: $isLrc, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -10802,6 +11599,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $PlaybackQueueTable playbackQueue = $PlaybackQueueTable(this);
   late final $CacheEntriesTable cacheEntries = $CacheEntriesTable(this);
   late final $SyncRunsTable syncRuns = $SyncRunsTable(this);
+  late final $DiscoveredFilesTable discoveredFiles = $DiscoveredFilesTable(
+    this,
+  );
   late final $SyncErrorsTable syncErrors = $SyncErrorsTable(this);
   late final $ArtworksTable artworks = $ArtworksTable(this);
   late final $AppSettingsTable appSettings = $AppSettingsTable(this);
@@ -10828,6 +11628,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     playbackQueue,
     cacheEntries,
     syncRuns,
+    discoveredFiles,
     syncErrors,
     artworks,
     appSettings,
@@ -14296,6 +15097,9 @@ typedef $$SyncRunsTableCreateCompanionBuilder = SyncRunsCompanion Function({
   Value<int> filesUpdated,
   Value<int> filesRemoved,
   Value<int> errorsCount,
+  Value<bool> discoveryCompleted,
+  Value<String?> pendingFoldersJson,
+  Value<String?> visitedFoldersJson,
   Value<int> rowid,
 });
 typedef $$SyncRunsTableUpdateCompanionBuilder = SyncRunsCompanion Function({
@@ -14318,6 +15122,9 @@ typedef $$SyncRunsTableUpdateCompanionBuilder = SyncRunsCompanion Function({
   Value<int> filesUpdated,
   Value<int> filesRemoved,
   Value<int> errorsCount,
+  Value<bool> discoveryCompleted,
+  Value<String?> pendingFoldersJson,
+  Value<String?> visitedFoldersJson,
   Value<int> rowid,
 });
 
@@ -14422,6 +15229,21 @@ class $$SyncRunsTableFilterComposer
 
   ColumnFilters<int> get errorsCount => $composableBuilder(
     column: $table.errorsCount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get discoveryCompleted => $composableBuilder(
+    column: $table.discoveryCompleted,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get pendingFoldersJson => $composableBuilder(
+    column: $table.pendingFoldersJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get visitedFoldersJson => $composableBuilder(
+    column: $table.visitedFoldersJson,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -14529,6 +15351,21 @@ class $$SyncRunsTableOrderingComposer
     column: $table.errorsCount,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<bool> get discoveryCompleted => $composableBuilder(
+    column: $table.discoveryCompleted,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get pendingFoldersJson => $composableBuilder(
+    column: $table.pendingFoldersJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get visitedFoldersJson => $composableBuilder(
+    column: $table.visitedFoldersJson,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$SyncRunsTableAnnotationComposer
@@ -14622,6 +15459,21 @@ class $$SyncRunsTableAnnotationComposer
     column: $table.errorsCount,
     builder: (column) => column,
   );
+
+  GeneratedColumn<bool> get discoveryCompleted => $composableBuilder(
+    column: $table.discoveryCompleted,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get pendingFoldersJson => $composableBuilder(
+    column: $table.pendingFoldersJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get visitedFoldersJson => $composableBuilder(
+    column: $table.visitedFoldersJson,
+    builder: (column) => column,
+  );
 }
 
 class $$SyncRunsTableTableManager
@@ -14674,6 +15526,9 @@ class $$SyncRunsTableTableManager
                 Value<int> filesUpdated = const Value.absent(),
                 Value<int> filesRemoved = const Value.absent(),
                 Value<int> errorsCount = const Value.absent(),
+                Value<bool> discoveryCompleted = const Value.absent(),
+                Value<String?> pendingFoldersJson = const Value.absent(),
+                Value<String?> visitedFoldersJson = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SyncRunsCompanion(
                 id: id,
@@ -14695,6 +15550,9 @@ class $$SyncRunsTableTableManager
                 filesUpdated: filesUpdated,
                 filesRemoved: filesRemoved,
                 errorsCount: errorsCount,
+                discoveryCompleted: discoveryCompleted,
+                pendingFoldersJson: pendingFoldersJson,
+                visitedFoldersJson: visitedFoldersJson,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -14718,6 +15576,9 @@ class $$SyncRunsTableTableManager
                 Value<int> filesUpdated = const Value.absent(),
                 Value<int> filesRemoved = const Value.absent(),
                 Value<int> errorsCount = const Value.absent(),
+                Value<bool> discoveryCompleted = const Value.absent(),
+                Value<String?> pendingFoldersJson = const Value.absent(),
+                Value<String?> visitedFoldersJson = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SyncRunsCompanion.insert(
                 id: id,
@@ -14739,6 +15600,9 @@ class $$SyncRunsTableTableManager
                 filesUpdated: filesUpdated,
                 filesRemoved: filesRemoved,
                 errorsCount: errorsCount,
+                discoveryCompleted: discoveryCompleted,
+                pendingFoldersJson: pendingFoldersJson,
+                visitedFoldersJson: visitedFoldersJson,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -14770,6 +15634,324 @@ typedef $$SyncRunsTableProcessedTableManager =
       $$SyncRunsTableUpdateCompanionBuilder,
       (SyncRunRow, BaseReferences<_$AppDatabase, $SyncRunsTable, SyncRunRow>),
       SyncRunRow,
+      PrefetchHooks Function()
+    >;
+typedef $$DiscoveredFilesTableCreateCompanionBuilder =
+    DiscoveredFilesCompanion Function({
+      required String id,
+      required String syncRunId,
+      required String driveFileId,
+      required String name,
+      required String mimeType,
+      Value<int> size,
+      required DateTime modifiedTime,
+      Value<String?> md5Checksum,
+      Value<String?> parentFolderId,
+      Value<bool> isLrc,
+      Value<int> rowid,
+    });
+typedef $$DiscoveredFilesTableUpdateCompanionBuilder =
+    DiscoveredFilesCompanion Function({
+      Value<String> id,
+      Value<String> syncRunId,
+      Value<String> driveFileId,
+      Value<String> name,
+      Value<String> mimeType,
+      Value<int> size,
+      Value<DateTime> modifiedTime,
+      Value<String?> md5Checksum,
+      Value<String?> parentFolderId,
+      Value<bool> isLrc,
+      Value<int> rowid,
+    });
+
+class $$DiscoveredFilesTableFilterComposer
+    extends Composer<_$AppDatabase, $DiscoveredFilesTable> {
+  $$DiscoveredFilesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get syncRunId => $composableBuilder(
+    column: $table.syncRunId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get driveFileId => $composableBuilder(
+    column: $table.driveFileId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get mimeType => $composableBuilder(
+    column: $table.mimeType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get size => $composableBuilder(
+    column: $table.size,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get modifiedTime => $composableBuilder(
+    column: $table.modifiedTime,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get md5Checksum => $composableBuilder(
+    column: $table.md5Checksum,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get parentFolderId => $composableBuilder(
+    column: $table.parentFolderId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isLrc => $composableBuilder(
+    column: $table.isLrc,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$DiscoveredFilesTableOrderingComposer
+    extends Composer<_$AppDatabase, $DiscoveredFilesTable> {
+  $$DiscoveredFilesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get syncRunId => $composableBuilder(
+    column: $table.syncRunId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get driveFileId => $composableBuilder(
+    column: $table.driveFileId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get mimeType => $composableBuilder(
+    column: $table.mimeType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get size => $composableBuilder(
+    column: $table.size,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get modifiedTime => $composableBuilder(
+    column: $table.modifiedTime,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get md5Checksum => $composableBuilder(
+    column: $table.md5Checksum,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get parentFolderId => $composableBuilder(
+    column: $table.parentFolderId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isLrc => $composableBuilder(
+    column: $table.isLrc,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$DiscoveredFilesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $DiscoveredFilesTable> {
+  $$DiscoveredFilesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get syncRunId =>
+      $composableBuilder(column: $table.syncRunId, builder: (column) => column);
+
+  GeneratedColumn<String> get driveFileId => $composableBuilder(
+    column: $table.driveFileId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get mimeType =>
+      $composableBuilder(column: $table.mimeType, builder: (column) => column);
+
+  GeneratedColumn<int> get size =>
+      $composableBuilder(column: $table.size, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get modifiedTime => $composableBuilder(
+    column: $table.modifiedTime,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get md5Checksum => $composableBuilder(
+    column: $table.md5Checksum,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get parentFolderId => $composableBuilder(
+    column: $table.parentFolderId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get isLrc =>
+      $composableBuilder(column: $table.isLrc, builder: (column) => column);
+}
+
+class $$DiscoveredFilesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $DiscoveredFilesTable,
+          DiscoveredFileRow,
+          $$DiscoveredFilesTableFilterComposer,
+          $$DiscoveredFilesTableOrderingComposer,
+          $$DiscoveredFilesTableAnnotationComposer,
+          $$DiscoveredFilesTableCreateCompanionBuilder,
+          $$DiscoveredFilesTableUpdateCompanionBuilder,
+          (
+            DiscoveredFileRow,
+            BaseReferences<
+              _$AppDatabase,
+              $DiscoveredFilesTable,
+              DiscoveredFileRow
+            >,
+          ),
+          DiscoveredFileRow,
+          PrefetchHooks Function()
+        > {
+  $$DiscoveredFilesTableTableManager(
+    _$AppDatabase db,
+    $DiscoveredFilesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$DiscoveredFilesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$DiscoveredFilesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$DiscoveredFilesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> syncRunId = const Value.absent(),
+                Value<String> driveFileId = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String> mimeType = const Value.absent(),
+                Value<int> size = const Value.absent(),
+                Value<DateTime> modifiedTime = const Value.absent(),
+                Value<String?> md5Checksum = const Value.absent(),
+                Value<String?> parentFolderId = const Value.absent(),
+                Value<bool> isLrc = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DiscoveredFilesCompanion(
+                id: id,
+                syncRunId: syncRunId,
+                driveFileId: driveFileId,
+                name: name,
+                mimeType: mimeType,
+                size: size,
+                modifiedTime: modifiedTime,
+                md5Checksum: md5Checksum,
+                parentFolderId: parentFolderId,
+                isLrc: isLrc,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String syncRunId,
+                required String driveFileId,
+                required String name,
+                required String mimeType,
+                Value<int> size = const Value.absent(),
+                required DateTime modifiedTime,
+                Value<String?> md5Checksum = const Value.absent(),
+                Value<String?> parentFolderId = const Value.absent(),
+                Value<bool> isLrc = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DiscoveredFilesCompanion.insert(
+                id: id,
+                syncRunId: syncRunId,
+                driveFileId: driveFileId,
+                name: name,
+                mimeType: mimeType,
+                size: size,
+                modifiedTime: modifiedTime,
+                md5Checksum: md5Checksum,
+                parentFolderId: parentFolderId,
+                isLrc: isLrc,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$DiscoveredFilesTable, DiscoveredFileRow>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $DiscoveredFilesTable,
+                    DiscoveredFileRow
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$DiscoveredFilesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $DiscoveredFilesTable,
+      DiscoveredFileRow,
+      $$DiscoveredFilesTableFilterComposer,
+      $$DiscoveredFilesTableOrderingComposer,
+      $$DiscoveredFilesTableAnnotationComposer,
+      $$DiscoveredFilesTableCreateCompanionBuilder,
+      $$DiscoveredFilesTableUpdateCompanionBuilder,
+      (
+        DiscoveredFileRow,
+        BaseReferences<_$AppDatabase, $DiscoveredFilesTable, DiscoveredFileRow>,
+      ),
+      DiscoveredFileRow,
       PrefetchHooks Function()
     >;
 typedef $$SyncErrorsTableCreateCompanionBuilder = SyncErrorsCompanion Function({
@@ -16453,6 +17635,8 @@ class $AppDatabaseManager {
       $$CacheEntriesTableTableManager(_db, _db.cacheEntries);
   $$SyncRunsTableTableManager get syncRuns =>
       $$SyncRunsTableTableManager(_db, _db.syncRuns);
+  $$DiscoveredFilesTableTableManager get discoveredFiles =>
+      $$DiscoveredFilesTableTableManager(_db, _db.discoveredFiles);
   $$SyncErrorsTableTableManager get syncErrors =>
       $$SyncErrorsTableTableManager(_db, _db.syncErrors);
   $$ArtworksTableTableManager get artworks =>

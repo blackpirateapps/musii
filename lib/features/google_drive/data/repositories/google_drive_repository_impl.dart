@@ -100,17 +100,28 @@ class GoogleDriveRepositoryImpl implements GoogleDriveRepository {
   Future<Result<List<DriveFileItem>, AppFailure>> listAudioFilesRecursively(
     String rootFolderId, {
     void Function(int discoveredCount)? onProgress,
+    void Function(DriveFileItem file)? onFileDiscovered,
+    void Function(List<String> pendingFolders, Set<String> visitedFolders)?
+        onFolderStateChanged,
+    List<String>? initialFolderQueue,
+    Set<String>? initialVisitedFolders,
     bool Function()? isCancelled,
   }) async {
     try {
       final driveApi = _getDriveApi();
       final List<DriveFileItem> discoveredAudio = [];
-      final List<String> folderQueue = [rootFolderId];
-      final Set<String> visitedFolders = {};
+      final List<String> folderQueue =
+          (initialFolderQueue != null && initialFolderQueue.isNotEmpty)
+              ? List<String>.from(initialFolderQueue)
+              : [rootFolderId];
+      final Set<String> visitedFolders =
+          (initialVisitedFolders != null && initialVisitedFolders.isNotEmpty)
+              ? Set<String>.from(initialVisitedFolders)
+              : {};
 
       AppLogger.info(
         LogCategory.drive,
-        'Beginning recursive scan of Drive folder: $rootFolderId',
+        'Beginning recursive scan of Drive folder: $rootFolderId (Queue: ${folderQueue.length}, Visited: ${visitedFolders.length})',
       );
 
       while (folderQueue.isNotEmpty) {
@@ -124,6 +135,7 @@ class GoogleDriveRepositoryImpl implements GoogleDriveRepository {
         final currentFolderId = folderQueue.removeAt(0);
         if (visitedFolders.contains(currentFolderId)) continue;
         visitedFolders.add(currentFolderId);
+        onFolderStateChanged?.call(folderQueue, visitedFolders);
 
         String? pageToken;
         do {
@@ -137,7 +149,8 @@ class GoogleDriveRepositoryImpl implements GoogleDriveRepository {
           final query = "'$currentFolderId' in parents and trashed = false";
           final result = await driveApi.files.list(
             q: query,
-            $fields: 'nextPageToken, files(id, name, mimeType, size, modifiedTime, md5Checksum, parents)',
+            $fields:
+                'nextPageToken, files(id, name, mimeType, size, modifiedTime, md5Checksum, parents)',
             pageSize: 100,
             pageToken: pageToken,
             spaces: 'drive',
@@ -151,7 +164,11 @@ class GoogleDriveRepositoryImpl implements GoogleDriveRepository {
             if (fId == null) continue;
 
             if (mime == 'application/vnd.google-apps.folder') {
-              folderQueue.add(fId);
+              if (!visitedFolders.contains(fId) &&
+                  !folderQueue.contains(fId)) {
+                folderQueue.add(fId);
+                onFolderStateChanged?.call(folderQueue, visitedFolders);
+              }
             } else {
               final ext = name.contains('.')
                   ? name.split('.').last.toLowerCase()
@@ -179,9 +196,12 @@ class GoogleDriveRepositoryImpl implements GoogleDriveRepository {
                   isLrc: isLrc,
                 );
                 discoveredAudio.add(fileItem);
-                onProgress?.call(
-                  discoveredAudio.where((item) => !item.isLrc).length,
-                );
+                onFileDiscovered?.call(fileItem);
+                if (!isLrc) {
+                  onProgress?.call(
+                    discoveredAudio.where((item) => !item.isLrc).length,
+                  );
+                }
               }
             }
           }
@@ -189,9 +209,11 @@ class GoogleDriveRepositoryImpl implements GoogleDriveRepository {
         } while (pageToken != null);
       }
 
+      onFolderStateChanged?.call(folderQueue, visitedFolders);
+
       AppLogger.info(
         LogCategory.drive,
-        'Recursive scan completed. Discovered ${discoveredAudio.length} audio tracks.',
+        'Recursive scan completed. Discovered ${discoveredAudio.length} items (${discoveredAudio.where((i) => !i.isLrc).length} audio, ${discoveredAudio.where((i) => i.isLrc).length} lrc).',
       );
 
       return Result.success(discoveredAudio);

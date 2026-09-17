@@ -25,6 +25,7 @@ part 'app_database.g.dart';
     PlaybackQueue,
     CacheEntries,
     SyncRuns,
+    DiscoveredFiles,
     SyncErrors,
     Artworks,
     AppSettings,
@@ -38,7 +39,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? e]) : super(e ?? _openConnection());
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration {
@@ -73,6 +74,9 @@ class AppDatabase extends _$AppDatabase {
         await customStatement(
           'CREATE INDEX IF NOT EXISTS idx_sync_runs_status ON sync_runs(status, started_at);',
         );
+        await customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_discovered_files_sync ON discovered_files(sync_run_id);',
+        );
       },
       onUpgrade: (Migrator m, int from, int to) async {
         if (from < 2) {
@@ -102,6 +106,15 @@ class AppDatabase extends _$AppDatabase {
           await m.addColumn(syncRuns, syncRuns.progressPercent);
           await customStatement(
             'CREATE INDEX IF NOT EXISTS idx_sync_runs_status ON sync_runs(status, started_at);',
+          );
+        }
+        if (from < 5) {
+          await m.createTable(discoveredFiles);
+          await m.addColumn(syncRuns, syncRuns.discoveryCompleted);
+          await m.addColumn(syncRuns, syncRuns.pendingFoldersJson);
+          await m.addColumn(syncRuns, syncRuns.visitedFoldersJson);
+          await customStatement(
+            'CREATE INDEX IF NOT EXISTS idx_discovered_files_sync ON discovered_files(sync_run_id);',
           );
         }
       },

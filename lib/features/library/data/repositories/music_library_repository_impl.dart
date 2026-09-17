@@ -40,6 +40,8 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
   SyncProgress _currentProgress = const SyncProgress();
   bool _isSyncRunning = false;
   SyncCancellationToken? _currentCancellationToken;
+  Completer<void>? _activeSyncCompleter;
+  int _syncSequenceNumber = 0;
 
   MusicLibraryRepositoryImpl({
     required AppDatabase database,
@@ -563,17 +565,33 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
     bool isResume = false,
     bool forceSync = false,
   }) async {
-    if (_isSyncRunning) {
-      AppLogger.warning(
+    final int mySeq = ++_syncSequenceNumber;
+
+    while (_isSyncRunning) {
+      AppLogger.info(
         LogCategory.sync,
-        'Sync already in progress; rejecting concurrent sync request',
+        'Active sync in progress. Requesting graceful stop to start sync for $rootFolderName (seq: $mySeq)...',
       );
-      return const Result.failure(
-        DriveApiFailure('Synchronization is already in progress'),
+      _currentCancellationToken?.cancel();
+      _updateProgress(_currentProgress.copyWith(phase: SyncPhase.stopping));
+
+      if (_activeSyncCompleter != null) {
+        try {
+          await _activeSyncCompleter!.future;
+        } catch (_) {}
+      }
+    }
+
+    if (mySeq != _syncSequenceNumber) {
+      AppLogger.info(
+        LogCategory.sync,
+        'Sync request (seq: $mySeq, folder: $rootFolderName) was superseded by newer request (seq: $_syncSequenceNumber); aborting.',
       );
+      return const Result.success(null);
     }
 
     _isSyncRunning = true;
+    _activeSyncCompleter = Completer<void>();
     final cancellationToken = SyncCancellationToken();
     _currentCancellationToken = cancellationToken;
 
@@ -588,6 +606,13 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
     );
 
     try {
+      // If fresh sync, clean up obsolete discovered files from previous sync runs
+      if (!isResume) {
+        await (_database.delete(_database.discoveredFiles)
+              ..where((tbl) => tbl.syncRunId.equals(syncRunId).not()))
+            .go();
+      }
+
       // 1. Record / update sync run in database
       await _database
           .into(_database.syncRuns)
@@ -602,7 +627,9 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
               lastCheckpointAt: Value(DateTime.now()),
               status: const Value('running'),
               phase: const Value('scanning'),
-              filesDiscovered: Value(_currentProgress.filesDiscovered),
+              filesDiscovered: Value(
+                isResume ? _currentProgress.filesDiscovered : 0,
+              ),
               filesProcessed: Value(
                 isResume ? _currentProgress.filesProcessed : 0,
               ),
@@ -630,60 +657,194 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
             ),
           );
 
-      // 2. Discover audio files recursively from Drive
-      _updateProgress(
-        _currentProgress.copyWith(
-          syncRunId: syncRunId,
-          phase: SyncPhase.scanning,
-          rootFolderId: rootFolderId,
-          rootFolderName: rootFolderName,
-          errorMessage: null,
-          isResumable: false,
-        ),
-      );
-      onProgress?.call(_currentProgress);
+      // 2. Discover audio files recursively from Drive or restore from DB
+      final List<DriveFileItem> allDriveFiles = [];
+      bool discoveryAlreadyComplete = false;
+      List<String>? initialPendingFolders;
+      Set<String>? initialVisitedFolders;
 
-      final scanResult = await _driveRepository.listAudioFilesRecursively(
-        rootFolderId,
-        onProgress: (count) {
-          _updateProgress(_currentProgress.copyWith(filesDiscovered: count));
+      if (isResume) {
+        final existingRun = await (_database.select(_database.syncRuns)
+              ..where((tbl) => tbl.id.equals(syncRunId)))
+            .getSingleOrNull();
+
+        if (existingRun != null && existingRun.discoveryCompleted) {
+          discoveryAlreadyComplete = true;
+          final rows = await (_database.select(
+            _database.discoveredFiles,
+          )..where((tbl) => tbl.syncRunId.equals(syncRunId))).get();
+
+          for (final r in rows) {
+            allDriveFiles.add(
+              DriveFileItem(
+                id: r.driveFileId,
+                name: r.name,
+                mimeType: r.mimeType,
+                size: r.size,
+                modifiedTime: r.modifiedTime,
+                md5Checksum: r.md5Checksum,
+                parentFolderId: r.parentFolderId,
+                isLrc: r.isLrc,
+              ),
+            );
+          }
+
+          AppLogger.info(
+            LogCategory.sync,
+            'Resuming sync: Discovery already complete ($syncRunId). Restored ${allDriveFiles.length} files from DB; skipping Drive scan.',
+          );
+        } else if (existingRun != null) {
+          if (existingRun.pendingFoldersJson != null) {
+            try {
+              final list =
+                  jsonDecode(existingRun.pendingFoldersJson!) as List<dynamic>;
+              initialPendingFolders = list.map((e) => e.toString()).toList();
+            } catch (_) {}
+          }
+          if (existingRun.visitedFoldersJson != null) {
+            try {
+              final list =
+                  jsonDecode(existingRun.visitedFoldersJson!) as List<dynamic>;
+              initialVisitedFolders = list.map((e) => e.toString()).toSet();
+            } catch (_) {}
+          }
+
+          final rows = await (_database.select(
+            _database.discoveredFiles,
+          )..where((tbl) => tbl.syncRunId.equals(syncRunId))).get();
+
+          for (final r in rows) {
+            allDriveFiles.add(
+              DriveFileItem(
+                id: r.driveFileId,
+                name: r.name,
+                mimeType: r.mimeType,
+                size: r.size,
+                modifiedTime: r.modifiedTime,
+                md5Checksum: r.md5Checksum,
+                parentFolderId: r.parentFolderId,
+                isLrc: r.isLrc,
+              ),
+            );
+          }
+        }
+      }
+
+      if (!discoveryAlreadyComplete) {
+        _updateProgress(
+          _currentProgress.copyWith(
+            syncRunId: syncRunId,
+            phase: SyncPhase.scanning,
+            rootFolderId: rootFolderId,
+            rootFolderName: rootFolderName,
+            filesDiscovered: allDriveFiles.where((f) => !f.isLrc).length,
+            filesProcessed: isResume ? _currentProgress.filesProcessed : 0,
+            filesAdded: isResume ? _currentProgress.filesAdded : 0,
+            filesUpdated: isResume ? _currentProgress.filesUpdated : 0,
+            filesRemoved: isResume ? _currentProgress.filesRemoved : 0,
+            errorsCount: isResume ? _currentProgress.errorsCount : 0,
+            progressPercent: isResume ? _currentProgress.progressPercent : 0.0,
+            errorMessage: null,
+            isResumable: false,
+          ),
+        );
+        onProgress?.call(_currentProgress);
+
+        List<String> lastPendingFolders =
+            initialPendingFolders ?? [rootFolderId];
+        Set<String> lastVisitedFolders = initialVisitedFolders ?? {};
+
+        final scanResult = await _driveRepository.listAudioFilesRecursively(
+          rootFolderId,
+          initialFolderQueue: initialPendingFolders,
+          initialVisitedFolders: initialVisitedFolders,
+          onProgress: (count) {
+            final totalDiscovered =
+                allDriveFiles.where((f) => !f.isLrc).length + count;
+            _updateProgress(
+              _currentProgress.copyWith(filesDiscovered: totalDiscovered),
+            );
+            onProgress?.call(_currentProgress);
+          },
+          onFileDiscovered: (file) async {
+            if (!allDriveFiles.any((f) => f.id == file.id)) {
+              allDriveFiles.add(file);
+            }
+            await _database
+                .into(_database.discoveredFiles)
+                .insertOnConflictUpdate(
+                  DiscoveredFilesCompanion(
+                    id: Value('${syncRunId}_${file.id}'),
+                    syncRunId: Value(syncRunId),
+                    driveFileId: Value(file.id),
+                    name: Value(file.name),
+                    mimeType: Value(file.mimeType),
+                    size: Value(file.size),
+                    modifiedTime: Value(file.modifiedTime ?? DateTime.now()),
+                    md5Checksum: Value(file.md5Checksum),
+                    parentFolderId: Value(file.parentFolderId),
+                    isLrc: Value(file.isLrc),
+                  ),
+                );
+          },
+          onFolderStateChanged: (pending, visited) {
+            lastPendingFolders = List<String>.from(pending);
+            lastVisitedFolders = Set<String>.from(visited);
+          },
+          isCancelled: () => cancellationToken.isCancelled,
+        );
+
+        if (cancellationToken.isCancelled) {
+          await _persistSessionStopped(
+            syncRunId: syncRunId,
+            filesDiscovered: _currentProgress.filesDiscovered,
+            filesProcessed: _currentProgress.filesProcessed,
+            discoveryCompleted: false,
+            pendingFolders: lastPendingFolders,
+            visitedFolders: lastVisitedFolders,
+          );
+          _updateProgress(
+            _currentProgress.copyWith(
+              phase: SyncPhase.stopped,
+              isResumable: true,
+              currentFile: null,
+            ),
+          );
           onProgress?.call(_currentProgress);
-        },
-        isCancelled: () => cancellationToken.isCancelled,
-      );
+          return const Result.success(null);
+        }
 
-      if (cancellationToken.isCancelled) {
-        await _persistSessionStopped(
-          syncRunId: syncRunId,
-          filesDiscovered: _currentProgress.filesDiscovered,
-          filesProcessed: _currentProgress.filesProcessed,
-        );
-        _updateProgress(
-          _currentProgress.copyWith(
-            phase: SyncPhase.stopped,
-            isResumable: true,
-            currentFile: null,
+        if (scanResult.isFailure) {
+          final err = scanResult.failureOrNull!;
+          await _persistSessionFailed(syncRunId: syncRunId, error: err.message);
+          _updateProgress(
+            _currentProgress.copyWith(
+              phase: SyncPhase.failed,
+              errorMessage: err.message,
+              isResumable: true,
+            ),
+          );
+          onProgress?.call(_currentProgress);
+          return Result.failure(err);
+        }
+
+        // Discovery completed! Mark discoveryCompleted = true
+        await (_database.update(_database.syncRuns)
+              ..where((tbl) => tbl.id.equals(syncRunId)))
+            .write(
+          SyncRunsCompanion(
+            discoveryCompleted: const Value(true),
+            pendingFoldersJson: const Value(null),
+            visitedFoldersJson: const Value(null),
+            filesDiscovered: Value(
+              allDriveFiles.where((f) => !f.isLrc).length,
+            ),
+            updatedAt: Value(DateTime.now()),
+            lastCheckpointAt: Value(DateTime.now()),
           ),
         );
-        onProgress?.call(_currentProgress);
-        return const Result.success(null);
       }
 
-      if (scanResult.isFailure) {
-        final err = scanResult.failureOrNull!;
-        await _persistSessionFailed(syncRunId: syncRunId, error: err.message);
-        _updateProgress(
-          _currentProgress.copyWith(
-            phase: SyncPhase.failed,
-            errorMessage: err.message,
-            isResumable: true,
-          ),
-        );
-        onProgress?.call(_currentProgress);
-        return Result.failure(err);
-      }
-
-      final allDriveFiles = scanResult.dataOrNull ?? [];
       final driveAudioFiles = allDriveFiles.where((f) => !f.isLrc).toList();
       final driveLrcFiles = allDriveFiles.where((f) => f.isLrc).toList();
 
@@ -782,6 +943,7 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
             progressPercent: totalDiscovered > 0
                 ? (processedCount / totalDiscovered)
                 : 1.0,
+            discoveryCompleted: true,
           );
           _updateProgress(
             _currentProgress.copyWith(
@@ -881,22 +1043,26 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
             );
           } else {
             errorsCount++;
-            processedCount++;
+            final err = downloadRes.failureOrNull!;
+            AppLogger.warning(
+              LogCategory.sync,
+              'Failed to download audio for metadata extraction: ${driveFile.name}',
+              err,
+            );
             await _recordSyncErrorAndCheckpoint(
               syncRunId: syncRunId,
               file: driveFile,
-              message: downloadRes.failureOrNull?.message ?? 'Download failed',
+              message: err.message,
               filesDiscovered: totalDiscovered,
-              filesProcessed: processedCount,
+              filesProcessed: ++processedCount,
               errorsCount: errorsCount,
             );
           }
         } catch (e, st) {
           errorsCount++;
-          processedCount++;
           AppLogger.warning(
             LogCategory.sync,
-            'Failed processing metadata for ${driveFile.name}',
+            'Error processing audio metadata: ${driveFile.name}',
             e,
             st,
           );
@@ -905,7 +1071,7 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
             file: driveFile,
             message: e.toString(),
             filesDiscovered: totalDiscovered,
-            filesProcessed: processedCount,
+            filesProcessed: ++processedCount,
             errorsCount: errorsCount,
           );
         } finally {
@@ -941,6 +1107,7 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
           progressPercent: totalDiscovered > 0
               ? (processedCount / totalDiscovered)
               : 1.0,
+          discoveryCompleted: true,
         );
         _updateProgress(
           _currentProgress.copyWith(
@@ -1051,6 +1218,8 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
     } finally {
       _isSyncRunning = false;
       _currentCancellationToken = null;
+      _activeSyncCompleter?.complete();
+      _activeSyncCompleter = null;
     }
   }
 
@@ -1062,6 +1231,9 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
     int? filesUpdated,
     int? errorsCount,
     double? progressPercent,
+    bool? discoveryCompleted,
+    List<String>? pendingFolders,
+    Set<String>? visitedFolders,
   }) async {
     try {
       await (_database.update(
@@ -1090,6 +1262,15 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
               : const Value.absent(),
           progressPercent: progressPercent != null
               ? Value(progressPercent)
+              : const Value.absent(),
+          discoveryCompleted: discoveryCompleted != null
+              ? Value(discoveryCompleted)
+              : const Value.absent(),
+          pendingFoldersJson: pendingFolders != null
+              ? Value(jsonEncode(pendingFolders))
+              : const Value.absent(),
+          visitedFoldersJson: visitedFolders != null
+              ? Value(jsonEncode(visitedFolders.toList()))
               : const Value.absent(),
         ),
       );

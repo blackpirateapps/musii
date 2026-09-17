@@ -1,10 +1,10 @@
 # Musii — AI Engineering Handoff Document
 
-> **Document Version**: 1.7.0  
+> **Document Version**: 1.8.0  
 > **Target Audience**: Incoming AI Coding Assistants & Human Software Engineers  
 > **Last Verified**: September 2026  
 > **App Identifier**: `com.blackpirateapps.musii`  
-> **Test Status**: 122 / 122 Passing (`flutter test`), 0 Analyzer Warnings (`flutter analyze`)
+> **Test Status**: 127 / 127 Passing (`flutter test`), 0 Analyzer Warnings (`flutter analyze`)
 
 ---
 
@@ -36,7 +36,7 @@ The codebase strictly adheres to standard four-layer Clean Architecture:
    - `logging/app_logger.dart`: Structured categorical logging with OAuth token redaction.
    - `constants/app_constants.dart`: Design tokens (`AppRadii`, `AppSpacing`, `AppAudioConstants`, `AppGreeting`).
    - `filesystem/app_file_system.dart`: Centralized cache directory management, `.partial` file staging, and atomic commits.
-   - `database/`: Drift SQLite setup, 21 tables with `@DataClassName` annotations and schema v4 migration.
+   - `database/`: Drift SQLite setup, 22 tables with `@DataClassName` annotations and schema v5 migration.
 2. **Domain (`lib/features/*/domain/`)**:
    - Pure Dart entities (`Track`, `Album`, `Artist`, `Genre`, `Playlist`, `CacheEntry`, `PlayerStateSnapshot`, `TrackLyrics`, `LyricLine`, `LyricWord`, `LyricSource`, `SyncProgress`, `SyncPhase`, `SyncCancellationToken`).
    - Repository interfaces declaring business contracts (`MusicLibraryRepository`, `GoogleDriveRepository`, `CacheRepository`, `PlaybackRepository`, `LyricsRepository`, `PlaylistRepository`, etc.).
@@ -141,6 +141,16 @@ Located in `lib/features/lyrics/`:
 
 ### 5. Google Drive Integration & Incremental Sync Engine (Optimized & Crash-Safe)
 Located in `lib/features/google_drive/` and `lib/features/library/`:
+- **Persistent Discovery & Smart Zero-Rescan Resume**:
+  - Streamed discovery records discovered files directly into the `DiscoveredFiles` table in SQLite (`@DataClassName('DiscoveredFileRow')`).
+  - When discovery finishes, `discoveryCompleted = true` is committed to `SyncRuns`.
+  - **Smart Zero-Rescan Resume**: When `resumeSync()` or startup crash recovery (`recoverInterruptedSyncIfNeeded()`) is called after discovery has completed, the engine **completely bypasses remote Google Drive directory scans**, loads discovered files directly from SQLite in milliseconds with **0 network requests**, and immediately resumes metadata extraction from the exact file checkpoint.
+  - **Partial Discovery Continuation**: If sync is stopped *during* folder discovery (`discoveryCompleted == false`), `pendingFoldersJson` and `visitedFoldersJson` store the exact folder traversal state. Resuming continues traversing the remaining folder queue without rescanning from the root.
+  - **Fresh Sync on Completion**: When a sync run is completed and the user subsequently triggers a sync ("Sync Now", "Sync Library Now", "Force Full Re-sync"), a new sync run is created that performs a fresh Drive scan and prunes obsolete discovered file rows.
+- **Folder Selection During Active Sync**:
+  - If a user chooses a new music folder while synchronization is actively in progress, `syncLibrary()` automatically cancels the running sync via `SyncCancellationToken`, updates status to `stopping`, and cleanly awaits termination of the active sync (`_activeSyncCompleter`).
+  - Sequence numbering (`_syncSequenceNumber`) ensures rapid sequential folder selections cleanly supersede older requests.
+  - The new sync runs for the newly selected root folder, prunes tracks from the previous folder during Step 6 reconciliation, and updates `MusicSources`.
 - **Incremental Metadata Reuse**:
   - Stable Google Drive file identity (`driveFileId`) used as primary mapping.
   - For each discovered remote audio file, classifies into:
@@ -178,9 +188,12 @@ Located in `lib/features/google_drive/` and `lib/features/library/`:
   - Progress percentage in UI immediately reflects the actual completed tracks.
 - **Remote Deletion Reconciliation**:
   - Full remote scan builds complete `driveFileMap`. Tracks present locally but absent on Drive are deleted from `tracks`, `cacheEntries`, and `lyrics`, and album/artist aggregates are updated.
-- **Database Schema v4**:
-  - `SyncRuns` table (`@DataClassName('SyncRunRow')`) with columns: `id`, `sourceId`, `rootFolderId`, `rootFolderName`, `startedAt`, `updatedAt`, `lastCheckpointAt`, `completedAt`, `status`, `phase`, `currentFile`, `errorMessage`, `progressPercent`, `filesDiscovered`, `filesProcessed`, `filesAdded`, `filesUpdated`, `filesRemoved`, `errorsCount`.
-  - Index: `CREATE INDEX IF NOT EXISTS idx_sync_runs_status ON sync_runs(status, started_at);`.
+- **Database Schema v5**:
+  - `SyncRuns` table (`@DataClassName('SyncRunRow')`) with columns: `id`, `sourceId`, `rootFolderId`, `rootFolderName`, `startedAt`, `updatedAt`, `lastCheckpointAt`, `completedAt`, `status`, `phase`, `currentFile`, `errorMessage`, `progressPercent`, `filesDiscovered`, `filesProcessed`, `filesAdded`, `filesUpdated`, `filesRemoved`, `errorsCount`, `discoveryCompleted`, `pendingFoldersJson`, `visitedFoldersJson`.
+  - `DiscoveredFiles` table (`@DataClassName('DiscoveredFileRow')`) with columns: `id`, `syncRunId`, `driveFileId`, `name`, `mimeType`, `size`, `modifiedTime`, `md5Checksum`, `parentFolderId`, `isLrc`.
+  - Indexes:
+    - `CREATE INDEX IF NOT EXISTS idx_sync_runs_status ON sync_runs(status, started_at);`
+    - `CREATE INDEX IF NOT EXISTS idx_discovered_files_sync ON discovered_files(sync_run_id);`
 - **UI Presentation (`SyncProgressSheet`)**:
   - Running: displays progress bar, file counts, current filename, and prominent Cupertino `Stop Sync` button.
   - Stopping: displays animated activity indicator and disables stop button.
@@ -252,6 +265,8 @@ Located in `lib/features/playback/domain/entities/playback_state.dart`, `lib/fea
    - Material widgets such as `ReorderableListView` and `Dismissible` check for `MaterialLocalizations`. When testing Cupertino pages containing these widgets in isolated test harnesses, provide `localizationsDelegates: const [DefaultMaterialLocalizations.delegate, DefaultCupertinoLocalizations.delegate, DefaultWidgetsLocalizations.delegate]` to the test `CupertinoApp`.
 10. **Synchronous Favorite Status in Action Sheets**:
     - Avoid `await ref.read(isTrackFavoriteProvider(id).future)` inside modal action sheet openers, as awaiting stream completion introduces an asynchronous microtask delay that delays popup rendering. Instead, query synchronous state via `ref.read(isTrackFavoriteProvider(id)).value ?? false` or pass a `Consumer` inside the dialog.
+11. **Discovery State Persistence & Cancellation Locks**:
+    - When interrupting an active sync session to switch folders, always request cancellation via `SyncCancellationToken` and await `_activeSyncCompleter!.future` before modifying sync state or database records. This guarantees the previous sync's atomic transaction, file deletions, and `_isSyncRunning` teardown complete cleanly before the new folder sync begins. Furthermore, never overwrite `DiscoveredFiles` without scoping by `syncRunId`, ensuring resumed syncs can accurately bypass remote Google Drive scans when `discoveryCompleted == true`.
 
 ---
 
