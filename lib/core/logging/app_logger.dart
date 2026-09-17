@@ -9,7 +9,8 @@ enum LogCategory {
   database('Database'),
   cache('Cache'),
   playback('Playback'),
-  ui('UI');
+  ui('UI'),
+  lastFm('LastFm');
 
   final String label;
   const LogCategory(this.label);
@@ -29,10 +30,14 @@ class AppLogger {
   );
 
   static String _sanitize(String message) {
-    // Redact OAuth tokens or potential secret strings
+    // Redact OAuth tokens, Last.fm session keys, secrets, or sensitive hashes
     return message
         .replaceAll(RegExp(r'(ya29\.[a-zA-Z0-9_-]+)'), '[REDACTED_TOKEN]')
-        .replaceAll(RegExp(r'(Bearer\s+[a-zA-Z0-9._-]+)'), 'Bearer [REDACTED]');
+        .replaceAll(RegExp(r'(Bearer\s+[a-zA-Z0-9._-]+)'), 'Bearer [REDACTED]')
+        .replaceAll(RegExp(r'(sk=[a-fA-F0-9]{32})'), 'sk=[REDACTED_SK]')
+        .replaceAll(RegExp(r'(api_sig=[a-fA-F0-9]{32})'), 'api_sig=[REDACTED_SIG]')
+        .replaceAll(RegExp(r'(token=[a-fA-F0-9]{32})'), 'token=[REDACTED_TOKEN]')
+        .replaceAll(RegExp(r'(api_secret=[a-zA-Z0-9_-]+)'), 'api_secret=[REDACTED_SECRET]');
   }
 
   static void debug(

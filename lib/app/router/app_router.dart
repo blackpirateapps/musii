@@ -14,6 +14,9 @@ import '../../features/playback/presentation/widgets/mini_player.dart';
 import '../../features/playlists/presentation/pages/playlist_detail_page.dart';
 import '../../features/search/presentation/pages/search_page.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
+import '../../features/last_fm/presentation/pages/last_fm_settings_page.dart';
+import '../../features/last_fm/presentation/pages/pending_scrobbles_page.dart';
+import '../../features/last_fm/presentation/pages/scrobble_history_page.dart';
 
 final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>(
   debugLabel: 'root',
@@ -99,6 +102,20 @@ final appRouter = GoRouter(
                 GoRoute(
                   path: 'drive-folder-picker',
                   builder: (context, state) => const DriveFolderPickerPage(),
+                ),
+                GoRoute(
+                  path: 'lastfm',
+                  builder: (context, state) => const LastFmSettingsPage(),
+                  routes: [
+                    GoRoute(
+                      path: 'pending',
+                      builder: (context, state) => const PendingScrobblesPage(),
+                    ),
+                    GoRoute(
+                      path: 'history',
+                      builder: (context, state) => const ScrobbleHistoryPage(),
+                    ),
+                  ],
                 ),
               ],
             ),

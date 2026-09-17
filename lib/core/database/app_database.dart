@@ -34,13 +34,16 @@ part 'app_database.g.dart';
     Lyrics,
     LyricLines,
     LyricWords,
+    LastFmAccounts,
+    PendingScrobbles,
+    ScrobbleHistory,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? e]) : super(e ?? _openConnection());
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration {
@@ -77,6 +80,12 @@ class AppDatabase extends _$AppDatabase {
         );
         await customStatement(
           'CREATE INDEX IF NOT EXISTS idx_discovered_files_sync ON discovered_files(sync_run_id);',
+        );
+        await customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_pending_scrobbles_status ON pending_scrobbles(status, timestamp);',
+        );
+        await customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_scrobble_history_time ON scrobble_history(scrobbled_at);',
         );
       },
       onUpgrade: (Migrator m, int from, int to) async {
@@ -129,6 +138,17 @@ class AppDatabase extends _$AppDatabase {
         }
         if (from < 7) {
           await reconcileDuplicateAlbums();
+        }
+        if (from < 8) {
+          await m.createTable(lastFmAccounts);
+          await m.createTable(pendingScrobbles);
+          await m.createTable(scrobbleHistory);
+          await customStatement(
+            'CREATE INDEX IF NOT EXISTS idx_pending_scrobbles_status ON pending_scrobbles(status, timestamp);',
+          );
+          await customStatement(
+            'CREATE INDEX IF NOT EXISTS idx_scrobble_history_time ON scrobble_history(scrobbled_at);',
+          );
         }
       },
       beforeOpen: (details) async {

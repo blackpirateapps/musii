@@ -22,6 +22,7 @@ import '../../../library/presentation/widgets/audio_info_sheet.dart';
 import '../../../library/presentation/widgets/technical_badge.dart';
 import '../../../library/presentation/widgets/track_overflow_sheet.dart';
 import '../../../lyrics/presentation/pages/lyrics_sheet.dart';
+import '../../../last_fm/presentation/providers/last_fm_providers.dart';
 import '../../domain/entities/playback_state.dart';
 import 'queue_page.dart';
 
@@ -143,6 +144,7 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
         ? ref.watch(isTrackFavoriteProvider(track.id))
         : const AsyncValue.data(false);
     final isFav = isFavAsync.value ?? false;
+    final lastScrobbledTrack = ref.watch(lastScrobbledTrackProvider).value;
 
     return CupertinoPageScaffold(
       backgroundColor: CupertinoColors.black,
@@ -342,17 +344,74 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
                                                 .withOpacity(0.55),
                                           ),
                                         ),
-                                        if (track != null) ...[
-                                          const SizedBox(height: 8),
-                                          TechnicalBadge(
-                                            track: track,
-                                            isDarkBackground: true,
-                                            onTap: () => showAudioInfoSheet(
-                                              context,
-                                              track,
-                                            ),
-                                          ),
-                                        ],
+                                         if (track != null) ...[
+                                           const SizedBox(height: 8),
+                                           Wrap(
+                                             crossAxisAlignment:
+                                                 WrapCrossAlignment.center,
+                                             spacing: 8,
+                                             runSpacing: 4,
+                                             children: [
+                                               TechnicalBadge(
+                                                 track: track,
+                                                 isDarkBackground: true,
+                                                 onTap: () =>
+                                                     showAudioInfoSheet(
+                                                   context,
+                                                   track,
+                                                 ),
+                                               ),
+                                               if (lastScrobbledTrack?.id ==
+                                                   track.id)
+                                                 Container(
+                                                   padding:
+                                                       const EdgeInsets.symmetric(
+                                                     horizontal: 8,
+                                                     vertical: 3,
+                                                   ),
+                                                   decoration: BoxDecoration(
+                                                     color: CupertinoColors
+                                                         .activeGreen
+                                                         .withOpacity(0.2),
+                                                     borderRadius:
+                                                         BorderRadius.circular(
+                                                       999,
+                                                     ),
+                                                     border: Border.all(
+                                                       color: CupertinoColors
+                                                           .activeGreen
+                                                           .withOpacity(0.5),
+                                                       width: 0.5,
+                                                     ),
+                                                   ),
+                                                   child: const Row(
+                                                     mainAxisSize:
+                                                         MainAxisSize.min,
+                                                     children: [
+                                                       Icon(
+                                                         CupertinoIcons
+                                                             .checkmark_alt,
+                                                         size: 11,
+                                                         color: CupertinoColors
+                                                             .activeGreen,
+                                                       ),
+                                                       SizedBox(width: 4),
+                                                       Text(
+                                                         'Scrobbled',
+                                                         style: TextStyle(
+                                                           fontSize: 11,
+                                                           fontWeight:
+                                                               FontWeight.w600,
+                                                           color: CupertinoColors
+                                                               .activeGreen,
+                                                         ),
+                                                       ),
+                                                     ],
+                                                   ),
+                                                 ),
+                                             ],
+                                           ),
+                                         ],
                                       ],
                                     ),
                                   ),

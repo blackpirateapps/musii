@@ -7,6 +7,8 @@ import '../../../../core/constants/app_constants.dart';
 import '../../../../core/services/notification_permission_service.dart';
 import '../../../google_drive/presentation/pages/drive_connect_page.dart';
 import '../../../google_drive/presentation/pages/drive_folder_picker_page.dart';
+import '../../../last_fm/presentation/pages/last_fm_settings_page.dart';
+import '../../../last_fm/presentation/providers/last_fm_providers.dart';
 import '../../../library/domain/entities/sync_progress.dart';
 import '../../../library/presentation/widgets/sync_progress_sheet.dart';
 import '../../domain/entities/app_theme_mode.dart';
@@ -238,6 +240,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     final user = userAsync.value;
     final cacheSizeAsync = ref.watch(cacheSizeProvider);
     final cacheSize = cacheSizeAsync.value ?? 0;
+    final lastFmAccount = ref.watch(lastFmAccountProvider).value;
     final themeMode = ref.watch(themeModeProvider);
     final isDark = CupertinoTheme.brightnessOf(context) == Brightness.dark;
 
@@ -425,7 +428,37 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 ],
               ),
 
-              // 4. Appearance
+              // 4. Services
+              CupertinoListSection.insetGrouped(
+                header: const Text('SERVICES'),
+                children: [
+                  CupertinoListTile(
+                    title: const Text('Last.fm'),
+                    subtitle: Text(
+                      lastFmAccount != null && lastFmAccount.isConnected
+                          ? 'Connected as @${lastFmAccount.username}'
+                          : (lastFmAccount != null &&
+                                  lastFmAccount.requiresReauth
+                              ? 'Reconnect needed'
+                              : 'Scrobbling & listening history'),
+                    ),
+                    trailing: const Icon(
+                      CupertinoIcons.chevron_forward,
+                      size: 18,
+                      color: CupertinoColors.systemGrey,
+                    ),
+                    onTap: () {
+                      Navigator.of(context).push(
+                        CupertinoPageRoute(
+                          builder: (_) => const LastFmSettingsPage(),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+
+              // 5. Appearance
               CupertinoListSection.insetGrouped(
                 header: const Text('APPEARANCE'),
                 children: [

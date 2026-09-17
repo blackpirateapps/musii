@@ -12,6 +12,7 @@ import '../../../../core/logging/app_logger.dart';
 import '../../../../core/services/connectivity_service.dart';
 import '../../../cache/domain/entities/cache_entry.dart';
 import '../../../library/domain/entities/music_entities.dart';
+import '../../../last_fm/data/services/last_fm_playback_coordinator.dart';
 import '../../../metadata/domain/services/metadata_normalization_service.dart';
 import '../../../playlists/domain/entities/playlist_entities.dart';
 import '../../../recently_played/data/repositories/recently_played_repository_impl.dart';
@@ -25,6 +26,7 @@ class MusiiAudioHandler extends BaseAudioHandler
   final RecentlyPlayedRepository _recentlyPlayedRepository;
   final AppDatabase _database;
   final ConnectivityService _connectivityService;
+  LastFmPlaybackCoordinator? _lastFmCoordinator;
 
   List<QueueItem> _currentQueue = [];
   int _currentIndex = 0;
@@ -46,13 +48,18 @@ class MusiiAudioHandler extends BaseAudioHandler
     required RecentlyPlayedRepository recentlyPlayedRepository,
     required AppDatabase database,
     ConnectivityService? connectivityService,
+    LastFmPlaybackCoordinator? lastFmCoordinator,
   }) : _cacheRepository = cacheRepository,
        _recentlyPlayedRepository = recentlyPlayedRepository,
        _database = database,
-       _connectivityService = connectivityService ?? ConnectivityService() {
+       _connectivityService = connectivityService ?? ConnectivityService(),
+       _lastFmCoordinator = lastFmCoordinator {
     _initAudioSession();
     _listenToPlayerEvents();
   }
+
+  set lastFmCoordinator(LastFmPlaybackCoordinator? coordinator) =>
+      _lastFmCoordinator = coordinator;
 
   PlayerStateSnapshot get currentSnapshot => _snapshot;
   Stream<PlayerStateSnapshot> get snapshotStream => _stateController.stream;
@@ -174,6 +181,9 @@ class MusiiAudioHandler extends BaseAudioHandler
       if (_loadingTrackId != null || _loadedTrackId != _currentTrack?.id) {
         return;
       }
+      if (state.playing && _currentTrack != null) {
+        _lastFmCoordinator?.onTrackStarted(_currentTrack!);
+      }
       _broadcastPlaybackState();
       _emitSnapshot(
         _snapshot.copyWith(
@@ -192,6 +202,7 @@ class MusiiAudioHandler extends BaseAudioHandler
       if (_loadingTrackId != null || _loadedTrackId != _currentTrack?.id) {
         return;
       }
+      _lastFmCoordinator?.onPositionUpdated(pos, _player.duration);
       _emitSnapshot(_snapshot.copyWith(position: pos));
     });
 
@@ -213,6 +224,7 @@ class MusiiAudioHandler extends BaseAudioHandler
   Future<void> _onTrackCompleted() async {
     final current = _snapshot.currentTrack;
     if (current != null) {
+      _lastFmCoordinator?.onTrackCompleted();
       await _recentlyPlayedRepository.recordPlayback(
         current.id,
         _player.position.inMilliseconds,
@@ -222,6 +234,9 @@ class MusiiAudioHandler extends BaseAudioHandler
 
     if (_repeatMode == AudioRepeatMode.one) {
       await seek(Duration.zero);
+      if (current != null) {
+        _lastFmCoordinator?.onTrackReplayed(current);
+      }
       await play();
     } else if (_repeatMode == AudioRepeatMode.all ||
         _currentIndex < _currentQueue.length - 1) {
@@ -377,6 +392,8 @@ class MusiiAudioHandler extends BaseAudioHandler
 
       await _player.play();
 
+      _lastFmCoordinator?.onTrackStarted(targetTrack);
+
       await _persistState();
       await _persistQueue();
 
@@ -477,6 +494,7 @@ class MusiiAudioHandler extends BaseAudioHandler
   @override
   Future<void> seek(Duration position) async {
     await _player.seek(position);
+    _lastFmCoordinator?.onPositionUpdated(position, _player.duration);
     _broadcastPlaybackState();
   }
 

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:musii/app/bootstrap/providers.dart';
 import 'package:musii/core/database/app_database.dart';
+import 'package:musii/features/last_fm/presentation/providers/last_fm_providers.dart';
 import 'package:musii/features/settings/data/repositories/settings_repository_impl.dart';
 import 'package:musii/features/settings/domain/entities/app_theme_mode.dart';
 import 'package:musii/features/settings/presentation/pages/settings_page.dart';
@@ -25,11 +26,17 @@ void main() {
     testWidgets(
       'displays Follow System by default and opens action sheet on tap',
       (tester) async {
+        tester.view.physicalSize = const Size(800, 1400);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
         await tester.pumpWidget(
           ProviderScope(
             overrides: [
               appDatabaseProvider.overrideWithValue(db),
               settingsRepositoryProvider.overrideWithValue(settingsRepo),
+              lastFmAccountProvider.overrideWith((ref) => Stream.value(null)),
             ],
             child: const CupertinoApp(home: SettingsPage()),
           ),
@@ -72,11 +79,17 @@ void main() {
     testWidgets('selecting Light Mode updates state and persistence', (
       tester,
     ) async {
+      tester.view.physicalSize = const Size(800, 1400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
             appDatabaseProvider.overrideWithValue(db),
             settingsRepositoryProvider.overrideWithValue(settingsRepo),
+            lastFmAccountProvider.overrideWith((ref) => Stream.value(null)),
           ],
           child: const CupertinoApp(home: SettingsPage()),
         ),

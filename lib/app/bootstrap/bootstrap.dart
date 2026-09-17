@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/filesystem/app_file_system.dart';
 import '../../core/logging/app_logger.dart';
 import '../../core/services/notification_permission_service.dart';
+import '../../features/last_fm/presentation/providers/last_fm_providers.dart';
 import '../../features/playback/data/repositories/playback_repository_impl.dart';
 import '../app.dart';
 import 'providers.dart';
@@ -45,6 +46,9 @@ Future<void> bootstrap() async {
         connectivityService: preflightContainer.read(
           connectivityServiceProvider,
         ),
+        lastFmCoordinator: preflightContainer.read(
+          lastFmPlaybackCoordinatorProvider,
+        ),
       ),
       config: const AudioServiceConfig(
         androidNotificationChannelId: 'com.blackpirateapps.musii.channel.audio',
@@ -76,6 +80,9 @@ Future<void> bootstrap() async {
       ),
       database: preflightContainer.read(appDatabaseProvider),
       connectivityService: preflightContainer.read(connectivityServiceProvider),
+      lastFmCoordinator: preflightContainer.read(
+        lastFmPlaybackCoordinatorProvider,
+      ),
     );
   }
 
@@ -88,6 +95,13 @@ Future<void> bootstrap() async {
       musiiAudioHandlerProvider.overrideWithValue(audioHandler),
     ],
   );
+
+  // Link audio handler to root container coordinator
+  audioHandler.lastFmCoordinator =
+      rootContainer.read(lastFmPlaybackCoordinatorProvider);
+
+  // Start background Last.fm connectivity sync watcher
+  rootContainer.read(lastFmSyncServiceProvider);
 
   try {
     // 8. Log database connection

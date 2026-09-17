@@ -11631,6 +11631,1878 @@ class LyricWordsCompanion extends UpdateCompanion<LyricWordRow> {
   }
 }
 
+class $LastFmAccountsTable extends LastFmAccounts
+    with TableInfo<$LastFmAccountsTable, LastFmAccountRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $LastFmAccountsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _usernameMeta = const VerificationMeta(
+    'username',
+  );
+  @override
+  late final GeneratedColumn<String> username = GeneratedColumn<String>(
+    'username',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _realNameMeta = const VerificationMeta(
+    'realName',
+  );
+  @override
+  late final GeneratedColumn<String> realName = GeneratedColumn<String>(
+    'real_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _avatarUrlMeta = const VerificationMeta(
+    'avatarUrl',
+  );
+  @override
+  late final GeneratedColumn<String> avatarUrl = GeneratedColumn<String>(
+    'avatar_url',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _profileUrlMeta = const VerificationMeta(
+    'profileUrl',
+  );
+  @override
+  late final GeneratedColumn<String> profileUrl = GeneratedColumn<String>(
+    'profile_url',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _scrobbleCountMeta = const VerificationMeta(
+    'scrobbleCount',
+  );
+  @override
+  late final GeneratedColumn<int> scrobbleCount = GeneratedColumn<int>(
+    'scrobble_count',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _lastSyncedAtMeta = const VerificationMeta(
+    'lastSyncedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> lastSyncedAt = GeneratedColumn<DateTime>(
+    'last_synced_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    username,
+    realName,
+    avatarUrl,
+    profileUrl,
+    scrobbleCount,
+    status,
+    lastSyncedAt,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'last_fm_accounts';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<LastFmAccountRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('username')) {
+      context.handle(
+        _usernameMeta,
+        username.isAcceptableOrUnknown(data['username']!, _usernameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_usernameMeta);
+    }
+    if (data.containsKey('real_name')) {
+      context.handle(
+        _realNameMeta,
+        realName.isAcceptableOrUnknown(data['real_name']!, _realNameMeta),
+      );
+    }
+    if (data.containsKey('avatar_url')) {
+      context.handle(
+        _avatarUrlMeta,
+        avatarUrl.isAcceptableOrUnknown(data['avatar_url']!, _avatarUrlMeta),
+      );
+    }
+    if (data.containsKey('profile_url')) {
+      context.handle(
+        _profileUrlMeta,
+        profileUrl.isAcceptableOrUnknown(data['profile_url']!, _profileUrlMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_profileUrlMeta);
+    }
+    if (data.containsKey('scrobble_count')) {
+      context.handle(
+        _scrobbleCountMeta,
+        scrobbleCount.isAcceptableOrUnknown(
+          data['scrobble_count']!,
+          _scrobbleCountMeta,
+        ),
+      );
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_statusMeta);
+    }
+    if (data.containsKey('last_synced_at')) {
+      context.handle(
+        _lastSyncedAtMeta,
+        lastSyncedAt.isAcceptableOrUnknown(
+          data['last_synced_at']!,
+          _lastSyncedAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  LastFmAccountRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return LastFmAccountRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      username: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}username'],
+      )!,
+      realName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}real_name'],
+      ),
+      avatarUrl: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}avatar_url'],
+      ),
+      profileUrl: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}profile_url'],
+      )!,
+      scrobbleCount: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}scrobble_count'],
+      )!,
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
+      lastSyncedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}last_synced_at'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $LastFmAccountsTable createAlias(String alias) {
+    return $LastFmAccountsTable(attachedDatabase, alias);
+  }
+}
+
+class LastFmAccountRow extends DataClass
+    implements Insertable<LastFmAccountRow> {
+  final String id;
+  final String username;
+  final String? realName;
+  final String? avatarUrl;
+  final String profileUrl;
+  final int scrobbleCount;
+  final String status;
+  final DateTime? lastSyncedAt;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const LastFmAccountRow({
+    required this.id,
+    required this.username,
+    this.realName,
+    this.avatarUrl,
+    required this.profileUrl,
+    required this.scrobbleCount,
+    required this.status,
+    this.lastSyncedAt,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['username'] = Variable<String>(username);
+    if (!nullToAbsent || realName != null) {
+      map['real_name'] = Variable<String>(realName);
+    }
+    if (!nullToAbsent || avatarUrl != null) {
+      map['avatar_url'] = Variable<String>(avatarUrl);
+    }
+    map['profile_url'] = Variable<String>(profileUrl);
+    map['scrobble_count'] = Variable<int>(scrobbleCount);
+    map['status'] = Variable<String>(status);
+    if (!nullToAbsent || lastSyncedAt != null) {
+      map['last_synced_at'] = Variable<DateTime>(lastSyncedAt);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  LastFmAccountsCompanion toCompanion(bool nullToAbsent) {
+    return LastFmAccountsCompanion(
+      id: Value(id),
+      username: Value(username),
+      realName: realName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(realName),
+      avatarUrl: avatarUrl == null && nullToAbsent
+          ? const Value.absent()
+          : Value(avatarUrl),
+      profileUrl: Value(profileUrl),
+      scrobbleCount: Value(scrobbleCount),
+      status: Value(status),
+      lastSyncedAt: lastSyncedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastSyncedAt),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory LastFmAccountRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return LastFmAccountRow(
+      id: serializer.fromJson<String>(json['id']),
+      username: serializer.fromJson<String>(json['username']),
+      realName: serializer.fromJson<String?>(json['realName']),
+      avatarUrl: serializer.fromJson<String?>(json['avatarUrl']),
+      profileUrl: serializer.fromJson<String>(json['profileUrl']),
+      scrobbleCount: serializer.fromJson<int>(json['scrobbleCount']),
+      status: serializer.fromJson<String>(json['status']),
+      lastSyncedAt: serializer.fromJson<DateTime?>(json['lastSyncedAt']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'username': serializer.toJson<String>(username),
+      'realName': serializer.toJson<String?>(realName),
+      'avatarUrl': serializer.toJson<String?>(avatarUrl),
+      'profileUrl': serializer.toJson<String>(profileUrl),
+      'scrobbleCount': serializer.toJson<int>(scrobbleCount),
+      'status': serializer.toJson<String>(status),
+      'lastSyncedAt': serializer.toJson<DateTime?>(lastSyncedAt),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  LastFmAccountRow copyWith({
+    String? id,
+    String? username,
+    Value<String?> realName = const Value.absent(),
+    Value<String?> avatarUrl = const Value.absent(),
+    String? profileUrl,
+    int? scrobbleCount,
+    String? status,
+    Value<DateTime?> lastSyncedAt = const Value.absent(),
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) => LastFmAccountRow(
+    id: id ?? this.id,
+    username: username ?? this.username,
+    realName: realName.present ? realName.value : this.realName,
+    avatarUrl: avatarUrl.present ? avatarUrl.value : this.avatarUrl,
+    profileUrl: profileUrl ?? this.profileUrl,
+    scrobbleCount: scrobbleCount ?? this.scrobbleCount,
+    status: status ?? this.status,
+    lastSyncedAt: lastSyncedAt.present ? lastSyncedAt.value : this.lastSyncedAt,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  LastFmAccountRow copyWithCompanion(LastFmAccountsCompanion data) {
+    return LastFmAccountRow(
+      id: data.id.present ? data.id.value : this.id,
+      username: data.username.present ? data.username.value : this.username,
+      realName: data.realName.present ? data.realName.value : this.realName,
+      avatarUrl: data.avatarUrl.present ? data.avatarUrl.value : this.avatarUrl,
+      profileUrl: data.profileUrl.present
+          ? data.profileUrl.value
+          : this.profileUrl,
+      scrobbleCount: data.scrobbleCount.present
+          ? data.scrobbleCount.value
+          : this.scrobbleCount,
+      status: data.status.present ? data.status.value : this.status,
+      lastSyncedAt: data.lastSyncedAt.present
+          ? data.lastSyncedAt.value
+          : this.lastSyncedAt,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LastFmAccountRow(')
+          ..write('id: $id, ')
+          ..write('username: $username, ')
+          ..write('realName: $realName, ')
+          ..write('avatarUrl: $avatarUrl, ')
+          ..write('profileUrl: $profileUrl, ')
+          ..write('scrobbleCount: $scrobbleCount, ')
+          ..write('status: $status, ')
+          ..write('lastSyncedAt: $lastSyncedAt, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    username,
+    realName,
+    avatarUrl,
+    profileUrl,
+    scrobbleCount,
+    status,
+    lastSyncedAt,
+    createdAt,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is LastFmAccountRow &&
+          other.id == this.id &&
+          other.username == this.username &&
+          other.realName == this.realName &&
+          other.avatarUrl == this.avatarUrl &&
+          other.profileUrl == this.profileUrl &&
+          other.scrobbleCount == this.scrobbleCount &&
+          other.status == this.status &&
+          other.lastSyncedAt == this.lastSyncedAt &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class LastFmAccountsCompanion extends UpdateCompanion<LastFmAccountRow> {
+  final Value<String> id;
+  final Value<String> username;
+  final Value<String?> realName;
+  final Value<String?> avatarUrl;
+  final Value<String> profileUrl;
+  final Value<int> scrobbleCount;
+  final Value<String> status;
+  final Value<DateTime?> lastSyncedAt;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const LastFmAccountsCompanion({
+    this.id = const Value.absent(),
+    this.username = const Value.absent(),
+    this.realName = const Value.absent(),
+    this.avatarUrl = const Value.absent(),
+    this.profileUrl = const Value.absent(),
+    this.scrobbleCount = const Value.absent(),
+    this.status = const Value.absent(),
+    this.lastSyncedAt = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  LastFmAccountsCompanion.insert({
+    required String id,
+    required String username,
+    this.realName = const Value.absent(),
+    this.avatarUrl = const Value.absent(),
+    required String profileUrl,
+    this.scrobbleCount = const Value.absent(),
+    required String status,
+    this.lastSyncedAt = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       username = Value(username),
+       profileUrl = Value(profileUrl),
+       status = Value(status),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<LastFmAccountRow> custom({
+    Expression<String>? id,
+    Expression<String>? username,
+    Expression<String>? realName,
+    Expression<String>? avatarUrl,
+    Expression<String>? profileUrl,
+    Expression<int>? scrobbleCount,
+    Expression<String>? status,
+    Expression<DateTime>? lastSyncedAt,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (username != null) 'username': username,
+      if (realName != null) 'real_name': realName,
+      if (avatarUrl != null) 'avatar_url': avatarUrl,
+      if (profileUrl != null) 'profile_url': profileUrl,
+      if (scrobbleCount != null) 'scrobble_count': scrobbleCount,
+      if (status != null) 'status': status,
+      if (lastSyncedAt != null) 'last_synced_at': lastSyncedAt,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  LastFmAccountsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? username,
+    Value<String?>? realName,
+    Value<String?>? avatarUrl,
+    Value<String>? profileUrl,
+    Value<int>? scrobbleCount,
+    Value<String>? status,
+    Value<DateTime?>? lastSyncedAt,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return LastFmAccountsCompanion(
+      id: id ?? this.id,
+      username: username ?? this.username,
+      realName: realName ?? this.realName,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
+      profileUrl: profileUrl ?? this.profileUrl,
+      scrobbleCount: scrobbleCount ?? this.scrobbleCount,
+      status: status ?? this.status,
+      lastSyncedAt: lastSyncedAt ?? this.lastSyncedAt,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (username.present) {
+      map['username'] = Variable<String>(username.value);
+    }
+    if (realName.present) {
+      map['real_name'] = Variable<String>(realName.value);
+    }
+    if (avatarUrl.present) {
+      map['avatar_url'] = Variable<String>(avatarUrl.value);
+    }
+    if (profileUrl.present) {
+      map['profile_url'] = Variable<String>(profileUrl.value);
+    }
+    if (scrobbleCount.present) {
+      map['scrobble_count'] = Variable<int>(scrobbleCount.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (lastSyncedAt.present) {
+      map['last_synced_at'] = Variable<DateTime>(lastSyncedAt.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LastFmAccountsCompanion(')
+          ..write('id: $id, ')
+          ..write('username: $username, ')
+          ..write('realName: $realName, ')
+          ..write('avatarUrl: $avatarUrl, ')
+          ..write('profileUrl: $profileUrl, ')
+          ..write('scrobbleCount: $scrobbleCount, ')
+          ..write('status: $status, ')
+          ..write('lastSyncedAt: $lastSyncedAt, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $PendingScrobblesTable extends PendingScrobbles
+    with TableInfo<$PendingScrobblesTable, PendingScrobbleRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $PendingScrobblesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _trackIdMeta = const VerificationMeta(
+    'trackId',
+  );
+  @override
+  late final GeneratedColumn<String> trackId = GeneratedColumn<String>(
+    'track_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _trackTitleMeta = const VerificationMeta(
+    'trackTitle',
+  );
+  @override
+  late final GeneratedColumn<String> trackTitle = GeneratedColumn<String>(
+    'track_title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _artistNameMeta = const VerificationMeta(
+    'artistName',
+  );
+  @override
+  late final GeneratedColumn<String> artistName = GeneratedColumn<String>(
+    'artist_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _albumNameMeta = const VerificationMeta(
+    'albumName',
+  );
+  @override
+  late final GeneratedColumn<String> albumName = GeneratedColumn<String>(
+    'album_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _albumArtistMeta = const VerificationMeta(
+    'albumArtist',
+  );
+  @override
+  late final GeneratedColumn<String> albumArtist = GeneratedColumn<String>(
+    'album_artist',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _durationMsMeta = const VerificationMeta(
+    'durationMs',
+  );
+  @override
+  late final GeneratedColumn<int> durationMs = GeneratedColumn<int>(
+    'duration_ms',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _timestampMeta = const VerificationMeta(
+    'timestamp',
+  );
+  @override
+  late final GeneratedColumn<int> timestamp = GeneratedColumn<int>(
+    'timestamp',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _attemptsMeta = const VerificationMeta(
+    'attempts',
+  );
+  @override
+  late final GeneratedColumn<int> attempts = GeneratedColumn<int>(
+    'attempts',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _lastAttemptAtMeta = const VerificationMeta(
+    'lastAttemptAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> lastAttemptAt =
+      GeneratedColumn<DateTime>(
+        'last_attempt_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _errorMessageMeta = const VerificationMeta(
+    'errorMessage',
+  );
+  @override
+  late final GeneratedColumn<String> errorMessage = GeneratedColumn<String>(
+    'error_message',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    trackId,
+    trackTitle,
+    artistName,
+    albumName,
+    albumArtist,
+    durationMs,
+    timestamp,
+    status,
+    attempts,
+    lastAttemptAt,
+    errorMessage,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'pending_scrobbles';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<PendingScrobbleRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('track_id')) {
+      context.handle(
+        _trackIdMeta,
+        trackId.isAcceptableOrUnknown(data['track_id']!, _trackIdMeta),
+      );
+    }
+    if (data.containsKey('track_title')) {
+      context.handle(
+        _trackTitleMeta,
+        trackTitle.isAcceptableOrUnknown(data['track_title']!, _trackTitleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_trackTitleMeta);
+    }
+    if (data.containsKey('artist_name')) {
+      context.handle(
+        _artistNameMeta,
+        artistName.isAcceptableOrUnknown(data['artist_name']!, _artistNameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_artistNameMeta);
+    }
+    if (data.containsKey('album_name')) {
+      context.handle(
+        _albumNameMeta,
+        albumName.isAcceptableOrUnknown(data['album_name']!, _albumNameMeta),
+      );
+    }
+    if (data.containsKey('album_artist')) {
+      context.handle(
+        _albumArtistMeta,
+        albumArtist.isAcceptableOrUnknown(
+          data['album_artist']!,
+          _albumArtistMeta,
+        ),
+      );
+    }
+    if (data.containsKey('duration_ms')) {
+      context.handle(
+        _durationMsMeta,
+        durationMs.isAcceptableOrUnknown(data['duration_ms']!, _durationMsMeta),
+      );
+    }
+    if (data.containsKey('timestamp')) {
+      context.handle(
+        _timestampMeta,
+        timestamp.isAcceptableOrUnknown(data['timestamp']!, _timestampMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_timestampMeta);
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_statusMeta);
+    }
+    if (data.containsKey('attempts')) {
+      context.handle(
+        _attemptsMeta,
+        attempts.isAcceptableOrUnknown(data['attempts']!, _attemptsMeta),
+      );
+    }
+    if (data.containsKey('last_attempt_at')) {
+      context.handle(
+        _lastAttemptAtMeta,
+        lastAttemptAt.isAcceptableOrUnknown(
+          data['last_attempt_at']!,
+          _lastAttemptAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('error_message')) {
+      context.handle(
+        _errorMessageMeta,
+        errorMessage.isAcceptableOrUnknown(
+          data['error_message']!,
+          _errorMessageMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  PendingScrobbleRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return PendingScrobbleRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      trackId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}track_id'],
+      ),
+      trackTitle: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}track_title'],
+      )!,
+      artistName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}artist_name'],
+      )!,
+      albumName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}album_name'],
+      ),
+      albumArtist: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}album_artist'],
+      ),
+      durationMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}duration_ms'],
+      )!,
+      timestamp: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}timestamp'],
+      )!,
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
+      attempts: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}attempts'],
+      )!,
+      lastAttemptAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}last_attempt_at'],
+      ),
+      errorMessage: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}error_message'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $PendingScrobblesTable createAlias(String alias) {
+    return $PendingScrobblesTable(attachedDatabase, alias);
+  }
+}
+
+class PendingScrobbleRow extends DataClass
+    implements Insertable<PendingScrobbleRow> {
+  final String id;
+  final String? trackId;
+  final String trackTitle;
+  final String artistName;
+  final String? albumName;
+  final String? albumArtist;
+  final int durationMs;
+  final int timestamp;
+  final String status;
+  final int attempts;
+  final DateTime? lastAttemptAt;
+  final String? errorMessage;
+  final DateTime createdAt;
+  const PendingScrobbleRow({
+    required this.id,
+    this.trackId,
+    required this.trackTitle,
+    required this.artistName,
+    this.albumName,
+    this.albumArtist,
+    required this.durationMs,
+    required this.timestamp,
+    required this.status,
+    required this.attempts,
+    this.lastAttemptAt,
+    this.errorMessage,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    if (!nullToAbsent || trackId != null) {
+      map['track_id'] = Variable<String>(trackId);
+    }
+    map['track_title'] = Variable<String>(trackTitle);
+    map['artist_name'] = Variable<String>(artistName);
+    if (!nullToAbsent || albumName != null) {
+      map['album_name'] = Variable<String>(albumName);
+    }
+    if (!nullToAbsent || albumArtist != null) {
+      map['album_artist'] = Variable<String>(albumArtist);
+    }
+    map['duration_ms'] = Variable<int>(durationMs);
+    map['timestamp'] = Variable<int>(timestamp);
+    map['status'] = Variable<String>(status);
+    map['attempts'] = Variable<int>(attempts);
+    if (!nullToAbsent || lastAttemptAt != null) {
+      map['last_attempt_at'] = Variable<DateTime>(lastAttemptAt);
+    }
+    if (!nullToAbsent || errorMessage != null) {
+      map['error_message'] = Variable<String>(errorMessage);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  PendingScrobblesCompanion toCompanion(bool nullToAbsent) {
+    return PendingScrobblesCompanion(
+      id: Value(id),
+      trackId: trackId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(trackId),
+      trackTitle: Value(trackTitle),
+      artistName: Value(artistName),
+      albumName: albumName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(albumName),
+      albumArtist: albumArtist == null && nullToAbsent
+          ? const Value.absent()
+          : Value(albumArtist),
+      durationMs: Value(durationMs),
+      timestamp: Value(timestamp),
+      status: Value(status),
+      attempts: Value(attempts),
+      lastAttemptAt: lastAttemptAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastAttemptAt),
+      errorMessage: errorMessage == null && nullToAbsent
+          ? const Value.absent()
+          : Value(errorMessage),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory PendingScrobbleRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return PendingScrobbleRow(
+      id: serializer.fromJson<String>(json['id']),
+      trackId: serializer.fromJson<String?>(json['trackId']),
+      trackTitle: serializer.fromJson<String>(json['trackTitle']),
+      artistName: serializer.fromJson<String>(json['artistName']),
+      albumName: serializer.fromJson<String?>(json['albumName']),
+      albumArtist: serializer.fromJson<String?>(json['albumArtist']),
+      durationMs: serializer.fromJson<int>(json['durationMs']),
+      timestamp: serializer.fromJson<int>(json['timestamp']),
+      status: serializer.fromJson<String>(json['status']),
+      attempts: serializer.fromJson<int>(json['attempts']),
+      lastAttemptAt: serializer.fromJson<DateTime?>(json['lastAttemptAt']),
+      errorMessage: serializer.fromJson<String?>(json['errorMessage']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'trackId': serializer.toJson<String?>(trackId),
+      'trackTitle': serializer.toJson<String>(trackTitle),
+      'artistName': serializer.toJson<String>(artistName),
+      'albumName': serializer.toJson<String?>(albumName),
+      'albumArtist': serializer.toJson<String?>(albumArtist),
+      'durationMs': serializer.toJson<int>(durationMs),
+      'timestamp': serializer.toJson<int>(timestamp),
+      'status': serializer.toJson<String>(status),
+      'attempts': serializer.toJson<int>(attempts),
+      'lastAttemptAt': serializer.toJson<DateTime?>(lastAttemptAt),
+      'errorMessage': serializer.toJson<String?>(errorMessage),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  PendingScrobbleRow copyWith({
+    String? id,
+    Value<String?> trackId = const Value.absent(),
+    String? trackTitle,
+    String? artistName,
+    Value<String?> albumName = const Value.absent(),
+    Value<String?> albumArtist = const Value.absent(),
+    int? durationMs,
+    int? timestamp,
+    String? status,
+    int? attempts,
+    Value<DateTime?> lastAttemptAt = const Value.absent(),
+    Value<String?> errorMessage = const Value.absent(),
+    DateTime? createdAt,
+  }) => PendingScrobbleRow(
+    id: id ?? this.id,
+    trackId: trackId.present ? trackId.value : this.trackId,
+    trackTitle: trackTitle ?? this.trackTitle,
+    artistName: artistName ?? this.artistName,
+    albumName: albumName.present ? albumName.value : this.albumName,
+    albumArtist: albumArtist.present ? albumArtist.value : this.albumArtist,
+    durationMs: durationMs ?? this.durationMs,
+    timestamp: timestamp ?? this.timestamp,
+    status: status ?? this.status,
+    attempts: attempts ?? this.attempts,
+    lastAttemptAt: lastAttemptAt.present
+        ? lastAttemptAt.value
+        : this.lastAttemptAt,
+    errorMessage: errorMessage.present ? errorMessage.value : this.errorMessage,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  PendingScrobbleRow copyWithCompanion(PendingScrobblesCompanion data) {
+    return PendingScrobbleRow(
+      id: data.id.present ? data.id.value : this.id,
+      trackId: data.trackId.present ? data.trackId.value : this.trackId,
+      trackTitle: data.trackTitle.present
+          ? data.trackTitle.value
+          : this.trackTitle,
+      artistName: data.artistName.present
+          ? data.artistName.value
+          : this.artistName,
+      albumName: data.albumName.present ? data.albumName.value : this.albumName,
+      albumArtist: data.albumArtist.present
+          ? data.albumArtist.value
+          : this.albumArtist,
+      durationMs: data.durationMs.present
+          ? data.durationMs.value
+          : this.durationMs,
+      timestamp: data.timestamp.present ? data.timestamp.value : this.timestamp,
+      status: data.status.present ? data.status.value : this.status,
+      attempts: data.attempts.present ? data.attempts.value : this.attempts,
+      lastAttemptAt: data.lastAttemptAt.present
+          ? data.lastAttemptAt.value
+          : this.lastAttemptAt,
+      errorMessage: data.errorMessage.present
+          ? data.errorMessage.value
+          : this.errorMessage,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PendingScrobbleRow(')
+          ..write('id: $id, ')
+          ..write('trackId: $trackId, ')
+          ..write('trackTitle: $trackTitle, ')
+          ..write('artistName: $artistName, ')
+          ..write('albumName: $albumName, ')
+          ..write('albumArtist: $albumArtist, ')
+          ..write('durationMs: $durationMs, ')
+          ..write('timestamp: $timestamp, ')
+          ..write('status: $status, ')
+          ..write('attempts: $attempts, ')
+          ..write('lastAttemptAt: $lastAttemptAt, ')
+          ..write('errorMessage: $errorMessage, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    trackId,
+    trackTitle,
+    artistName,
+    albumName,
+    albumArtist,
+    durationMs,
+    timestamp,
+    status,
+    attempts,
+    lastAttemptAt,
+    errorMessage,
+    createdAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is PendingScrobbleRow &&
+          other.id == this.id &&
+          other.trackId == this.trackId &&
+          other.trackTitle == this.trackTitle &&
+          other.artistName == this.artistName &&
+          other.albumName == this.albumName &&
+          other.albumArtist == this.albumArtist &&
+          other.durationMs == this.durationMs &&
+          other.timestamp == this.timestamp &&
+          other.status == this.status &&
+          other.attempts == this.attempts &&
+          other.lastAttemptAt == this.lastAttemptAt &&
+          other.errorMessage == this.errorMessage &&
+          other.createdAt == this.createdAt);
+}
+
+class PendingScrobblesCompanion extends UpdateCompanion<PendingScrobbleRow> {
+  final Value<String> id;
+  final Value<String?> trackId;
+  final Value<String> trackTitle;
+  final Value<String> artistName;
+  final Value<String?> albumName;
+  final Value<String?> albumArtist;
+  final Value<int> durationMs;
+  final Value<int> timestamp;
+  final Value<String> status;
+  final Value<int> attempts;
+  final Value<DateTime?> lastAttemptAt;
+  final Value<String?> errorMessage;
+  final Value<DateTime> createdAt;
+  final Value<int> rowid;
+  const PendingScrobblesCompanion({
+    this.id = const Value.absent(),
+    this.trackId = const Value.absent(),
+    this.trackTitle = const Value.absent(),
+    this.artistName = const Value.absent(),
+    this.albumName = const Value.absent(),
+    this.albumArtist = const Value.absent(),
+    this.durationMs = const Value.absent(),
+    this.timestamp = const Value.absent(),
+    this.status = const Value.absent(),
+    this.attempts = const Value.absent(),
+    this.lastAttemptAt = const Value.absent(),
+    this.errorMessage = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  PendingScrobblesCompanion.insert({
+    required String id,
+    this.trackId = const Value.absent(),
+    required String trackTitle,
+    required String artistName,
+    this.albumName = const Value.absent(),
+    this.albumArtist = const Value.absent(),
+    this.durationMs = const Value.absent(),
+    required int timestamp,
+    required String status,
+    this.attempts = const Value.absent(),
+    this.lastAttemptAt = const Value.absent(),
+    this.errorMessage = const Value.absent(),
+    required DateTime createdAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       trackTitle = Value(trackTitle),
+       artistName = Value(artistName),
+       timestamp = Value(timestamp),
+       status = Value(status),
+       createdAt = Value(createdAt);
+  static Insertable<PendingScrobbleRow> custom({
+    Expression<String>? id,
+    Expression<String>? trackId,
+    Expression<String>? trackTitle,
+    Expression<String>? artistName,
+    Expression<String>? albumName,
+    Expression<String>? albumArtist,
+    Expression<int>? durationMs,
+    Expression<int>? timestamp,
+    Expression<String>? status,
+    Expression<int>? attempts,
+    Expression<DateTime>? lastAttemptAt,
+    Expression<String>? errorMessage,
+    Expression<DateTime>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (trackId != null) 'track_id': trackId,
+      if (trackTitle != null) 'track_title': trackTitle,
+      if (artistName != null) 'artist_name': artistName,
+      if (albumName != null) 'album_name': albumName,
+      if (albumArtist != null) 'album_artist': albumArtist,
+      if (durationMs != null) 'duration_ms': durationMs,
+      if (timestamp != null) 'timestamp': timestamp,
+      if (status != null) 'status': status,
+      if (attempts != null) 'attempts': attempts,
+      if (lastAttemptAt != null) 'last_attempt_at': lastAttemptAt,
+      if (errorMessage != null) 'error_message': errorMessage,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  PendingScrobblesCompanion copyWith({
+    Value<String>? id,
+    Value<String?>? trackId,
+    Value<String>? trackTitle,
+    Value<String>? artistName,
+    Value<String?>? albumName,
+    Value<String?>? albumArtist,
+    Value<int>? durationMs,
+    Value<int>? timestamp,
+    Value<String>? status,
+    Value<int>? attempts,
+    Value<DateTime?>? lastAttemptAt,
+    Value<String?>? errorMessage,
+    Value<DateTime>? createdAt,
+    Value<int>? rowid,
+  }) {
+    return PendingScrobblesCompanion(
+      id: id ?? this.id,
+      trackId: trackId ?? this.trackId,
+      trackTitle: trackTitle ?? this.trackTitle,
+      artistName: artistName ?? this.artistName,
+      albumName: albumName ?? this.albumName,
+      albumArtist: albumArtist ?? this.albumArtist,
+      durationMs: durationMs ?? this.durationMs,
+      timestamp: timestamp ?? this.timestamp,
+      status: status ?? this.status,
+      attempts: attempts ?? this.attempts,
+      lastAttemptAt: lastAttemptAt ?? this.lastAttemptAt,
+      errorMessage: errorMessage ?? this.errorMessage,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (trackId.present) {
+      map['track_id'] = Variable<String>(trackId.value);
+    }
+    if (trackTitle.present) {
+      map['track_title'] = Variable<String>(trackTitle.value);
+    }
+    if (artistName.present) {
+      map['artist_name'] = Variable<String>(artistName.value);
+    }
+    if (albumName.present) {
+      map['album_name'] = Variable<String>(albumName.value);
+    }
+    if (albumArtist.present) {
+      map['album_artist'] = Variable<String>(albumArtist.value);
+    }
+    if (durationMs.present) {
+      map['duration_ms'] = Variable<int>(durationMs.value);
+    }
+    if (timestamp.present) {
+      map['timestamp'] = Variable<int>(timestamp.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (attempts.present) {
+      map['attempts'] = Variable<int>(attempts.value);
+    }
+    if (lastAttemptAt.present) {
+      map['last_attempt_at'] = Variable<DateTime>(lastAttemptAt.value);
+    }
+    if (errorMessage.present) {
+      map['error_message'] = Variable<String>(errorMessage.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PendingScrobblesCompanion(')
+          ..write('id: $id, ')
+          ..write('trackId: $trackId, ')
+          ..write('trackTitle: $trackTitle, ')
+          ..write('artistName: $artistName, ')
+          ..write('albumName: $albumName, ')
+          ..write('albumArtist: $albumArtist, ')
+          ..write('durationMs: $durationMs, ')
+          ..write('timestamp: $timestamp, ')
+          ..write('status: $status, ')
+          ..write('attempts: $attempts, ')
+          ..write('lastAttemptAt: $lastAttemptAt, ')
+          ..write('errorMessage: $errorMessage, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $ScrobbleHistoryTable extends ScrobbleHistory
+    with TableInfo<$ScrobbleHistoryTable, ScrobbleHistoryRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ScrobbleHistoryTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _trackIdMeta = const VerificationMeta(
+    'trackId',
+  );
+  @override
+  late final GeneratedColumn<String> trackId = GeneratedColumn<String>(
+    'track_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _trackTitleMeta = const VerificationMeta(
+    'trackTitle',
+  );
+  @override
+  late final GeneratedColumn<String> trackTitle = GeneratedColumn<String>(
+    'track_title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _artistNameMeta = const VerificationMeta(
+    'artistName',
+  );
+  @override
+  late final GeneratedColumn<String> artistName = GeneratedColumn<String>(
+    'artist_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _albumNameMeta = const VerificationMeta(
+    'albumName',
+  );
+  @override
+  late final GeneratedColumn<String> albumName = GeneratedColumn<String>(
+    'album_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _timestampMeta = const VerificationMeta(
+    'timestamp',
+  );
+  @override
+  late final GeneratedColumn<int> timestamp = GeneratedColumn<int>(
+    'timestamp',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _scrobbledAtMeta = const VerificationMeta(
+    'scrobbledAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> scrobbledAt = GeneratedColumn<DateTime>(
+    'scrobbled_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    trackId,
+    trackTitle,
+    artistName,
+    albumName,
+    timestamp,
+    scrobbledAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'scrobble_history';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ScrobbleHistoryRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('track_id')) {
+      context.handle(
+        _trackIdMeta,
+        trackId.isAcceptableOrUnknown(data['track_id']!, _trackIdMeta),
+      );
+    }
+    if (data.containsKey('track_title')) {
+      context.handle(
+        _trackTitleMeta,
+        trackTitle.isAcceptableOrUnknown(data['track_title']!, _trackTitleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_trackTitleMeta);
+    }
+    if (data.containsKey('artist_name')) {
+      context.handle(
+        _artistNameMeta,
+        artistName.isAcceptableOrUnknown(data['artist_name']!, _artistNameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_artistNameMeta);
+    }
+    if (data.containsKey('album_name')) {
+      context.handle(
+        _albumNameMeta,
+        albumName.isAcceptableOrUnknown(data['album_name']!, _albumNameMeta),
+      );
+    }
+    if (data.containsKey('timestamp')) {
+      context.handle(
+        _timestampMeta,
+        timestamp.isAcceptableOrUnknown(data['timestamp']!, _timestampMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_timestampMeta);
+    }
+    if (data.containsKey('scrobbled_at')) {
+      context.handle(
+        _scrobbledAtMeta,
+        scrobbledAt.isAcceptableOrUnknown(
+          data['scrobbled_at']!,
+          _scrobbledAtMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_scrobbledAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ScrobbleHistoryRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ScrobbleHistoryRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      trackId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}track_id'],
+      ),
+      trackTitle: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}track_title'],
+      )!,
+      artistName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}artist_name'],
+      )!,
+      albumName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}album_name'],
+      ),
+      timestamp: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}timestamp'],
+      )!,
+      scrobbledAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}scrobbled_at'],
+      )!,
+    );
+  }
+
+  @override
+  $ScrobbleHistoryTable createAlias(String alias) {
+    return $ScrobbleHistoryTable(attachedDatabase, alias);
+  }
+}
+
+class ScrobbleHistoryRow extends DataClass
+    implements Insertable<ScrobbleHistoryRow> {
+  final String id;
+  final String? trackId;
+  final String trackTitle;
+  final String artistName;
+  final String? albumName;
+  final int timestamp;
+  final DateTime scrobbledAt;
+  const ScrobbleHistoryRow({
+    required this.id,
+    this.trackId,
+    required this.trackTitle,
+    required this.artistName,
+    this.albumName,
+    required this.timestamp,
+    required this.scrobbledAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    if (!nullToAbsent || trackId != null) {
+      map['track_id'] = Variable<String>(trackId);
+    }
+    map['track_title'] = Variable<String>(trackTitle);
+    map['artist_name'] = Variable<String>(artistName);
+    if (!nullToAbsent || albumName != null) {
+      map['album_name'] = Variable<String>(albumName);
+    }
+    map['timestamp'] = Variable<int>(timestamp);
+    map['scrobbled_at'] = Variable<DateTime>(scrobbledAt);
+    return map;
+  }
+
+  ScrobbleHistoryCompanion toCompanion(bool nullToAbsent) {
+    return ScrobbleHistoryCompanion(
+      id: Value(id),
+      trackId: trackId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(trackId),
+      trackTitle: Value(trackTitle),
+      artistName: Value(artistName),
+      albumName: albumName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(albumName),
+      timestamp: Value(timestamp),
+      scrobbledAt: Value(scrobbledAt),
+    );
+  }
+
+  factory ScrobbleHistoryRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ScrobbleHistoryRow(
+      id: serializer.fromJson<String>(json['id']),
+      trackId: serializer.fromJson<String?>(json['trackId']),
+      trackTitle: serializer.fromJson<String>(json['trackTitle']),
+      artistName: serializer.fromJson<String>(json['artistName']),
+      albumName: serializer.fromJson<String?>(json['albumName']),
+      timestamp: serializer.fromJson<int>(json['timestamp']),
+      scrobbledAt: serializer.fromJson<DateTime>(json['scrobbledAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'trackId': serializer.toJson<String?>(trackId),
+      'trackTitle': serializer.toJson<String>(trackTitle),
+      'artistName': serializer.toJson<String>(artistName),
+      'albumName': serializer.toJson<String?>(albumName),
+      'timestamp': serializer.toJson<int>(timestamp),
+      'scrobbledAt': serializer.toJson<DateTime>(scrobbledAt),
+    };
+  }
+
+  ScrobbleHistoryRow copyWith({
+    String? id,
+    Value<String?> trackId = const Value.absent(),
+    String? trackTitle,
+    String? artistName,
+    Value<String?> albumName = const Value.absent(),
+    int? timestamp,
+    DateTime? scrobbledAt,
+  }) => ScrobbleHistoryRow(
+    id: id ?? this.id,
+    trackId: trackId.present ? trackId.value : this.trackId,
+    trackTitle: trackTitle ?? this.trackTitle,
+    artistName: artistName ?? this.artistName,
+    albumName: albumName.present ? albumName.value : this.albumName,
+    timestamp: timestamp ?? this.timestamp,
+    scrobbledAt: scrobbledAt ?? this.scrobbledAt,
+  );
+  ScrobbleHistoryRow copyWithCompanion(ScrobbleHistoryCompanion data) {
+    return ScrobbleHistoryRow(
+      id: data.id.present ? data.id.value : this.id,
+      trackId: data.trackId.present ? data.trackId.value : this.trackId,
+      trackTitle: data.trackTitle.present
+          ? data.trackTitle.value
+          : this.trackTitle,
+      artistName: data.artistName.present
+          ? data.artistName.value
+          : this.artistName,
+      albumName: data.albumName.present ? data.albumName.value : this.albumName,
+      timestamp: data.timestamp.present ? data.timestamp.value : this.timestamp,
+      scrobbledAt: data.scrobbledAt.present
+          ? data.scrobbledAt.value
+          : this.scrobbledAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ScrobbleHistoryRow(')
+          ..write('id: $id, ')
+          ..write('trackId: $trackId, ')
+          ..write('trackTitle: $trackTitle, ')
+          ..write('artistName: $artistName, ')
+          ..write('albumName: $albumName, ')
+          ..write('timestamp: $timestamp, ')
+          ..write('scrobbledAt: $scrobbledAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    trackId,
+    trackTitle,
+    artistName,
+    albumName,
+    timestamp,
+    scrobbledAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ScrobbleHistoryRow &&
+          other.id == this.id &&
+          other.trackId == this.trackId &&
+          other.trackTitle == this.trackTitle &&
+          other.artistName == this.artistName &&
+          other.albumName == this.albumName &&
+          other.timestamp == this.timestamp &&
+          other.scrobbledAt == this.scrobbledAt);
+}
+
+class ScrobbleHistoryCompanion extends UpdateCompanion<ScrobbleHistoryRow> {
+  final Value<String> id;
+  final Value<String?> trackId;
+  final Value<String> trackTitle;
+  final Value<String> artistName;
+  final Value<String?> albumName;
+  final Value<int> timestamp;
+  final Value<DateTime> scrobbledAt;
+  final Value<int> rowid;
+  const ScrobbleHistoryCompanion({
+    this.id = const Value.absent(),
+    this.trackId = const Value.absent(),
+    this.trackTitle = const Value.absent(),
+    this.artistName = const Value.absent(),
+    this.albumName = const Value.absent(),
+    this.timestamp = const Value.absent(),
+    this.scrobbledAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ScrobbleHistoryCompanion.insert({
+    required String id,
+    this.trackId = const Value.absent(),
+    required String trackTitle,
+    required String artistName,
+    this.albumName = const Value.absent(),
+    required int timestamp,
+    required DateTime scrobbledAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       trackTitle = Value(trackTitle),
+       artistName = Value(artistName),
+       timestamp = Value(timestamp),
+       scrobbledAt = Value(scrobbledAt);
+  static Insertable<ScrobbleHistoryRow> custom({
+    Expression<String>? id,
+    Expression<String>? trackId,
+    Expression<String>? trackTitle,
+    Expression<String>? artistName,
+    Expression<String>? albumName,
+    Expression<int>? timestamp,
+    Expression<DateTime>? scrobbledAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (trackId != null) 'track_id': trackId,
+      if (trackTitle != null) 'track_title': trackTitle,
+      if (artistName != null) 'artist_name': artistName,
+      if (albumName != null) 'album_name': albumName,
+      if (timestamp != null) 'timestamp': timestamp,
+      if (scrobbledAt != null) 'scrobbled_at': scrobbledAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ScrobbleHistoryCompanion copyWith({
+    Value<String>? id,
+    Value<String?>? trackId,
+    Value<String>? trackTitle,
+    Value<String>? artistName,
+    Value<String?>? albumName,
+    Value<int>? timestamp,
+    Value<DateTime>? scrobbledAt,
+    Value<int>? rowid,
+  }) {
+    return ScrobbleHistoryCompanion(
+      id: id ?? this.id,
+      trackId: trackId ?? this.trackId,
+      trackTitle: trackTitle ?? this.trackTitle,
+      artistName: artistName ?? this.artistName,
+      albumName: albumName ?? this.albumName,
+      timestamp: timestamp ?? this.timestamp,
+      scrobbledAt: scrobbledAt ?? this.scrobbledAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (trackId.present) {
+      map['track_id'] = Variable<String>(trackId.value);
+    }
+    if (trackTitle.present) {
+      map['track_title'] = Variable<String>(trackTitle.value);
+    }
+    if (artistName.present) {
+      map['artist_name'] = Variable<String>(artistName.value);
+    }
+    if (albumName.present) {
+      map['album_name'] = Variable<String>(albumName.value);
+    }
+    if (timestamp.present) {
+      map['timestamp'] = Variable<int>(timestamp.value);
+    }
+    if (scrobbledAt.present) {
+      map['scrobbled_at'] = Variable<DateTime>(scrobbledAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ScrobbleHistoryCompanion(')
+          ..write('id: $id, ')
+          ..write('trackId: $trackId, ')
+          ..write('trackTitle: $trackTitle, ')
+          ..write('artistName: $artistName, ')
+          ..write('albumName: $albumName, ')
+          ..write('timestamp: $timestamp, ')
+          ..write('scrobbledAt: $scrobbledAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -11658,6 +13530,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $LyricsTable lyrics = $LyricsTable(this);
   late final $LyricLinesTable lyricLines = $LyricLinesTable(this);
   late final $LyricWordsTable lyricWords = $LyricWordsTable(this);
+  late final $LastFmAccountsTable lastFmAccounts = $LastFmAccountsTable(this);
+  late final $PendingScrobblesTable pendingScrobbles = $PendingScrobblesTable(
+    this,
+  );
+  late final $ScrobbleHistoryTable scrobbleHistory = $ScrobbleHistoryTable(
+    this,
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -11685,6 +13564,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     lyrics,
     lyricLines,
     lyricWords,
+    lastFmAccounts,
+    pendingScrobbles,
+    scrobbleHistory,
   ];
 }
 
@@ -17671,6 +19553,970 @@ typedef $$LyricWordsTableProcessedTableManager =
       LyricWordRow,
       PrefetchHooks Function()
     >;
+typedef $$LastFmAccountsTableCreateCompanionBuilder =
+    LastFmAccountsCompanion Function({
+      required String id,
+      required String username,
+      Value<String?> realName,
+      Value<String?> avatarUrl,
+      required String profileUrl,
+      Value<int> scrobbleCount,
+      required String status,
+      Value<DateTime?> lastSyncedAt,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+      Value<int> rowid,
+    });
+typedef $$LastFmAccountsTableUpdateCompanionBuilder =
+    LastFmAccountsCompanion Function({
+      Value<String> id,
+      Value<String> username,
+      Value<String?> realName,
+      Value<String?> avatarUrl,
+      Value<String> profileUrl,
+      Value<int> scrobbleCount,
+      Value<String> status,
+      Value<DateTime?> lastSyncedAt,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+
+class $$LastFmAccountsTableFilterComposer
+    extends Composer<_$AppDatabase, $LastFmAccountsTable> {
+  $$LastFmAccountsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get username => $composableBuilder(
+    column: $table.username,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get realName => $composableBuilder(
+    column: $table.realName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get avatarUrl => $composableBuilder(
+    column: $table.avatarUrl,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get profileUrl => $composableBuilder(
+    column: $table.profileUrl,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get scrobbleCount => $composableBuilder(
+    column: $table.scrobbleCount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get lastSyncedAt => $composableBuilder(
+    column: $table.lastSyncedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$LastFmAccountsTableOrderingComposer
+    extends Composer<_$AppDatabase, $LastFmAccountsTable> {
+  $$LastFmAccountsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get username => $composableBuilder(
+    column: $table.username,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get realName => $composableBuilder(
+    column: $table.realName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get avatarUrl => $composableBuilder(
+    column: $table.avatarUrl,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get profileUrl => $composableBuilder(
+    column: $table.profileUrl,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get scrobbleCount => $composableBuilder(
+    column: $table.scrobbleCount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get lastSyncedAt => $composableBuilder(
+    column: $table.lastSyncedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$LastFmAccountsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $LastFmAccountsTable> {
+  $$LastFmAccountsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get username =>
+      $composableBuilder(column: $table.username, builder: (column) => column);
+
+  GeneratedColumn<String> get realName =>
+      $composableBuilder(column: $table.realName, builder: (column) => column);
+
+  GeneratedColumn<String> get avatarUrl =>
+      $composableBuilder(column: $table.avatarUrl, builder: (column) => column);
+
+  GeneratedColumn<String> get profileUrl => $composableBuilder(
+    column: $table.profileUrl,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get scrobbleCount => $composableBuilder(
+    column: $table.scrobbleCount,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get lastSyncedAt => $composableBuilder(
+    column: $table.lastSyncedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$LastFmAccountsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $LastFmAccountsTable,
+          LastFmAccountRow,
+          $$LastFmAccountsTableFilterComposer,
+          $$LastFmAccountsTableOrderingComposer,
+          $$LastFmAccountsTableAnnotationComposer,
+          $$LastFmAccountsTableCreateCompanionBuilder,
+          $$LastFmAccountsTableUpdateCompanionBuilder,
+          (
+            LastFmAccountRow,
+            BaseReferences<
+              _$AppDatabase,
+              $LastFmAccountsTable,
+              LastFmAccountRow
+            >,
+          ),
+          LastFmAccountRow,
+          PrefetchHooks Function()
+        > {
+  $$LastFmAccountsTableTableManager(
+    _$AppDatabase db,
+    $LastFmAccountsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$LastFmAccountsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$LastFmAccountsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$LastFmAccountsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> username = const Value.absent(),
+                Value<String?> realName = const Value.absent(),
+                Value<String?> avatarUrl = const Value.absent(),
+                Value<String> profileUrl = const Value.absent(),
+                Value<int> scrobbleCount = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<DateTime?> lastSyncedAt = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => LastFmAccountsCompanion(
+                id: id,
+                username: username,
+                realName: realName,
+                avatarUrl: avatarUrl,
+                profileUrl: profileUrl,
+                scrobbleCount: scrobbleCount,
+                status: status,
+                lastSyncedAt: lastSyncedAt,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String username,
+                Value<String?> realName = const Value.absent(),
+                Value<String?> avatarUrl = const Value.absent(),
+                required String profileUrl,
+                Value<int> scrobbleCount = const Value.absent(),
+                required String status,
+                Value<DateTime?> lastSyncedAt = const Value.absent(),
+                required DateTime createdAt,
+                required DateTime updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => LastFmAccountsCompanion.insert(
+                id: id,
+                username: username,
+                realName: realName,
+                avatarUrl: avatarUrl,
+                profileUrl: profileUrl,
+                scrobbleCount: scrobbleCount,
+                status: status,
+                lastSyncedAt: lastSyncedAt,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$LastFmAccountsTable, LastFmAccountRow>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $LastFmAccountsTable,
+                    LastFmAccountRow
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$LastFmAccountsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $LastFmAccountsTable,
+      LastFmAccountRow,
+      $$LastFmAccountsTableFilterComposer,
+      $$LastFmAccountsTableOrderingComposer,
+      $$LastFmAccountsTableAnnotationComposer,
+      $$LastFmAccountsTableCreateCompanionBuilder,
+      $$LastFmAccountsTableUpdateCompanionBuilder,
+      (
+        LastFmAccountRow,
+        BaseReferences<_$AppDatabase, $LastFmAccountsTable, LastFmAccountRow>,
+      ),
+      LastFmAccountRow,
+      PrefetchHooks Function()
+    >;
+typedef $$PendingScrobblesTableCreateCompanionBuilder =
+    PendingScrobblesCompanion Function({
+      required String id,
+      Value<String?> trackId,
+      required String trackTitle,
+      required String artistName,
+      Value<String?> albumName,
+      Value<String?> albumArtist,
+      Value<int> durationMs,
+      required int timestamp,
+      required String status,
+      Value<int> attempts,
+      Value<DateTime?> lastAttemptAt,
+      Value<String?> errorMessage,
+      required DateTime createdAt,
+      Value<int> rowid,
+    });
+typedef $$PendingScrobblesTableUpdateCompanionBuilder =
+    PendingScrobblesCompanion Function({
+      Value<String> id,
+      Value<String?> trackId,
+      Value<String> trackTitle,
+      Value<String> artistName,
+      Value<String?> albumName,
+      Value<String?> albumArtist,
+      Value<int> durationMs,
+      Value<int> timestamp,
+      Value<String> status,
+      Value<int> attempts,
+      Value<DateTime?> lastAttemptAt,
+      Value<String?> errorMessage,
+      Value<DateTime> createdAt,
+      Value<int> rowid,
+    });
+
+class $$PendingScrobblesTableFilterComposer
+    extends Composer<_$AppDatabase, $PendingScrobblesTable> {
+  $$PendingScrobblesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get trackId => $composableBuilder(
+    column: $table.trackId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get trackTitle => $composableBuilder(
+    column: $table.trackTitle,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get artistName => $composableBuilder(
+    column: $table.artistName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get albumName => $composableBuilder(
+    column: $table.albumName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get albumArtist => $composableBuilder(
+    column: $table.albumArtist,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get durationMs => $composableBuilder(
+    column: $table.durationMs,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get timestamp => $composableBuilder(
+    column: $table.timestamp,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get attempts => $composableBuilder(
+    column: $table.attempts,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get lastAttemptAt => $composableBuilder(
+    column: $table.lastAttemptAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get errorMessage => $composableBuilder(
+    column: $table.errorMessage,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$PendingScrobblesTableOrderingComposer
+    extends Composer<_$AppDatabase, $PendingScrobblesTable> {
+  $$PendingScrobblesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get trackId => $composableBuilder(
+    column: $table.trackId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get trackTitle => $composableBuilder(
+    column: $table.trackTitle,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get artistName => $composableBuilder(
+    column: $table.artistName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get albumName => $composableBuilder(
+    column: $table.albumName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get albumArtist => $composableBuilder(
+    column: $table.albumArtist,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get durationMs => $composableBuilder(
+    column: $table.durationMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get timestamp => $composableBuilder(
+    column: $table.timestamp,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get attempts => $composableBuilder(
+    column: $table.attempts,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get lastAttemptAt => $composableBuilder(
+    column: $table.lastAttemptAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get errorMessage => $composableBuilder(
+    column: $table.errorMessage,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$PendingScrobblesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $PendingScrobblesTable> {
+  $$PendingScrobblesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get trackId =>
+      $composableBuilder(column: $table.trackId, builder: (column) => column);
+
+  GeneratedColumn<String> get trackTitle => $composableBuilder(
+    column: $table.trackTitle,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get artistName => $composableBuilder(
+    column: $table.artistName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get albumName =>
+      $composableBuilder(column: $table.albumName, builder: (column) => column);
+
+  GeneratedColumn<String> get albumArtist => $composableBuilder(
+    column: $table.albumArtist,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get durationMs => $composableBuilder(
+    column: $table.durationMs,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get timestamp =>
+      $composableBuilder(column: $table.timestamp, builder: (column) => column);
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<int> get attempts =>
+      $composableBuilder(column: $table.attempts, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get lastAttemptAt => $composableBuilder(
+    column: $table.lastAttemptAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get errorMessage => $composableBuilder(
+    column: $table.errorMessage,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$PendingScrobblesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $PendingScrobblesTable,
+          PendingScrobbleRow,
+          $$PendingScrobblesTableFilterComposer,
+          $$PendingScrobblesTableOrderingComposer,
+          $$PendingScrobblesTableAnnotationComposer,
+          $$PendingScrobblesTableCreateCompanionBuilder,
+          $$PendingScrobblesTableUpdateCompanionBuilder,
+          (
+            PendingScrobbleRow,
+            BaseReferences<
+              _$AppDatabase,
+              $PendingScrobblesTable,
+              PendingScrobbleRow
+            >,
+          ),
+          PendingScrobbleRow,
+          PrefetchHooks Function()
+        > {
+  $$PendingScrobblesTableTableManager(
+    _$AppDatabase db,
+    $PendingScrobblesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$PendingScrobblesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$PendingScrobblesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$PendingScrobblesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String?> trackId = const Value.absent(),
+                Value<String> trackTitle = const Value.absent(),
+                Value<String> artistName = const Value.absent(),
+                Value<String?> albumName = const Value.absent(),
+                Value<String?> albumArtist = const Value.absent(),
+                Value<int> durationMs = const Value.absent(),
+                Value<int> timestamp = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<int> attempts = const Value.absent(),
+                Value<DateTime?> lastAttemptAt = const Value.absent(),
+                Value<String?> errorMessage = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => PendingScrobblesCompanion(
+                id: id,
+                trackId: trackId,
+                trackTitle: trackTitle,
+                artistName: artistName,
+                albumName: albumName,
+                albumArtist: albumArtist,
+                durationMs: durationMs,
+                timestamp: timestamp,
+                status: status,
+                attempts: attempts,
+                lastAttemptAt: lastAttemptAt,
+                errorMessage: errorMessage,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                Value<String?> trackId = const Value.absent(),
+                required String trackTitle,
+                required String artistName,
+                Value<String?> albumName = const Value.absent(),
+                Value<String?> albumArtist = const Value.absent(),
+                Value<int> durationMs = const Value.absent(),
+                required int timestamp,
+                required String status,
+                Value<int> attempts = const Value.absent(),
+                Value<DateTime?> lastAttemptAt = const Value.absent(),
+                Value<String?> errorMessage = const Value.absent(),
+                required DateTime createdAt,
+                Value<int> rowid = const Value.absent(),
+              }) => PendingScrobblesCompanion.insert(
+                id: id,
+                trackId: trackId,
+                trackTitle: trackTitle,
+                artistName: artistName,
+                albumName: albumName,
+                albumArtist: albumArtist,
+                durationMs: durationMs,
+                timestamp: timestamp,
+                status: status,
+                attempts: attempts,
+                lastAttemptAt: lastAttemptAt,
+                errorMessage: errorMessage,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$PendingScrobblesTable, PendingScrobbleRow>(
+                    table,
+                  ),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $PendingScrobblesTable,
+                    PendingScrobbleRow
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$PendingScrobblesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $PendingScrobblesTable,
+      PendingScrobbleRow,
+      $$PendingScrobblesTableFilterComposer,
+      $$PendingScrobblesTableOrderingComposer,
+      $$PendingScrobblesTableAnnotationComposer,
+      $$PendingScrobblesTableCreateCompanionBuilder,
+      $$PendingScrobblesTableUpdateCompanionBuilder,
+      (
+        PendingScrobbleRow,
+        BaseReferences<
+          _$AppDatabase,
+          $PendingScrobblesTable,
+          PendingScrobbleRow
+        >,
+      ),
+      PendingScrobbleRow,
+      PrefetchHooks Function()
+    >;
+typedef $$ScrobbleHistoryTableCreateCompanionBuilder =
+    ScrobbleHistoryCompanion Function({
+      required String id,
+      Value<String?> trackId,
+      required String trackTitle,
+      required String artistName,
+      Value<String?> albumName,
+      required int timestamp,
+      required DateTime scrobbledAt,
+      Value<int> rowid,
+    });
+typedef $$ScrobbleHistoryTableUpdateCompanionBuilder =
+    ScrobbleHistoryCompanion Function({
+      Value<String> id,
+      Value<String?> trackId,
+      Value<String> trackTitle,
+      Value<String> artistName,
+      Value<String?> albumName,
+      Value<int> timestamp,
+      Value<DateTime> scrobbledAt,
+      Value<int> rowid,
+    });
+
+class $$ScrobbleHistoryTableFilterComposer
+    extends Composer<_$AppDatabase, $ScrobbleHistoryTable> {
+  $$ScrobbleHistoryTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get trackId => $composableBuilder(
+    column: $table.trackId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get trackTitle => $composableBuilder(
+    column: $table.trackTitle,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get artistName => $composableBuilder(
+    column: $table.artistName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get albumName => $composableBuilder(
+    column: $table.albumName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get timestamp => $composableBuilder(
+    column: $table.timestamp,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get scrobbledAt => $composableBuilder(
+    column: $table.scrobbledAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$ScrobbleHistoryTableOrderingComposer
+    extends Composer<_$AppDatabase, $ScrobbleHistoryTable> {
+  $$ScrobbleHistoryTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get trackId => $composableBuilder(
+    column: $table.trackId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get trackTitle => $composableBuilder(
+    column: $table.trackTitle,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get artistName => $composableBuilder(
+    column: $table.artistName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get albumName => $composableBuilder(
+    column: $table.albumName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get timestamp => $composableBuilder(
+    column: $table.timestamp,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get scrobbledAt => $composableBuilder(
+    column: $table.scrobbledAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$ScrobbleHistoryTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ScrobbleHistoryTable> {
+  $$ScrobbleHistoryTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get trackId =>
+      $composableBuilder(column: $table.trackId, builder: (column) => column);
+
+  GeneratedColumn<String> get trackTitle => $composableBuilder(
+    column: $table.trackTitle,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get artistName => $composableBuilder(
+    column: $table.artistName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get albumName =>
+      $composableBuilder(column: $table.albumName, builder: (column) => column);
+
+  GeneratedColumn<int> get timestamp =>
+      $composableBuilder(column: $table.timestamp, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get scrobbledAt => $composableBuilder(
+    column: $table.scrobbledAt,
+    builder: (column) => column,
+  );
+}
+
+class $$ScrobbleHistoryTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ScrobbleHistoryTable,
+          ScrobbleHistoryRow,
+          $$ScrobbleHistoryTableFilterComposer,
+          $$ScrobbleHistoryTableOrderingComposer,
+          $$ScrobbleHistoryTableAnnotationComposer,
+          $$ScrobbleHistoryTableCreateCompanionBuilder,
+          $$ScrobbleHistoryTableUpdateCompanionBuilder,
+          (
+            ScrobbleHistoryRow,
+            BaseReferences<
+              _$AppDatabase,
+              $ScrobbleHistoryTable,
+              ScrobbleHistoryRow
+            >,
+          ),
+          ScrobbleHistoryRow,
+          PrefetchHooks Function()
+        > {
+  $$ScrobbleHistoryTableTableManager(
+    _$AppDatabase db,
+    $ScrobbleHistoryTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ScrobbleHistoryTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ScrobbleHistoryTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ScrobbleHistoryTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String?> trackId = const Value.absent(),
+                Value<String> trackTitle = const Value.absent(),
+                Value<String> artistName = const Value.absent(),
+                Value<String?> albumName = const Value.absent(),
+                Value<int> timestamp = const Value.absent(),
+                Value<DateTime> scrobbledAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ScrobbleHistoryCompanion(
+                id: id,
+                trackId: trackId,
+                trackTitle: trackTitle,
+                artistName: artistName,
+                albumName: albumName,
+                timestamp: timestamp,
+                scrobbledAt: scrobbledAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                Value<String?> trackId = const Value.absent(),
+                required String trackTitle,
+                required String artistName,
+                Value<String?> albumName = const Value.absent(),
+                required int timestamp,
+                required DateTime scrobbledAt,
+                Value<int> rowid = const Value.absent(),
+              }) => ScrobbleHistoryCompanion.insert(
+                id: id,
+                trackId: trackId,
+                trackTitle: trackTitle,
+                artistName: artistName,
+                albumName: albumName,
+                timestamp: timestamp,
+                scrobbledAt: scrobbledAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$ScrobbleHistoryTable, ScrobbleHistoryRow>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $ScrobbleHistoryTable,
+                    ScrobbleHistoryRow
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$ScrobbleHistoryTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ScrobbleHistoryTable,
+      ScrobbleHistoryRow,
+      $$ScrobbleHistoryTableFilterComposer,
+      $$ScrobbleHistoryTableOrderingComposer,
+      $$ScrobbleHistoryTableAnnotationComposer,
+      $$ScrobbleHistoryTableCreateCompanionBuilder,
+      $$ScrobbleHistoryTableUpdateCompanionBuilder,
+      (
+        ScrobbleHistoryRow,
+        BaseReferences<
+          _$AppDatabase,
+          $ScrobbleHistoryTable,
+          ScrobbleHistoryRow
+        >,
+      ),
+      ScrobbleHistoryRow,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -17719,4 +20565,10 @@ class $AppDatabaseManager {
       $$LyricLinesTableTableManager(_db, _db.lyricLines);
   $$LyricWordsTableTableManager get lyricWords =>
       $$LyricWordsTableTableManager(_db, _db.lyricWords);
+  $$LastFmAccountsTableTableManager get lastFmAccounts =>
+      $$LastFmAccountsTableTableManager(_db, _db.lastFmAccounts);
+  $$PendingScrobblesTableTableManager get pendingScrobbles =>
+      $$PendingScrobblesTableTableManager(_db, _db.pendingScrobbles);
+  $$ScrobbleHistoryTableTableManager get scrobbleHistory =>
+      $$ScrobbleHistoryTableTableManager(_db, _db.scrobbleHistory);
 }

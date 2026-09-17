@@ -28,6 +28,7 @@ import '../../features/recently_played/data/repositories/recently_played_reposit
 import '../../features/search/data/repositories/search_repository_impl.dart';
 import '../../features/settings/data/repositories/settings_repository_impl.dart';
 import '../../features/settings/domain/entities/app_theme_mode.dart';
+import '../../features/last_fm/presentation/providers/last_fm_providers.dart';
 
 // Database & File System
 final appDatabaseProvider = Provider<AppDatabase>((ref) {
@@ -172,12 +173,14 @@ final musiiAudioHandlerProvider = Provider<MusiiAudioHandler>((ref) {
   final recents = ref.watch(recentlyPlayedRepositoryProvider);
   final db = ref.watch(appDatabaseProvider);
   final connectivity = ref.watch(connectivityServiceProvider);
+  final lastFmCoordinator = ref.watch(lastFmPlaybackCoordinatorProvider);
 
   final handler = MusiiAudioHandler(
     cacheRepository: cache,
     recentlyPlayedRepository: recents,
     database: db,
     connectivityService: connectivity,
+    lastFmCoordinator: lastFmCoordinator,
   );
   return handler;
 });

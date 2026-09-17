@@ -1,16 +1,16 @@
 # Musii — AI Engineering Handoff Document
 
-> **Document Version**: 1.10.0  
+> **Document Version**: 1.11.0  
 > **Target Audience**: Incoming AI Coding Assistants & Human Software Engineers  
 > **Last Verified**: September 2026  
 > **App Identifier**: `com.blackpirateapps.musii`  
-> **Test Status**: 173 / 173 Passing (`flutter test`), 0 Analyzer Warnings (`flutter analyze`)
+> **Test Status**: 227 / 227 Passing (`flutter test`), 0 Analyzer Warnings (`flutter analyze`)
 
 ---
 
 ## 1. Executive Summary & Strict Operational Rules
 
-Musii is an offline-first, Cupertino-styled personal music streaming player for Android. It connects directly to the user's Google Drive via OAuth 2.0, recursively scans and indexes their music collection into a reactive Drift SQLite database, and streams/caches audio with background audio playback, lock screen media controls, LRU cache eviction, offline pinning, and synchronized LRC lyrics.
+Musii is an offline-first, Cupertino-styled personal music streaming player for Android. It connects directly to the user's Google Drive via OAuth 2.0, recursively scans and indexes their music collection into a reactive Drift SQLite database, and streams/caches audio with background audio playback, lock screen media controls, LRU cache eviction, offline pinning, synchronized LRC lyrics, and Last.fm scrobbling.
 
 All production code paths are 100% complete with no mock data, no fake playback, and no placeholder TODOs. Static analysis (`flutter analyze`) passes with **0 issues**, and the automated test suite (`flutter test`) passes with **100% success**.
 
@@ -32,11 +32,12 @@ All production code paths are 100% complete with no mock data, no fake playback,
 The codebase strictly adheres to standard four-layer Clean Architecture:
 1. **Core (`lib/core/`)**:
    - `result/result.dart`: Sealed `Result<S, F>` functional type (`Success`, `Failure`, `fold`, `map`). Never throw raw exceptions from repository layers.
-   - `error/failures.dart`: Sealed `AppFailure` hierarchy (`AuthenticationFailure`, `DriveApiFailure`, `CacheFailure`, `DatabaseFailure`, etc.).
-   - `logging/app_logger.dart`: Structured categorical logging with OAuth token redaction.
+   - `error/failures.dart`: Sealed `AppFailure` hierarchy (`AuthenticationFailure`, `DriveApiFailure`, `CacheFailure`, `DatabaseFailure`, `LastFmAuthenticationFailure`, `LastFmNetworkFailure`, `LastFmApiFailure`, `LastFmRateLimitFailure`, `LastFmConfigurationFailure`, etc.).
+   - `logging/app_logger.dart`: Structured categorical logging with OAuth token, API secret, session key, and signature redaction.
    - `constants/app_constants.dart`: Design tokens (`AppRadii`, `AppSpacing`, `AppAudioConstants`, `AppGreeting`).
    - `filesystem/app_file_system.dart`: Centralized cache directory management, `.partial` file staging, and atomic commits.
-   - `database/`: Drift SQLite setup, 22 tables with `@DataClassName` annotations and schema v7 migration.
+   - `storage/secure_credential_store.dart`: Abstract `SecureCredentialStore` with hardware-backed Android Keystore (`FlutterSecureStorage`) and in-memory test store.
+   - `database/`: Drift SQLite setup, 25 tables with `@DataClassName` annotations and schema v8 migration.
 2. **Domain (`lib/features/*/domain/`)**:
    - Pure Dart entities (`Track`, `Album`, `Artist`, `Genre`, `Playlist`, `CacheEntry`, `PlayerStateSnapshot`, `TrackLyrics`, `LyricLine`, `LyricWord`, `LyricSource`, `SyncProgress`, `SyncPhase`, `SyncCancellationToken`).
    - Repository interfaces declaring business contracts (`MusicLibraryRepository`, `GoogleDriveRepository`, `CacheRepository`, `PlaybackRepository`, `LyricsRepository`, `PlaylistRepository`, etc.).
@@ -254,6 +255,39 @@ Located in `lib/app/theme/app_theme.dart`, `lib/app/app.dart`, `lib/features/set
 - **Atmospheric Dark Aesthetics**: Dark mode applies `Color(0xFF0C0D12)` scaffold background across all screens with atmospheric twilight glows, frosted glass cards (`ContinueListeningCard`, `MiniPlayer`), and dark Cupertino navigation bars.
 - **Cupertino Action Sheet Selection**: Settings > Appearance provides an interactive Cupertino action sheet allowing immediate theme switching and feedback.
 
+### 10. Last.fm Scrobbler Integration (Real-Time Now Playing & Offline-First Batching)
+Located in `lib/features/last_fm/`, `lib/core/storage/secure_credential_store.dart`, `lib/core/database/tables.dart`, and `lib/features/playback/data/services/last_fm_playback_coordinator.dart`:
+- **Clean Architecture & Schema v8**:
+  - Upgraded Drift schema from v7 to v8 introducing `LastFmAccounts`, `PendingScrobbles`, and `ScrobbleHistory` tables with SQLite index `idx_pending_scrobbles_status` and `idx_scrobble_history_time`.
+  - Pure domain entities: `LastFmAccount`, `ScrobbleSettings`, `PendingScrobble`, `ScrobbleHistoryItem`.
+  - Hardware-backed AES KeyStore security: `SecureCredentialStore` (`FlutterSecureCredentialStore`) stores 32-character session keys and custom API credentials with `AndroidOptions(resetOnError: true)`. Secrets are never stored in plain SQLite text or SharedPreferences.
+- **Production Last.fm 2.0 API Client (`LastFmApiClient`)**:
+  - Canonical MD5 request signing (`generateSignature`) sorting parameters alphabetically excluding `format`, `callback`, and `api_sig`, with full multi-byte UTF-8 string encoding support.
+  - Endpoints: `auth.getToken`, browser approval redirect URL generator (`buildAuthUrl`), `auth.getSession`, `user.getInfo`, `track.updateNowPlaying`, and batch `track.scrobble` (up to 50 tracks per request).
+  - Error mapping: HTTP 200 Last.fm error codes (code 4/9/14 -> `LastFmAuthenticationFailure`, code 29 -> `LastFmRateLimitFailure`, code 11/16 -> `LastFmNetworkFailure`).
+- **Canonical Scrobble Eligibility Rules (`ScrobbleEligibilityService`)**:
+  - Minimum track duration: Strictly $\ge 30$ seconds.
+  - Threshold requirement: $\min(\text{duration} / 2, 240\text{s})$ (50% of track or 4 minutes, whichever comes first).
+  - Track validation: Non-empty track title and artist name required.
+- **Non-Blocking Playback Coordination (`LastFmPlaybackCoordinator`)**:
+  - Listens to audio player transitions via `MusiiAudioHandler`.
+  - Dispatches `track.updateNowPlaying` asynchronously on start without stalling audio pipeline.
+  - Tracks playback position: upon reaching the canonical threshold, queues the scrobble locally and emits an event on `onScrobbleSuccess`.
+  - Replay / repeat-one detection: when track position jumps from $>10$s back to $<2$s, a new legitimate listening session is spawned with fresh Now Playing and independent scrobble eligibility.
+  - Session deduping: guarantees an ongoing playback session is scrobbled exactly once.
+- **Offline-First Synchronization (`LastFmSyncService`)**:
+  - Scrobbles are written to `PendingScrobbles` immediately.
+  - If online, uploads immediately. If offline, scrobbles remain safely queued in SQLite across app restarts and crashes.
+  - Reactive `ConnectivityService` watcher debounces internet return and flushes pending queue in batches of 50.
+  - Successfully synced scrobbles move atomically to `ScrobbleHistory` and increment account total count.
+  - If Last.fm rejects a session with code 9/14 (auth revoked/expired), the account transitions to `reauthRequired` and pending scrobbles transition to `failed_reauth` to prevent retry storms.
+- **Cupertino Presentation & User Interface**:
+  - Settings root `SERVICES` section displaying Last.fm connection status.
+  - `LastFmSettingsPage`: Clean Cupertino views for disconnected (intro card, connect button, API credential config dialog), connecting (browser authorization instructions, complete button), and connected (user profile avatar, username hero, real-time scrobbling toggle, Now Playing toggle, pending queue link with counter badge, scrobbles history link, and disconnect alert).
+  - `PendingScrobblesPage`: Displays offline queue items with metadata and status pills (`Waiting`, `Syncing…`, `Retry scheduled`, `Requires reconnect`), plus a manual "Sync Now" button.
+  - `ScrobbleHistoryPage`: Chronological list of submitted tracks with relative time formatting (`Just now`, `Yesterday`, `MMM d`).
+  - `NowPlayingPage`: Ambient, non-intrusive "✓ Scrobbled" badge rendered adjacent to the technical format badge once a song crosses the threshold.
+
 ---
 
 ## 4. Important Pitfalls, Caveats & Solutions
@@ -303,6 +337,12 @@ Located in `lib/app/theme/app_theme.dart`, `lib/app/app.dart`, `lib/features/set
 15. **Folder-Based Album Artwork Discovery & Precedence Pipeline**:
     - **Issue**: Albums without embedded ID3/Vorbis/MP4 artwork previously rendered fallback initial-letter gradients, even when high-resolution `cover.jpg` or `folder.png` files were present in the album's Google Drive directory.
     - **Solution**: Google Drive discovery in `listAudioFilesRecursively` captures image files (`.jpg`, `.jpeg`, `.png`, `.webp` and `image/*` MIME types), building a `folderImagesMap` alongside audio files. When a track lacks embedded artwork, `FolderArtworkResolver` selects the best candidate image using case-insensitive standard names (`cover`, `folder`, `front`, `albumart`, `album`, `artwork`), falling back to parent folders for multi-disc layouts (e.g. `CD1/`, `CD2/`) and arbitrary image files as final fallback. The selected image is downloaded and cached at `_fileSystem.getArtworkCacheFile(artworkKey)` ahead of database transactions, saving `artworkPath` to `Albums` and ensuring all tracks in the album inherit it automatically.
+16. **`flutter_secure_storage` 11.2+ `AndroidOptions` Migration**:
+    - In `flutter_secure_storage: ^11.2.0`, the deprecated constructor parameter `encryptedSharedPreferences: true` was removed. The Android implementation uses standard Android KeyStore with AES-GCM encryption out of the box. Always instantiate using `const AndroidOptions(resetOnError: true)` to avoid runtime argument exceptions and ensure auto-recovery if the KeyStore key is corrupted or invalidated across OS upgrades.
+17. **Drift `QueryStream` 0-Duration Cleanup Timers in Riverpod Tests**:
+    - Drift's `QueryStream._onCancelOrPause` schedules a zero-duration timer (`Timer(Duration.zero, ...)`) when a stream subscription is canceled so rapid rebuilds don't prematurely discard cached query results. In Flutter widget tests, if a Drift query stream provider (such as `lastFmAccountProvider`) is watched by a page being tested, disposing the test `ProviderContainer` upon widget unmount schedules this timer. If the test completes without pumping or without overriding the provider, Flutter's test runner fails the test with `!timersPending`. In isolated widget tests that test non-Last.fm functionality (e.g. `SettingsPage` appearance tests), override `lastFmAccountProvider.overrideWith((ref) => Stream.value(null))` or pump zero-duration microtasks to avoid pending timers.
+18. **Last.fm Parameter Indexing Protocol**:
+    - The Last.fm 2.0 API requires parameter indexing (`track[0]`, `artist[0]`, `timestamp[0]`) only when submitting batches of multiple tracks. Submitting a single track with indexed `[0]` parameters causes Last.fm to return empty responses or parse errors on some endpoints. `LastFmApiClient.scrobbleBatch` dynamically selects un-indexed parameter names (`track`, `artist`) when `batch.length == 1`, and indexed parameter names when `batch.length > 1`.
 
 ---
 
@@ -318,7 +358,7 @@ dart run build_runner build --delete-conflicting-outputs
 # Verify static analysis (must be 0 issues)
 flutter analyze
 
-# Run all tests (all 173 tests must pass)
+# Run all tests (all 227 tests must pass)
 flutter test
 
 # Auto-format Dart source code

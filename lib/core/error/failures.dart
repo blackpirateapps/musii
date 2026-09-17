@@ -92,3 +92,48 @@ final class DatabaseFailure extends AppFailure {
 final class ValidationFailure extends AppFailure {
   const ValidationFailure(super.message, {super.technicalDetails, super.cause});
 }
+
+final class LastFmAuthenticationFailure extends AppFailure {
+  final int? errorCode;
+  const LastFmAuthenticationFailure(
+    super.message, {
+    this.errorCode,
+    super.technicalDetails,
+    super.cause,
+  });
+}
+
+final class LastFmNetworkFailure extends AppFailure {
+  const LastFmNetworkFailure(
+    super.message, {
+    super.technicalDetails,
+    super.cause,
+  });
+}
+
+final class LastFmApiFailure extends AppFailure {
+  final int? errorCode;
+  const LastFmApiFailure(
+    super.message, {
+    this.errorCode,
+    super.technicalDetails,
+    super.cause,
+  });
+}
+
+final class LastFmRateLimitFailure extends AppFailure {
+  const LastFmRateLimitFailure(
+    super.message, {
+    super.technicalDetails,
+    super.cause,
+  });
+}
+
+final class LastFmConfigurationFailure extends AppFailure {
+  const LastFmConfigurationFailure(
+    super.message, {
+    super.technicalDetails,
+    super.cause,
+  });
+}
+

@@ -327,3 +327,55 @@ class LyricWords extends Table {
   @override
   Set<Column> get primaryKey => {id};
 }
+
+@DataClassName('LastFmAccountRow')
+class LastFmAccounts extends Table {
+  TextColumn get id => text()(); // 'current'
+  TextColumn get username => text()();
+  TextColumn get realName => text().nullable()();
+  TextColumn get avatarUrl => text().nullable()();
+  TextColumn get profileUrl => text()();
+  IntColumn get scrobbleCount => integer().withDefault(const Constant(0))();
+  TextColumn get status => text()(); // 'connected', 'reauth_required', 'disconnected'
+  DateTimeColumn get lastSyncedAt => dateTime().nullable()();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+@DataClassName('PendingScrobbleRow')
+class PendingScrobbles extends Table {
+  TextColumn get id => text()();
+  TextColumn get trackId => text().nullable()();
+  TextColumn get trackTitle => text()();
+  TextColumn get artistName => text()();
+  TextColumn get albumName => text().nullable()();
+  TextColumn get albumArtist => text().nullable()();
+  IntColumn get durationMs => integer().withDefault(const Constant(0))();
+  IntColumn get timestamp => integer()(); // Unix timestamp in seconds
+  TextColumn get status => text()(); // 'pending', 'sending', 'failed_retryable', 'failed_reauth'
+  IntColumn get attempts => integer().withDefault(const Constant(0))();
+  DateTimeColumn get lastAttemptAt => dateTime().nullable()();
+  TextColumn get errorMessage => text().nullable()();
+  DateTimeColumn get createdAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+@DataClassName('ScrobbleHistoryRow')
+class ScrobbleHistory extends Table {
+  TextColumn get id => text()();
+  TextColumn get trackId => text().nullable()();
+  TextColumn get trackTitle => text()();
+  TextColumn get artistName => text()();
+  TextColumn get albumName => text().nullable()();
+  IntColumn get timestamp => integer()(); // Unix timestamp in seconds
+  DateTimeColumn get scrobbledAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+

@@ -6,6 +6,7 @@ import 'package:musii/app/bootstrap/providers.dart';
 import 'package:musii/core/constants/app_constants.dart';
 import 'package:musii/core/database/app_database.dart';
 import 'package:musii/features/authentication/domain/entities/auth_user.dart';
+import 'package:musii/features/last_fm/presentation/providers/last_fm_providers.dart';
 import 'package:musii/features/library/domain/entities/music_entities.dart';
 import 'package:musii/features/library/presentation/pages/home_page.dart';
 import 'package:musii/features/library/presentation/pages/library_page.dart';
@@ -268,6 +269,10 @@ void main() {
       (tester) async {
         final db = AppDatabase(NativeDatabase.memory());
         addTearDown(db.close);
+        tester.view.physicalSize = const Size(800, 1400);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
 
         await tester.pumpWidget(
           ProviderScope(
@@ -277,6 +282,7 @@ void main() {
               cacheSizeProvider.overrideWith(
                 (ref) => Stream.value(1024 * 1024 * 50),
               ),
+              lastFmAccountProvider.overrideWith((ref) => Stream.value(null)),
               allTracksProvider('title')
                   .overrideWith((ref) => Stream.value([sampleTrack])),
             ],
@@ -286,10 +292,12 @@ void main() {
 
         await tester.pumpAndSettle();
 
-        expect(find.text('Settings'), findsOneWidget);
+        expect(find.text('Settings'), findsWidgets);
         expect(find.text('GOOGLE DRIVE'), findsOneWidget);
         expect(find.text('PLAYBACK'), findsOneWidget);
         expect(find.text('STORAGE & CACHE'), findsOneWidget);
+        expect(find.text('SERVICES'), findsOneWidget);
+        expect(find.text('Last.fm'), findsOneWidget);
         expect(find.text('APPEARANCE'), findsOneWidget);
         expect(find.text('ABOUT'), findsOneWidget);
         expect(find.text('Gapless Playback'), findsOneWidget);
