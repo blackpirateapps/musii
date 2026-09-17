@@ -608,9 +608,9 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
     try {
       // If fresh sync, clean up obsolete discovered files from previous sync runs
       if (!isResume) {
-        await (_database.delete(_database.discoveredFiles)
-              ..where((tbl) => tbl.syncRunId.equals(syncRunId).not()))
-            .go();
+        await (_database.delete(
+          _database.discoveredFiles,
+        )..where((tbl) => tbl.syncRunId.equals(syncRunId).not())).go();
       }
 
       // 1. Record / update sync run in database
@@ -664,9 +664,9 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
       Set<String>? initialVisitedFolders;
 
       if (isResume) {
-        final existingRun = await (_database.select(_database.syncRuns)
-              ..where((tbl) => tbl.id.equals(syncRunId)))
-            .getSingleOrNull();
+        final existingRun = await (_database.select(
+          _database.syncRuns,
+        )..where((tbl) => tbl.id.equals(syncRunId))).getSingleOrNull();
 
         if (existingRun != null && existingRun.discoveryCompleted) {
           discoveryAlreadyComplete = true;
@@ -829,16 +829,14 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
         }
 
         // Discovery completed! Mark discoveryCompleted = true
-        await (_database.update(_database.syncRuns)
-              ..where((tbl) => tbl.id.equals(syncRunId)))
-            .write(
+        await (_database.update(
+          _database.syncRuns,
+        )..where((tbl) => tbl.id.equals(syncRunId))).write(
           SyncRunsCompanion(
             discoveryCompleted: const Value(true),
             pendingFoldersJson: const Value(null),
             visitedFoldersJson: const Value(null),
-            filesDiscovered: Value(
-              allDriveFiles.where((f) => !f.isLrc).length,
-            ),
+            filesDiscovered: Value(allDriveFiles.where((f) => !f.isLrc).length),
             updatedAt: Value(DateTime.now()),
             lastCheckpointAt: Value(DateTime.now()),
           ),
@@ -1152,7 +1150,8 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
         }
       }
 
-      // 7. Recompute library aggregates
+      // 7. Reconcile duplicate albums and recompute library aggregates
+      await _database.reconcileDuplicateAlbums();
       await _recomputeLibraryAggregates();
 
       // 8. Finalize sync run record
@@ -1356,7 +1355,8 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
         );
 
     // 2. Album
-    final effectiveAlbumArtist = (meta.albumArtist != null && meta.albumArtist!.trim().isNotEmpty)
+    final effectiveAlbumArtist =
+        (meta.albumArtist != null && meta.albumArtist!.trim().isNotEmpty)
         ? meta.albumArtist!
         : meta.artist;
 
@@ -1372,13 +1372,64 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
     );
     final artworkFile = _fileSystem.getArtworkCacheFile(artworkKey);
 
-    final existingAlbum = await (_database.select(_database.albums)
-          ..where((tbl) => tbl.albumKey.equals(canonicalAlbumKey)))
-        .getSingleOrNull();
+    var existingAlbum =
+        await (_database.select(_database.albums)
+              ..where((tbl) => tbl.albumKey.equals(canonicalAlbumKey)))
+            .getSingleOrNull();
+
+    // If not found and meta.albumArtist was not explicitly tagged:
+    // Check if an existing album with the same normalizedTitle already exists
+    // whose artist is compatible with meta.artist (e.g. prefix / substring match)
+    if (existingAlbum == null && meta.albumArtist == null) {
+      final titleCandidates =
+          await (_database.select(_database.albums)..where(
+                (tbl) => tbl.normalizedTitle.equals(meta.normalizedAlbum),
+              ))
+              .get();
+      for (final candidate in titleCandidates) {
+        final candArtist = (candidate.artistName ?? '').toLowerCase().trim();
+        final trackArtist = meta.artist.toLowerCase().trim();
+        if (candArtist.isNotEmpty &&
+            (candArtist == trackArtist ||
+                trackArtist.startsWith(candArtist) ||
+                candArtist.startsWith(trackArtist) ||
+                trackArtist.contains(candArtist))) {
+          existingAlbum = candidate;
+          break;
+        }
+      }
+    }
 
     final String albumId;
     if (existingAlbum != null) {
       albumId = existingAlbum.id;
+
+      // If the incoming track has an explicit albumArtist that the existing album lacks,
+      // upgrade the existing album's artistName, artistId, and albumKey.
+      if (meta.albumArtist != null &&
+          meta.albumArtist!.trim().isNotEmpty &&
+          existingAlbum.artistName != meta.albumArtist) {
+        final albumArtistId = 'artist_${canonicalAlbumKey.split("::").last}';
+        await _database
+            .into(_database.artists)
+            .insertOnConflictUpdate(
+              ArtistsCompanion(
+                id: Value(albumArtistId),
+                name: Value(meta.albumArtist!),
+                normalizedName: Value(canonicalAlbumKey.split("::").last),
+              ),
+            );
+        await (_database.update(
+          _database.albums,
+        )..where((tbl) => tbl.id.equals(albumId))).write(
+          AlbumsCompanion(
+            artistId: Value(albumArtistId),
+            artistName: Value(meta.albumArtist!),
+            albumKey: Value(canonicalAlbumKey),
+          ),
+        );
+      }
+
       if (existingAlbum.artworkPath == null && artworkFile.existsSync()) {
         await (_database.update(_database.albums)
               ..where((tbl) => tbl.id.equals(albumId)))
@@ -1386,20 +1437,24 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
       }
     } else {
       albumId = 'album_$canonicalAlbumKey';
-      
+
       // Ensure the album artist exists in Artists table
       final albumArtistId = 'artist_${canonicalAlbumKey.split("::").last}';
       if (albumArtistId != artistId) {
-         await _database.into(_database.artists).insertOnConflictUpdate(
-           ArtistsCompanion(
-             id: Value(albumArtistId),
-             name: Value(effectiveAlbumArtist),
-             normalizedName: Value(canonicalAlbumKey.split("::").last),
-           ),
-         );
+        await _database
+            .into(_database.artists)
+            .insertOnConflictUpdate(
+              ArtistsCompanion(
+                id: Value(albumArtistId),
+                name: Value(effectiveAlbumArtist),
+                normalizedName: Value(canonicalAlbumKey.split("::").last),
+              ),
+            );
       }
 
-      await _database.into(_database.albums).insert(
+      await _database
+          .into(_database.albums)
+          .insert(
             AlbumsCompanion(
               id: Value(albumId),
               albumKey: Value(canonicalAlbumKey),
@@ -1444,7 +1499,7 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
             artistName: Value(meta.artist),
             albumId: Value(albumId),
             albumName: Value(meta.album),
-            albumArtist: Value(meta.albumArtist),
+            albumArtist: Value(meta.albumArtist ?? effectiveAlbumArtist),
             genre: Value(meta.genre),
             trackNumber: Value(meta.trackNumber),
             discNumber: Value(meta.discNumber),
@@ -1472,6 +1527,14 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
       final tracks = await (_database.select(
         _database.tracks,
       )..where((tbl) => tbl.albumId.equals(alb.id))).get();
+
+      if (tracks.isEmpty) {
+        await (_database.delete(
+          _database.albums,
+        )..where((tbl) => tbl.id.equals(alb.id))).go();
+        continue;
+      }
+
       final totalMs = tracks.fold<int>(0, (sum, t) => sum + t.durationMs);
       await (_database.update(
         _database.albums,
@@ -1491,6 +1554,14 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
       final albums = await (_database.select(
         _database.albums,
       )..where((tbl) => tbl.artistId.equals(art.id))).get();
+
+      if (tracks.isEmpty && albums.isEmpty) {
+        await (_database.delete(
+          _database.artists,
+        )..where((tbl) => tbl.id.equals(art.id))).go();
+        continue;
+      }
+
       await (_database.update(
         _database.artists,
       )..where((tbl) => tbl.id.equals(art.id))).write(

@@ -1,10 +1,10 @@
 # Musii — AI Engineering Handoff Document
 
-> **Document Version**: 1.9.0  
+> **Document Version**: 1.10.0  
 > **Target Audience**: Incoming AI Coding Assistants & Human Software Engineers  
 > **Last Verified**: September 2026  
 > **App Identifier**: `com.blackpirateapps.musii`  
-> **Test Status**: 139 / 139 Passing (`flutter test`), 0 Analyzer Warnings (`flutter analyze`)
+> **Test Status**: 157 / 157 Passing (`flutter test`), 0 Analyzer Warnings (`flutter analyze`)
 
 ---
 
@@ -36,7 +36,7 @@ The codebase strictly adheres to standard four-layer Clean Architecture:
    - `logging/app_logger.dart`: Structured categorical logging with OAuth token redaction.
    - `constants/app_constants.dart`: Design tokens (`AppRadii`, `AppSpacing`, `AppAudioConstants`, `AppGreeting`).
    - `filesystem/app_file_system.dart`: Centralized cache directory management, `.partial` file staging, and atomic commits.
-   - `database/`: Drift SQLite setup, 22 tables with `@DataClassName` annotations and schema v5 migration.
+   - `database/`: Drift SQLite setup, 22 tables with `@DataClassName` annotations and schema v7 migration.
 2. **Domain (`lib/features/*/domain/`)**:
    - Pure Dart entities (`Track`, `Album`, `Artist`, `Genre`, `Playlist`, `CacheEntry`, `PlayerStateSnapshot`, `TrackLyrics`, `LyricLine`, `LyricWord`, `LyricSource`, `SyncProgress`, `SyncPhase`, `SyncCancellationToken`).
    - Repository interfaces declaring business contracts (`MusicLibraryRepository`, `GoogleDriveRepository`, `CacheRepository`, `PlaybackRepository`, `LyricsRepository`, `PlaylistRepository`, etc.).
@@ -276,10 +276,18 @@ Located in `lib/app/theme/app_theme.dart`, `lib/app/app.dart`, `lib/features/set
     - When interrupting an active sync session to switch folders, always request cancellation via `SyncCancellationToken` and await `_activeSyncCompleter!.future` before modifying sync state or database records. This guarantees the previous sync's atomic transaction, file deletions, and `_isSyncRunning` teardown complete cleanly before the new folder sync begins. Furthermore, never overwrite `DiscoveredFiles` without scoping by `syncRunId`, ensuring resumed syncs can accurately bypass remote Google Drive scans when `discoveryCompleted == true`.
 12. **Cupertino Dynamic Theme Resolution & WidgetsBindingObserver**:
     - `CupertinoApp.router` requires explicit `CupertinoThemeData` to update when system brightness toggles. Hardcoding `theme: AppTheme.lightTheme` prevents brightness inheritance. `MusiiApp` registers a `WidgetsBindingObserver` to trigger reactive frame rebuilds upon `didChangePlatformBrightness()`, dynamically supplying `AppTheme.darkTheme` or `AppTheme.lightTheme` according to user settings and device state.
-13. **Canonical Album Identity & Duplicate Reconciliation**:
-    - **Issue**: Syncing tracks from compilation albums or tracks with different case/whitespace could result in duplicate conceptual albums (e.g., "Discovery" and " discovery ").
-    - **Solution**: Implemented a canonical `albumKey` (`albumName::effectiveAlbumArtist`) utilizing deterministic normalization. `effectiveAlbumArtist` prioritizes `albumArtist` over the individual `trackArtist` when available.
-    - **Database Changes**: Schema version updated to v6. `albumKey` added to `Albums` table with a `UNIQUE` constraint. `TableMigration` maps existing `id` to `albumKey` temporarily, followed by a programmatic reconciliation loop (`_reconcileDuplicateAlbums`) that groups albums, reassigns tracks to surviving canonical albums, safely merges metadata, and deletes duplicate rows to satisfy `albumKey` uniqueness without rebuilding the library.
+13. **Canonical Album Identity, Multi-Format Tag Extraction & Reconciliation (Schema v7)**:
+    - **Issue**: In music libraries with FLAC, WAV, MP3, and M4A audio files, duplicate album cards frequently appeared when tracks featured guest artists (e.g., "Daft Punk feat. Julian Casablancas") or belonged to compilation/soundtrack releases, because audio parsers defaulted to track artist rather than reading true album artist tags. Furthermore, third-party parser `audio_metadata_reader` suffered severe format limitations:
+      - Dropped `albumArtist` completely for MP3 files (ID3v2 `TPE2`/`TXXX`).
+      - Ignored MP4/M4A `aART` and `cpil` atoms.
+      - Dropped `ALBUM ARTIST` (with space) in FLAC Vorbis comments (only checked `ALBUMARTIST`).
+      - Contained a bug where null bytes were prepended to ID3 `TXXX` values (`\x00ALBUM ARTIST`).
+      - Completely lacked RIFF `id3 ` / `INFO` chunk parsing for WAV files.
+    - **Solution**:
+      - **Low-Level Tag Supplement Parser (`TagSupplementReader`)**: Implemented a high-speed format-aware binary tag parser (`lib/features/metadata/data/datasources/tag_supplement_reader.dart`) that parses FLAC (Vorbis comments with and without spaces, ensemble, orchestra, band, compilation flags, skipping ID3v2 headers), WAV (RIFF chunk walker for `id3 `, `ID3 `, `LIST/INFO` `IAAR`/`IART`, and leading ID3v2 headers), MP3 (ID3v2 parser for `TPE2`, `TXXX:ALBUM ARTIST`, `TCMP`), and MP4/M4A (`moov/udta/meta/ilst` atom parser for `aART`, `cpil`, `----` custom reverse-DNS boxes). Strips embedded null bytes and normalizes artist names.
+      - **Ingestion Pipeline Matching**: In `MusicLibraryRepositoryImpl`, track ingestion assigns `meta.albumArtist ?? effectiveAlbumArtist` directly to `Tracks.albumArtist`. When `meta.albumArtist` is missing, existing albums with the same `normalizedTitle` are checked for compatible artist prefixes or substrings. When a subsequent track supplies the canonical album artist, the existing album record is upgraded in-place.
+      - **Schema v7 Database Migration & Reconciler (`reconcileDuplicateAlbums`)**: Upgraded Drift schema to v7 (`lib/core/database/app_database.dart`). The reconciliation engine groups all albums by `normalizedTitle`, sorts candidates by root artist length, and groups them via transitive compatibility (matching any member in a subgroup). It elects the canonical winning album artist (giving priority to known album artists and base artist names), reassigns tracks, updates surviving album metadata, and deletes duplicate album rows.
+      - **Library Aggregate & Zombie Pruning**: At the conclusion of sync, `_recomputeLibraryAggregates()` prunes 0-track zombie albums and 0-track/0-album orphaned artists to maintain referential integrity.
 
 ---
 
@@ -295,7 +303,7 @@ dart run build_runner build --delete-conflicting-outputs
 # Verify static analysis (must be 0 issues)
 flutter analyze
 
-# Run all tests (all 91 tests must pass)
+# Run all tests (all 157 tests must pass)
 flutter test
 
 # Auto-format Dart source code

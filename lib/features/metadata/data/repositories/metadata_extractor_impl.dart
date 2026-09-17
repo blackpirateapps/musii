@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 
 import '../../../../core/filesystem/app_file_system.dart';
 import '../../../../core/logging/app_logger.dart';
+import '../datasources/tag_supplement_reader.dart';
 import '../../domain/entities/parsed_audio_metadata.dart';
 import '../../domain/services/metadata_normalization_service.dart';
 
@@ -27,6 +28,7 @@ class MetadataExtractor {
 
     try {
       final meta = amr.readMetadata(file, getImage: true);
+      final supplement = await AudioTagSupplement.extract(file, ext);
 
       Uint8List? artworkBytes;
       if (meta.pictures.isNotEmpty) {
@@ -36,13 +38,30 @@ class MetadataExtractor {
       final durationMs = meta.duration?.inMilliseconds ?? 0;
       final year = meta.year?.year;
 
+      final resolvedArtist =
+          (supplement.songArtist != null &&
+              supplement.songArtist!.trim().isNotEmpty)
+          ? supplement.songArtist!.trim()
+          : meta.artist?.trim();
+
+      String? resolvedAlbumArtist =
+          (supplement.albumArtist != null &&
+              supplement.albumArtist!.trim().isNotEmpty)
+          ? supplement.albumArtist!.trim()
+          : meta.albumArtist?.trim();
+
+      if (supplement.isCompilation &&
+          (resolvedAlbumArtist == null || resolvedAlbumArtist.isEmpty)) {
+        resolvedAlbumArtist = MetadataNormalizationService.variousArtists;
+      }
+
       final parsed = ParsedAudioMetadata(
         title: (meta.title != null && meta.title!.trim().isNotEmpty)
             ? meta.title!.trim()
             : MetadataNormalizationService.cleanFilename(fileName),
-        artist: meta.artist?.trim(),
+        artist: resolvedArtist,
         album: meta.album?.trim(),
-        albumArtist: meta.albumArtist?.trim(),
+        albumArtist: resolvedAlbumArtist,
         genre: meta.genres.isNotEmpty ? meta.genres.first : null,
         year: year,
         trackNumber: meta.trackNumber,
@@ -58,9 +77,9 @@ class MetadataExtractor {
             : null,
         rawMetadata: {
           'title': meta.title,
-          'artist': meta.artist,
+          'artist': resolvedArtist,
           'album': meta.album,
-          'albumArtist': meta.albumArtist,
+          'albumArtist': resolvedAlbumArtist,
           'durationMs': durationMs,
           'trackNumber': meta.trackNumber,
           'discNumber': meta.discNumber,
@@ -68,12 +87,18 @@ class MetadataExtractor {
           'bitrate': meta.bitrate,
           'sampleRate': meta.sampleRate,
           'hasLyrics': meta.lyrics != null && meta.lyrics!.trim().isNotEmpty,
+          'isCompilation': supplement.isCompilation,
         },
       );
 
       // Save artwork if available
       if (artworkBytes != null && artworkBytes.isNotEmpty) {
-        await _saveArtworkIfNew(parsed.album, parsed.artist, artworkBytes);
+        final effectiveArtist =
+            (parsed.albumArtist != null &&
+                parsed.albumArtist!.trim().isNotEmpty)
+            ? parsed.albumArtist
+            : parsed.artist;
+        await _saveArtworkIfNew(parsed.album, effectiveArtist, artworkBytes);
       }
 
       return parsed;

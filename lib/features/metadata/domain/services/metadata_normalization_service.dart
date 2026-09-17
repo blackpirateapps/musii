@@ -22,7 +22,10 @@ class MetadataNormalizationService {
     final album = _normalizeAlbum(raw.album);
     final normalizedAlbum = _createSearchKey(album);
 
-    final albumArtist = raw.albumArtist?.trim();
+    final rawAlbumArtist = raw.albumArtist?.trim();
+    final albumArtist = (rawAlbumArtist != null && rawAlbumArtist.isNotEmpty)
+        ? _normalizeArtist(rawAlbumArtist)
+        : null;
     final genre = _normalizeGenre(raw.genre);
     final normalizedGenre = genre != null ? _createSearchKey(genre) : null;
 
@@ -33,7 +36,7 @@ class MetadataNormalizationService {
       normalizedArtist: normalizedArtist,
       album: album,
       normalizedAlbum: normalizedAlbum,
-      albumArtist: albumArtist?.isNotEmpty == true ? albumArtist : null,
+      albumArtist: albumArtist,
       genre: genre,
       normalizedGenre: normalizedGenre,
       trackNumber: raw.trackNumber,
@@ -231,13 +234,14 @@ class MetadataNormalizationService {
     required String? albumArtist,
     required String trackArtist,
   }) {
-    final effectiveArtist = (albumArtist != null && albumArtist.trim().isNotEmpty)
+    final effectiveArtist =
+        (albumArtist != null && albumArtist.trim().isNotEmpty)
         ? albumArtist
         : trackArtist;
-    
+
     final normAlbum = _createSearchKey(_normalizeAlbum(albumName));
     final normArtist = _createSearchKey(_normalizeArtist(effectiveArtist));
-    
+
     return '$normAlbum::$normArtist';
   }
 }
