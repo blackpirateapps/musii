@@ -26,6 +26,7 @@ import '../../features/playlists/data/repositories/playlist_repository_impl.dart
 import '../../features/recently_played/data/repositories/recently_played_repository_impl.dart';
 import '../../features/search/data/repositories/search_repository_impl.dart';
 import '../../features/settings/data/repositories/settings_repository_impl.dart';
+import '../../features/settings/domain/entities/app_theme_mode.dart';
 
 // Database & File System
 final appDatabaseProvider = Provider<AppDatabase>((ref) {
@@ -137,6 +138,26 @@ final settingsRepositoryProvider = Provider<SettingsRepository>((ref) {
   final db = ref.watch(appDatabaseProvider);
   return SettingsRepositoryImpl(database: db);
 });
+
+class ThemeModeNotifier extends Notifier<AppThemeMode> {
+  @override
+  AppThemeMode build() {
+    final settings = ref.watch(settingsRepositoryProvider);
+    settings.getThemeMode().then((mode) {
+      state = mode;
+    });
+    return AppThemeMode.system;
+  }
+
+  Future<void> setThemeMode(AppThemeMode mode) async {
+    state = mode;
+    final settings = ref.read(settingsRepositoryProvider);
+    await settings.setThemeMode(mode);
+  }
+}
+
+final themeModeProvider =
+    NotifierProvider<ThemeModeNotifier, AppThemeMode>(ThemeModeNotifier.new);
 
 // Connectivity
 final connectivityServiceProvider = Provider<ConnectivityService>((ref) {

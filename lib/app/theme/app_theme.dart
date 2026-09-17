@@ -36,7 +36,7 @@ abstract final class AppTheme {
     primaryColor: accentColor,
     primaryContrastingColor: CupertinoColors.white,
     barBackgroundColor: Color(0xCC1A1A1A),
-    scaffoldBackgroundColor: Color(0xFF000000),
+    scaffoldBackgroundColor: Color(0xFF0C0D12),
     textTheme: CupertinoTextThemeData(
       primaryColor: CupertinoColors.white,
       navLargeTitleTextStyle: TextStyle(

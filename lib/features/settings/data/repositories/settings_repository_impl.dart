@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/database/app_database.dart';
+import '../../domain/entities/app_theme_mode.dart';
 
 abstract class SettingsRepository {
   Future<int> getCacheLimitBytes();
@@ -10,6 +11,8 @@ abstract class SettingsRepository {
   Future<void> setGaplessPlayback(bool enabled);
   Future<int> getCrossfadeDurationMs();
   Future<void> setCrossfadeDurationMs(int ms);
+  Future<AppThemeMode> getThemeMode();
+  Future<void> setThemeMode(AppThemeMode mode);
 }
 
 class SettingsRepositoryImpl implements SettingsRepository {
@@ -68,5 +71,16 @@ class SettingsRepositoryImpl implements SettingsRepository {
   @override
   Future<void> setCrossfadeDurationMs(int ms) async {
     await _setValue('crossfade_duration_ms', ms.clamp(0, 10000).toString());
+  }
+
+  @override
+  Future<AppThemeMode> getThemeMode() async {
+    final val = await _getValue('theme_mode');
+    return AppThemeMode.fromString(val);
+  }
+
+  @override
+  Future<void> setThemeMode(AppThemeMode mode) async {
+    await _setValue('theme_mode', mode.name);
   }
 }

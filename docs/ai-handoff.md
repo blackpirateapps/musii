@@ -1,10 +1,10 @@
 # Musii — AI Engineering Handoff Document
 
-> **Document Version**: 1.8.0  
+> **Document Version**: 1.9.0  
 > **Target Audience**: Incoming AI Coding Assistants & Human Software Engineers  
 > **Last Verified**: September 2026  
 > **App Identifier**: `com.blackpirateapps.musii`  
-> **Test Status**: 127 / 127 Passing (`flutter test`), 0 Analyzer Warnings (`flutter analyze`)
+> **Test Status**: 139 / 139 Passing (`flutter test`), 0 Analyzer Warnings (`flutter analyze`)
 
 ---
 
@@ -238,6 +238,13 @@ Located in `lib/features/playback/domain/entities/playback_state.dart`, `lib/fea
 - **Swipe-to-Remove & Safe Clear Up Next**: Swipe left on any up-next item triggers a `Dismissible` with a red destructive background and trash icon. "Clear Up Next" safely flushes upcoming tracks without stopping or resetting the currently playing song.
 - **SQLite Queue Persistence**: Queue order and item identities are durably written to the `playback_queue` Drift table and restored during app cold start (`restoreSavedState()`).
 
+### 9. Theme Architecture & Dynamic Dark/Light Mode
+Located in `lib/app/theme/app_theme.dart`, `lib/app/app.dart`, `lib/features/settings/`, and `lib/app/bootstrap/providers.dart`:
+- **Dynamic Platform Brightness Tracking**: `MusiiApp` mixes in `WidgetsBindingObserver` to listen to system `didChangePlatformBrightness()` events, resolving brightness dynamically from `View.maybeOf(context)?.platformDispatcher.platformBrightness ?? WidgetsBinding.instance.platformDispatcher.platformBrightness`.
+- **System & Manual Modes (`AppThemeMode`)**: Supports `Follow System` (default), `Dark Mode`, and `Light Mode`, persisted in SQLite via `SettingsRepository` and exposed reactively through Riverpod `themeModeProvider`.
+- **Atmospheric Dark Aesthetics**: Dark mode applies `Color(0xFF0C0D12)` scaffold background across all screens with atmospheric twilight glows, frosted glass cards (`ContinueListeningCard`, `MiniPlayer`), and dark Cupertino navigation bars.
+- **Cupertino Action Sheet Selection**: Settings > Appearance provides an interactive Cupertino action sheet allowing immediate theme switching and feedback.
+
 ---
 
 ## 4. Important Pitfalls, Caveats & Solutions
@@ -267,6 +274,8 @@ Located in `lib/features/playback/domain/entities/playback_state.dart`, `lib/fea
     - Avoid `await ref.read(isTrackFavoriteProvider(id).future)` inside modal action sheet openers, as awaiting stream completion introduces an asynchronous microtask delay that delays popup rendering. Instead, query synchronous state via `ref.read(isTrackFavoriteProvider(id)).value ?? false` or pass a `Consumer` inside the dialog.
 11. **Discovery State Persistence & Cancellation Locks**:
     - When interrupting an active sync session to switch folders, always request cancellation via `SyncCancellationToken` and await `_activeSyncCompleter!.future` before modifying sync state or database records. This guarantees the previous sync's atomic transaction, file deletions, and `_isSyncRunning` teardown complete cleanly before the new folder sync begins. Furthermore, never overwrite `DiscoveredFiles` without scoping by `syncRunId`, ensuring resumed syncs can accurately bypass remote Google Drive scans when `discoveryCompleted == true`.
+12. **Cupertino Dynamic Theme Resolution & WidgetsBindingObserver**:
+    - `CupertinoApp.router` requires explicit `CupertinoThemeData` to update when system brightness toggles. Hardcoding `theme: AppTheme.lightTheme` prevents brightness inheritance. `MusiiApp` registers a `WidgetsBindingObserver` to trigger reactive frame rebuilds upon `didChangePlatformBrightness()`, dynamically supplying `AppTheme.darkTheme` or `AppTheme.lightTheme` according to user settings and device state.
 
 ---
 

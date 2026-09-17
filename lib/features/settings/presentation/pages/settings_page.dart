@@ -9,6 +9,7 @@ import '../../../google_drive/presentation/pages/drive_connect_page.dart';
 import '../../../google_drive/presentation/pages/drive_folder_picker_page.dart';
 import '../../../library/domain/entities/sync_progress.dart';
 import '../../../library/presentation/widgets/sync_progress_sheet.dart';
+import '../../domain/entities/app_theme_mode.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
   const SettingsPage({super.key});
@@ -154,12 +155,90 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     );
   }
 
+  void _showThemeSelector(
+    BuildContext context,
+    WidgetRef ref,
+    AppThemeMode currentMode,
+  ) {
+    showCupertinoModalPopup(
+      context: context,
+      builder: (ctx) => CupertinoActionSheet(
+        title: const Text('Appearance Theme'),
+        message: const Text('Choose how Musii looks on your device'),
+        actions: [
+          CupertinoActionSheetAction(
+            isDefaultAction: currentMode == AppThemeMode.system,
+            onPressed: () {
+              Navigator.pop(ctx);
+              ref
+                  .read(themeModeProvider.notifier)
+                  .setThemeMode(AppThemeMode.system);
+            },
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (currentMode == AppThemeMode.system) ...[
+                  const Icon(CupertinoIcons.checkmark_alt, size: 20),
+                  const SizedBox(width: 8),
+                ],
+                const Text('Follow System'),
+              ],
+            ),
+          ),
+          CupertinoActionSheetAction(
+            isDefaultAction: currentMode == AppThemeMode.dark,
+            onPressed: () {
+              Navigator.pop(ctx);
+              ref
+                  .read(themeModeProvider.notifier)
+                  .setThemeMode(AppThemeMode.dark);
+            },
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (currentMode == AppThemeMode.dark) ...[
+                  const Icon(CupertinoIcons.checkmark_alt, size: 20),
+                  const SizedBox(width: 8),
+                ],
+                const Text('Dark Mode'),
+              ],
+            ),
+          ),
+          CupertinoActionSheetAction(
+            isDefaultAction: currentMode == AppThemeMode.light,
+            onPressed: () {
+              Navigator.pop(ctx);
+              ref
+                  .read(themeModeProvider.notifier)
+                  .setThemeMode(AppThemeMode.light);
+            },
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (currentMode == AppThemeMode.light) ...[
+                  const Icon(CupertinoIcons.checkmark_alt, size: 20),
+                  const SizedBox(width: 8),
+                ],
+                const Text('Light Mode'),
+              ],
+            ),
+          ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          child: const Text('Cancel'),
+          onPressed: () => Navigator.pop(ctx),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final userAsync = ref.watch(currentUserProvider);
     final user = userAsync.value;
     final cacheSizeAsync = ref.watch(cacheSizeProvider);
     final cacheSize = cacheSizeAsync.value ?? 0;
+    final themeMode = ref.watch(themeModeProvider);
     final isDark = CupertinoTheme.brightnessOf(context) == Brightness.dark;
 
     return CupertinoPageScaffold(
@@ -349,13 +428,29 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               // 4. Appearance
               CupertinoListSection.insetGrouped(
                 header: const Text('APPEARANCE'),
-                children: const [
+                children: [
                   CupertinoListTile(
-                    title: Text('Theme'),
-                    trailing: Text(
-                      'Follow System',
-                      style: TextStyle(color: CupertinoColors.systemGrey),
+                    title: const Text('Theme'),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          themeMode.label,
+                          style: TextStyle(
+                            color: isDark
+                                ? CupertinoColors.systemGrey
+                                : CupertinoColors.secondaryLabel,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        const Icon(
+                          CupertinoIcons.chevron_forward,
+                          size: 18,
+                          color: CupertinoColors.systemGrey,
+                        ),
+                      ],
                     ),
+                    onTap: () => _showThemeSelector(context, ref, themeMode),
                   ),
                 ],
               ),
