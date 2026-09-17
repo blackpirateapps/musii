@@ -107,13 +107,13 @@ class MusiiAudioHandler extends BaseAudioHandler
     queue.add(_currentQueue.map((item) => _toMediaItem(item.track)).toList());
   }
 
-  void _broadcastPlaybackState() {
+  void _broadcastPlaybackState({bool isRestore = false}) {
     if (_loadingTrackId != null) return;
     final isPlaying = _player.playing;
     final processing = _player.processingState;
 
     final audioProcessing = switch (processing) {
-      ProcessingState.idle => AudioProcessingState.idle,
+      ProcessingState.idle => isRestore ? AudioProcessingState.ready : AudioProcessingState.idle,
       ProcessingState.loading => AudioProcessingState.loading,
       ProcessingState.buffering => AudioProcessingState.buffering,
       ProcessingState.ready => AudioProcessingState.ready,
@@ -139,7 +139,7 @@ class MusiiAudioHandler extends BaseAudioHandler
         androidCompactActionIndices: const [0, 1, 2],
         processingState: audioProcessing,
         playing: isPlaying,
-        updatePosition: _player.position,
+        updatePosition: isRestore ? _snapshot.position : _player.position,
         bufferedPosition: _player.bufferedPosition,
         speed: _player.speed,
         queueIndex: _currentIndex,
@@ -885,7 +885,6 @@ class MusiiAudioHandler extends BaseAudioHandler
         );
 
         _syncMediaQueue();
-        _broadcastPlaybackState();
 
         final current = _currentTrack;
         if (current != null) {
@@ -903,6 +902,8 @@ class MusiiAudioHandler extends BaseAudioHandler
             ),
           );
         }
+
+        _broadcastPlaybackState(isRestore: true);
       }
     } catch (e) {
       AppLogger.warning(
