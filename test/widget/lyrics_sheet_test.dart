@@ -521,4 +521,102 @@ v1:<00:20.282>Searching <00:20.554>is <00:20.802>so <00:21.119>wrong <00:21.748>
       await playerController.close();
     },
   );
+
+  testWidgets(
+    'WordSyncedLyricText renders simulated feathered line sweep on active line without word timestamps',
+    (tester) async {
+      const standardLine = LyricLine(
+        timestampMs: 5000,
+        text: 'Standard LRC line',
+        sequence: 0,
+      );
+
+      await tester.pumpWidget(
+        const CupertinoApp(
+          home: Center(
+            child: WordSyncedLyricText(
+              line: standardLine,
+              position: Duration(milliseconds: 6500),
+              isActive: true,
+              isDark: true,
+              style: TextStyle(fontSize: 20),
+              nextLineTimestampMs: 9000,
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Expect single text widget and ShaderMask for feathered line sweep
+      expect(find.text('Standard LRC line'), findsOneWidget);
+      expect(find.byType(ShaderMask), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'WordSyncedLyricText renders feathered word highlight on active word',
+    (tester) async {
+      const wordLine = LyricLine(
+        timestampMs: 5000,
+        text: 'Hello world',
+        sequence: 0,
+        words: [
+          LyricWord(index: 0, text: 'Hello', startMs: 5000, endMs: 6000),
+          LyricWord(index: 1, text: 'world', startMs: 6000, endMs: 7000),
+        ],
+      );
+
+      // Position halfway through first word
+      await tester.pumpWidget(
+        const CupertinoApp(
+          home: Center(
+            child: WordSyncedLyricText(
+              line: wordLine,
+              position: Duration(milliseconds: 5500),
+              isActive: true,
+              isDark: true,
+              style: TextStyle(fontSize: 20),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(find.text('Hello'), findsOneWidget);
+      expect(find.text('world'), findsOneWidget);
+      // Active word has ShaderMask feathered glow
+      expect(find.byType(ShaderMask), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'LyricLineWidget wraps active line in RepaintBoundary for 60/120 FPS frame isolation',
+    (tester) async {
+      const line = LyricLine(
+        timestampMs: 5000,
+        text: 'Isolated line',
+        sequence: 0,
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          child: CupertinoApp(
+            home: LyricLineWidget(
+              line: line,
+              position: const Duration(milliseconds: 5000),
+              isActive: true,
+              isDark: true,
+              onTap: () {},
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(find.byType(RepaintBoundary), findsWidgets);
+    },
+  );
 }

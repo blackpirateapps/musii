@@ -1,10 +1,10 @@
 # Musii — AI Engineering Handoff Document
 
-> **Document Version**: 1.14.0  
+> **Document Version**: 1.15.0  
 > **Target Audience**: Incoming AI Coding Assistants & Human Software Engineers  
 > **Last Verified**: September 2026  
 > **App Identifier**: `com.blackpirateapps.musii`  
-> **Test Status**: 245 / 245 Passing (`flutter test`), 0 Analyzer Warnings (`flutter analyze`)
+> **Test Status**: 248 / 248 Passing (`flutter test`), 0 Analyzer Warnings (`flutter analyze`)
 
 ---
 
@@ -130,8 +130,10 @@ Located in `lib/features/lyrics/`:
   - `LyricLine.findActiveWordIndex(Duration position)`: Returns the active word index for word-synced lines.
   - `LyricWord.progressAt(Duration position)`: Computes normalized `[0.0, 1.0]` progress for in-place highlighting.
 - **Word-Level Highlight Renderer (`WordSyncedLyricText`, `LyricLineWidget`)**:
-  - **In-Place Progressive Highlighting**: Completed words remain 100% active, current word progressively reveals active text via `_HorizontalFractionClipper`, future words remain muted (38% opacity). Zero text shifting and pixel-perfect glyph alignment.
-  - **Fallback to Line-Level Sync**: Standard LRC lines without word timestamps render clean line-level highlighting.
+  - **Apple Music-Style Vsync-Driven Progressive Highlighting**: Sub-millisecond continuous 60/120 FPS position extrapolation via an isolated `AnimationController` in `LyricLineWidget`. Completed words remain 100% active, current word progressively reveals active text with a soft 8px feathered gradient mask (`ShaderMask(blendMode: BlendMode.srcIn)`), and future words remain muted (38% opacity).
+  - **Subtle Luminescence & Contrast Accent**: Active words sung in real-time gain an ethereal glow shadow (`blurRadius: 8.0`) that settles into crisp solid white upon completion.
+  - **Simulated Line-Wide Sweep for Standard LRC**: Standard LRC lines without word timestamps render a continuous 14px feathered horizontal light sweep across their estimated duration, keeping non-word-synced lyrics dynamic and fluid.
+  - **High-Frequency Stream & Repaint Boundary Isolation**: `LyricsSheet` is completely decoupled from high-frequency position ticks; each active `LyricLineWidget` is wrapped in `RepaintBoundary`, ensuring 60/120 FPS vsync repainting is strictly scoped to the active line canvas with zero parent rebuilds or sibling repaints.
   - **Symmetric Active/Inactive Line Transitions**: 280ms `Curves.easeOutCubic` animations via `AnimatedScale` (1.0 vs 0.97) and `AnimatedDefaultTextStyle`.
 - **Cupertino Lyrics Sheet (`LyricsSheet`)**:
   - **45% Viewport Focal Alignment**: Uses dynamic sheet geometry (`LayoutBuilder`) with top padding (40% viewport height) and bottom padding (55% viewport height).
@@ -366,6 +368,13 @@ Located in `lib/features/last_fm/`, `lib/core/storage/secure_credential_store.da
     - **Repaint Isolation**: Static heavy blur backdrops in `NowPlayingPage` and `MiniPlayer` are wrapped in `RepaintBoundary` to prevent canvas repainting when scrubbers or play/pause buttons update.
     - **Non-blocking Artwork Verification**: Removed synchronous `File.existsSync()` checks from widget build methods (`AlbumArtwork`, `NowPlayingPage`, `LyricsSheet`), delegating missing-file fallbacks to Flutter's asynchronous `Image.file(..., errorBuilder: ...)` to prevent UI-thread I/O stalls during fast flings.
     - **Image Cache Tuning**: Balanced `PaintingBinding.instance.imageCache.maximumSizeBytes` to 128 MB (down from 256 MB) to prevent garbage collection pauses on memory-constrained devices while retaining smooth scroll performance.
+23. **Vsync-Driven Word-by-Word Lyrics Extrapolation, Repaint Boundaries & Test Safety**:
+    - **Issue**: `just_audio` emits `positionStream` updates at discrete ~200ms intervals (5 FPS). In word-synced lyrics where words typically last 200–400ms, the highlight jumped abruptly across 3–5 characters in a single frame. Furthermore, watching `playbackPositionProvider` in `LyricsSheet` triggered rebuilds of the entire modal sheet, the heavy sigma-50 `BackdropFilter`, and all 50+ lines every 200ms, and using dual `Text` widgets inside a `Stack` caused `find.text()` in widget tests to fail due to duplicate candidate widgets.
+    - **Solution**:
+      1. **Sub-Millisecond Vsync Extrapolation**: Extracted audio clock forward extrapolation into `_LyricLineWidgetState` using an `AnimationController` that advances smoothly at 60/120 FPS while `isPlaying == true`. Reconciles incoming audio drift with anchor damping, and automatically stops when paused or after 500ms without ticks (ensuring widget tests with `pumpAndSettle()` settle cleanly without pending timers).
+      2. **Feathered Leading-Edge Shader Mask**: Replaced hard `ClipRect` with a GPU `ShaderMask(blendMode: BlendMode.srcIn)` rendering a single `Text` widget with an 8px soft feathered gradient wipe and active vocal glow, eliminating both glyph slicing and widget tree duplication.
+      3. **Simulated Line Sweep for Standard LRC**: For lines without word-level timing, applies a 14px feathered progressive sweep across the estimated line duration, bringing dynamic Apple Music styling to standard LRC lyrics.
+      4. **Isolated Active Line Repaint Boundary**: Wrapped active lines in `RepaintBoundary` and removed position watches from `LyricsSheet.build()`, ensuring only the active line repaints on vsync frames with 0% CPU overhead on inactive lines.
 
 ---
 

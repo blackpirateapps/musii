@@ -535,7 +535,10 @@ void main() {
       await newLibraryRepo.recoverInterruptedSyncIfNeeded();
 
       // Allow background async resume to complete
-      await Future<void>.delayed(const Duration(milliseconds: 50));
+      for (int i = 0; i < 50; i++) {
+        if (fakeDrive.downloadedFileIds.contains('df_3')) break;
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+      }
 
       // df_1 was already in database -> should have been skipped!
       expect(fakeDrive.downloadedFileIds, isNot(contains('df_1')));

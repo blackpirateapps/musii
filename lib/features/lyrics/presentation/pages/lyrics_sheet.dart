@@ -143,7 +143,6 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet> {
   @override
   Widget build(BuildContext context) {
     final track = widget.track;
-    final position = ref.watch(playbackPositionProvider);
 
     final lyricsAsync = ref.watch(trackLyricsProvider(track.id));
     final lyrics = lyricsAsync.value;
@@ -151,10 +150,7 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet> {
     final isDark = CupertinoTheme.brightnessOf(context) == Brightness.dark;
 
     // Listen to playback position changes and update active line
-    ref.listen<Duration>(playbackPositionProvider, (
-      prev,
-      next,
-    ) {
+    ref.listen<Duration>(playbackPositionProvider, (prev, next) {
       final currentPos = next;
       final currentLines = lyrics?.lines ?? const [];
       if (lyrics?.isSynchronized != true || currentLines.isEmpty) return;
@@ -434,13 +430,17 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet> {
                               itemBuilder: (ctx, i) {
                                 final line = data.lines[i];
                                 final isActive = (i == _activeIndex);
+                                final nextLineTimestampMs =
+                                    (i + 1 < data.lines.length)
+                                    ? data.lines[i + 1].timestampMs
+                                    : null;
 
                                 return LyricLineWidget(
                                   key: _getKeyForIndex(i),
                                   line: line,
-                                  position: position,
                                   isActive: isActive,
                                   isDark: isDark,
+                                  nextLineTimestampMs: nextLineTimestampMs,
                                   onTap: () {
                                     ref
                                         .read(playbackRepositoryProvider)
