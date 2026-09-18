@@ -90,8 +90,8 @@ class AppDatabase extends _$AppDatabase {
       },
       onUpgrade: (Migrator m, int from, int to) async {
         if (from < 2) {
-          await m.createTable(lyrics);
-          await m.createTable(lyricLines);
+          await _createTableSafely(m, lyrics);
+          await _createTableSafely(m, lyricLines);
           await customStatement(
             'CREATE INDEX IF NOT EXISTS idx_lyrics_track ON lyrics(track_id);',
           );
@@ -100,49 +100,51 @@ class AppDatabase extends _$AppDatabase {
           );
         }
         if (from < 3) {
-          await m.createTable(lyricWords);
+          await _createTableSafely(m, lyricWords);
           await customStatement(
             'CREATE INDEX IF NOT EXISTS idx_lyric_words_line ON lyric_words(line_id, word_index);',
           );
         }
         if (from < 4) {
-          await m.addColumn(syncRuns, syncRuns.rootFolderId);
-          await m.addColumn(syncRuns, syncRuns.rootFolderName);
-          await m.addColumn(syncRuns, syncRuns.updatedAt);
-          await m.addColumn(syncRuns, syncRuns.lastCheckpointAt);
-          await m.addColumn(syncRuns, syncRuns.phase);
-          await m.addColumn(syncRuns, syncRuns.currentFile);
-          await m.addColumn(syncRuns, syncRuns.errorMessage);
-          await m.addColumn(syncRuns, syncRuns.progressPercent);
+          await _addColumnSafely(m, syncRuns, syncRuns.rootFolderId);
+          await _addColumnSafely(m, syncRuns, syncRuns.rootFolderName);
+          await _addColumnSafely(m, syncRuns, syncRuns.updatedAt);
+          await _addColumnSafely(m, syncRuns, syncRuns.lastCheckpointAt);
+          await _addColumnSafely(m, syncRuns, syncRuns.phase);
+          await _addColumnSafely(m, syncRuns, syncRuns.currentFile);
+          await _addColumnSafely(m, syncRuns, syncRuns.errorMessage);
+          await _addColumnSafely(m, syncRuns, syncRuns.progressPercent);
           await customStatement(
             'CREATE INDEX IF NOT EXISTS idx_sync_runs_status ON sync_runs(status, started_at);',
           );
         }
         if (from < 5) {
-          await m.createTable(discoveredFiles);
-          await m.addColumn(syncRuns, syncRuns.discoveryCompleted);
-          await m.addColumn(syncRuns, syncRuns.pendingFoldersJson);
-          await m.addColumn(syncRuns, syncRuns.visitedFoldersJson);
+          await _createTableSafely(m, discoveredFiles);
+          await _addColumnSafely(m, syncRuns, syncRuns.discoveryCompleted);
+          await _addColumnSafely(m, syncRuns, syncRuns.pendingFoldersJson);
+          await _addColumnSafely(m, syncRuns, syncRuns.visitedFoldersJson);
           await customStatement(
             'CREATE INDEX IF NOT EXISTS idx_discovered_files_sync ON discovered_files(sync_run_id);',
           );
         }
         if (from < 6) {
-          await m.alterTable(
-            TableMigration(
-              albums,
-              columnTransformer: {albums.albumKey: albums.id},
-            ),
-          );
+          if (!await _columnExists('albums', 'album_key')) {
+            await m.alterTable(
+              TableMigration(
+                albums,
+                columnTransformer: {albums.albumKey: albums.id},
+              ),
+            );
+          }
           await reconcileDuplicateAlbums();
         }
         if (from < 7) {
           await reconcileDuplicateAlbums();
         }
         if (from < 8) {
-          await m.createTable(lastFmAccounts);
-          await m.createTable(pendingScrobbles);
-          await m.createTable(scrobbleHistory);
+          await _createTableSafely(m, lastFmAccounts);
+          await _createTableSafely(m, pendingScrobbles);
+          await _createTableSafely(m, scrobbleHistory);
           await customStatement(
             'CREATE INDEX IF NOT EXISTS idx_pending_scrobbles_status ON pending_scrobbles(status, timestamp);',
           );
@@ -151,12 +153,12 @@ class AppDatabase extends _$AppDatabase {
           );
         }
         if (from < 9) {
-          await m.addColumn(discoveredFiles, discoveredFiles.isProcessed);
-          await m.addColumn(discoveredFiles, discoveredFiles.processStatus);
-          await m.addColumn(discoveredFiles, discoveredFiles.processedAt);
+          await _addColumnSafely(m, discoveredFiles, discoveredFiles.isProcessed);
+          await _addColumnSafely(m, discoveredFiles, discoveredFiles.processStatus);
+          await _addColumnSafely(m, discoveredFiles, discoveredFiles.processedAt);
         }
         if (from < 10) {
-          await m.addColumn(tracks, tracks.artworkPath);
+          await _addColumnSafely(m, tracks, tracks.artworkPath);
           await customStatement('''
             UPDATE tracks 
             SET artwork_path = (
@@ -174,7 +176,44 @@ class AppDatabase extends _$AppDatabase {
     );
   }
 
+  Future<bool> _tableExists(String tableName) async {
+    final result = await customSelect(
+      "SELECT count(*) AS cnt FROM sqlite_master WHERE type='table' AND name=?",
+      variables: [Variable.withString(tableName)],
+    ).getSingle();
+    return result.read<int>('cnt') > 0;
+  }
+
+  Future<bool> _columnExists(String tableName, String columnName) async {
+    final result = await customSelect(
+      'PRAGMA table_info("$tableName");',
+    ).get();
+    return result.any((row) => row.read<String>('name') == columnName);
+  }
+
+  Future<void> _createTableSafely(
+    Migrator m,
+    TableInfo table,
+  ) async {
+    if (!await _tableExists(table.actualTableName)) {
+      await m.createTable(table);
+    }
+  }
+
+  Future<void> _addColumnSafely(
+    Migrator m,
+    TableInfo table,
+    GeneratedColumn column,
+  ) async {
+    if (await _tableExists(table.actualTableName)) {
+      if (!await _columnExists(table.actualTableName, column.name)) {
+        await m.addColumn(table, column);
+      }
+    }
+  }
+
   Future<void> reconcileDuplicateAlbums() async {
+    final hasArtworkCol = await _columnExists('tracks', 'artwork_path');
     final allAlbums = await select(albums).get();
     final Map<String, List<AlbumRow>> titleGroups = {};
 
@@ -232,7 +271,7 @@ class AppDatabase extends _$AppDatabase {
         await (update(tracks)..where((t) => t.albumId.equals(album.id))).write(
           TracksCompanion(
             albumArtist: Value(effectiveArtist),
-            artworkPath: albumArt != null
+            artworkPath: hasArtworkCol && albumArt != null
                 ? Value(albumArt)
                 : const Value.absent(),
           ),
@@ -372,7 +411,7 @@ class AppDatabase extends _$AppDatabase {
             TracksCompanion(
               albumId: Value(survivor.id),
               albumArtist: Value(winningArtist),
-              artworkPath: survivorArt != null
+              artworkPath: hasArtworkCol && survivorArt != null
                   ? Value(survivorArt)
                   : const Value.absent(),
             ),
@@ -381,7 +420,7 @@ class AppDatabase extends _$AppDatabase {
         }
 
         // Also ensure all tracks belonging to survivor inherit artworkPath if missing
-        if (survivorArt != null) {
+        if (hasArtworkCol && survivorArt != null) {
           await (update(tracks)..where(
                 (t) => t.albumId.equals(survivor.id) & t.artworkPath.isNull(),
               ))
@@ -410,7 +449,7 @@ class AppDatabase extends _$AppDatabase {
         )..where((t) => t.albumId.equals(survivor.id))).write(
           TracksCompanion(
             albumArtist: Value(winningArtist),
-            artworkPath: survivorArt != null
+            artworkPath: hasArtworkCol && survivorArt != null
                 ? Value(survivorArt)
                 : const Value.absent(),
           ),

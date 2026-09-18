@@ -195,12 +195,21 @@ Located in `lib/features/google_drive/` and `lib/features/library/`:
   - Progress percentage in UI immediately reflects the actual completed tracks.
 - **Remote Deletion Reconciliation**:
   - Full remote scan builds complete `driveFileMap`. Tracks present locally but absent on Drive are deleted from `tracks`, `cacheEntries`, and `lyrics`, and album/artist aggregates are updated.
-- **Database Schema v9**:
+- **Database Schema v9 & v10**:
   - `SyncRuns` table (`@DataClassName('SyncRunRow')`) with columns: `id`, `sourceId`, `rootFolderId`, `rootFolderName`, `startedAt`, `updatedAt`, `lastCheckpointAt`, `completedAt`, `status`, `phase`, `currentFile`, `errorMessage`, `progressPercent`, `filesDiscovered`, `filesProcessed`, `filesAdded`, `filesUpdated`, `filesRemoved`, `errorsCount`, `discoveryCompleted`, `pendingFoldersJson`, `visitedFoldersJson`.
   - `DiscoveredFiles` table (`@DataClassName('DiscoveredFileRow')`) with columns: `id`, `syncRunId`, `driveFileId`, `name`, `mimeType`, `size`, `modifiedTime`, `md5Checksum`, `parentFolderId`, `isLrc`, `isProcessed`, `processStatus`, `processedAt`.
+  - `Tracks` table (`@DataClassName('TrackRow')`) with Schema v10 addition: `artworkPath` (nullable text) backfilled from `albums.artworkPath`.
   - Indexes:
     - `CREATE INDEX IF NOT EXISTS idx_sync_runs_status ON sync_runs(status, started_at);`
     - `CREATE INDEX IF NOT EXISTS idx_discovered_files_sync ON discovered_files(sync_run_id);`
+- **Idempotent Database Migrations Architecture (`app_database.dart`)**:
+  - **Pitfall**: In Drift, `Migrator.createTable(table)` generates SQL from the *current* compiled Dart class. If a table introduced in an earlier version (e.g. `DiscoveredFiles` in v5) has new columns added in a later version (e.g. `isProcessed` in v9), upgrading from `from < 5` creates the table with all current columns. Subsequent execution of `from < 9`'s `m.addColumn` triggers SQLite fatal error `SqliteException(1): duplicate column name: is_processed`.
+  - **Resolution**: All migration steps MUST use idempotent helpers:
+    - `_tableExists(tableName)`: Checks `sqlite_master`.
+    - `_columnExists(tableName, columnName)`: Checks `PRAGMA table_info`.
+    - `_createTableSafely(m, table)`: Creates table only if absent in SQLite.
+    - `_addColumnSafely(m, table, column)`: Adds column via `m.addColumn` only if the table exists and the column does not already exist.
+  - In `reconcileDuplicateAlbums()`, updates to `tracks.artworkPath` check `_columnExists('tracks', 'artwork_path')` to prevent `no such column: artwork_path` during intermediate v6/v7 steps.
 - **UI Presentation (`SyncProgressSheet`)**:
   - Running: displays progress bar, file counts, current filename, and prominent Cupertino `Stop Sync` button.
   - Stopping: displays animated activity indicator and disables stop button.
