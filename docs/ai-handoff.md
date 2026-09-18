@@ -1,10 +1,10 @@
 # Musii — AI Engineering Handoff Document
 
-> **Document Version**: 1.17.0  
+> **Document Version**: 1.18.0  
 > **Target Audience**: Incoming AI Coding Assistants & Human Software Engineers  
 > **Last Verified**: September 2026  
 > **App Identifier**: `com.blackpirateapps.musii`  
-> **Test Status**: 266 / 266 Passing (`flutter test`), 0 Analyzer Warnings (`flutter analyze`)
+> **Test Status**: 268 / 268 Passing (`flutter test`), 0 Analyzer Warnings (`flutter analyze`)
 
 ---
 
@@ -304,20 +304,31 @@ Located in `lib/features/playback/presentation/widgets/now_playing_inline_lyrics
   - Exposed via `inlineLyricsEnabledProvider` (`StateNotifierProvider<InlineLyricsNotifier, bool>`).
   - Toggleable in Settings > `LYRICS` section with a clean Cupertino switch and subtitle (`Show synchronized lyrics on the Now Playing screen`).
   - **Strict Product Distinction**: Turning inline lyrics OFF collapses the Now Playing lyric presentation immediately (`AnimatedSize` + `AnimatedOpacity` to height 0) while leaving underlying lyrics data intact. The full `LyricsSheet` modal remains independently accessible at all times via the action bar lyrics button.
-- **Adaptive Layout Stability & Fixed Viewport**:
-  - Sits seamlessly between track metadata (title, artist, favorite button) and the playback scrubber.
-  - Constrained to a fixed-height container (108px max height on regular screens, 72px on compact screens $<620$px) to prevent vertical jitter or scrubber jumping when lyrics transition between 1 and 2 wrapped lines.
-  - During cold start, when no lyrics exist, or for unsynced plain lyrics, the widget cleanly collapses to `SizedBox.shrink()` without leaving empty whitespace.
-- **Instrumental Gap Breathing**:
-  - Evaluates silence gaps: when the difference between the end of the current lyric line and the start of the next line is $\ge 3.0$ seconds (or after the final line finishes), the widget gently fades its opacity to `0.0` over 350ms.
-  - Zero placeholder clutter: never displays fake `'Instrumental'`, `'♪'`, or placeholder dots during gaps, allowing the album art and UI to "breathe" naturally.
+- **Continuous Vertical Scrolling Reel & 3-Line Contextual Flow**:
+  - Sits seamlessly between track metadata (title, artist, favorite button) and the playback scrubber, constrained to a fixed-height container (108px max height on regular screens, 72px on compact screens $<620$px) to guarantee zero scrubber jumping.
+  - Enclosed in a vertical gradient `ShaderMask` (soft 14px top and bottom edge fades) so lines emerge and dissolve without edge clipping.
+  - When playback advances from line $N$ to $N+1$, the entire column glides smoothly upward by one line pitch (36px) over 380ms with `Curves.easeOutCubic`:
+    - Upcoming line physically rolls up from the bottom preview slot into the center spotlight while progressively expanding (scale $0.72 \to 1.0$) and brightening ($0.38 \to 1.0$) into pure white active typography.
+    - Active line physically rolls up into the previous line slot while scaling down ($1.0 \to 0.72$) and dimming ($1.0 \to 0.24$).
+    - Previous line glides past the top gradient fade and dissolves.
+  - During rapid scrubber seeks ($|\Delta index| > 1$), snaps directly to the target destination without spinning intermediate lines.
+- **Apple Music-Style Vocal Dots (`● ● ●`) & 3..2..1 Countdown**:
+  - During instrumental intros (from 0:00 until the first lyric) and mid-song instrumental breaks ($\ge 3.0$s silence between lines):
+    - The center slot features three elegant rounded dots (`●  ●  ●`).
+    - **Ambient Breathing Phase** ($>3$s until vocals): The dots gently oscillate in opacity (0.18 to 0.65) with a smooth audio-synchronized harmonic wave.
+    - **Countdown Phase** ($\le 3$s until vocals): The dots sequentially ignite to 100% white with a tactile spring pulse on the beat:
+      - 3s before vocals: Dot 1 lights up (`● ○ ○`)
+      - 2s before vocals: Dot 2 lights up (`● ● ○`)
+      - 1s before vocals: Dot 3 lights up (`● ● ●`)
+      - 0s (Vocals begin): The dots smoothly roll upward into history and the upcoming lyric line glides into the center spotlight in lockstep.
+    - **Upcoming Lyric Preview**: The upcoming lyric sentence remains previewed in the bottom slot at 38% opacity throughout the instrumental section, giving full lyrical context.
 - **Vsync-Extrapolated Word-by-Word Animation & Line Sweep Control**:
-  - Leverages `LyricLineWidget` and `WordSyncedLyricText` directly.
+  - Leverages `LyricLineWidget` and `WordSyncedLyricText` directly in the center spotlight.
   - Word-synced lyrics smoothly highlight character-by-character via GPU shader mask with active vocal glow and 60/120 FPS vsync extrapolation.
   - For line-synced lyrics without word timestamps, `enableSimulatedLineSweep: false` is configured for inline display to present high-contrast, crisp active typography without synthetic progression sweeps, reserving simulated line sweep for the full `LyricsSheet`.
 - **Interactivity & Accessibility**:
   - Tapping the inline lyric container immediately opens the canonical `LyricsSheet` scrolled directly to the active line via `showLyricsSheet(context, track)`.
-  - Wrapped in Flutter `Semantics(label: 'Current lyric: ${line.text}')` for complete screen reader accessibility.
+  - Wrapped in Flutter `Semantics(label: 'Current lyric: ${line.text}')` during active singing, and `Semantics(label: 'Vocals start in $sec')` / `Semantics(label: 'Instrumental section')` during instrumental passages for complete screen reader accessibility.
 
 ---
 
@@ -419,9 +430,9 @@ Located in `lib/features/playback/presentation/widgets/now_playing_inline_lyrics
       2. **Feathered Leading-Edge Shader Mask**: Replaced hard `ClipRect` with a GPU `ShaderMask(blendMode: BlendMode.srcIn)` rendering a single `Text` widget with an 8px soft feathered gradient wipe and active vocal glow, eliminating both glyph slicing and widget tree duplication.
       3. **Simulated Line Sweep for Standard LRC**: For lines without word-level timing, applies a 14px feathered progressive sweep across the estimated line duration, bringing dynamic Apple Music styling to standard LRC lyrics.
       4. **Isolated Active Line Repaint Boundary**: Wrapped active lines in `RepaintBoundary` and removed position watches from `LyricsSheet.build()`, ensuring only the active line repaints on vsync frames with 0% CPU overhead on inactive lines.
-24. **Inline Lyrics State Resolution, Viewport Height Stability & Stream Isolation in Widget Tests**:
-    - **Scrubber Jump Prevention**: Dynamically wrapped text lines in a music player can alternate between single-line and multi-line heights as words change, causing the playback scrubber and transport buttons to bounce vertically. `NowPlayingInlineLyrics` encloses the lyric display within a fixed-height layout box (`108.0` max height) with centered alignment and `AnimatedSwitcher` (280ms subtle vertical offset + fade), ensuring layout stability across line transitions.
-    - **Stream Isolation & Event Throttle**: Instead of watching `playbackPositionProvider` directly in `build()` which would rebuild the entire inline component on every 200ms audio clock tick, `NowPlayingInlineLyrics` registers `ref.listen<Duration>(playbackPositionProvider, ...)` and updates internal state (`setState()`) ONLY when the calculated `activeIndex` changes or an instrumental gap starts/ends.
+24. **Inline Lyrics Continuous Reel, Viewport Height Stability & Timer-Free Countdown Synchronization**:
+    - **Scrubber Jump Prevention & Continuous Reel**: Dynamically wrapped text lines in a music player can alternate between single-line and multi-line heights as words change, causing the playback scrubber and transport buttons to bounce vertically. `NowPlayingInlineLyrics` encloses the lyric display within a fixed-height layout box (`108.0` max height) with soft top and bottom GPU gradient edge masking (`ShaderMask`). Line advancement uses a single coordinated `_InlineLyricsReel` translating a 4-line stack vertically by 36px over 380ms (`Curves.easeOutCubic`), ensuring the upcoming line physically rolls into the center spotlight without teleportation artifacts.
+    - **Audio-Clock Synchronized Countdown (Zero Ticker Overhead)**: Rather than running an active `Timer` or infinite `AnimationController.repeat()` which would stall widget tests with pending timers, `_VocalCountdownDots` computes harmonic wave breathing and 3..2..1 countdown directly from the incoming audio timestamp `(targetMs - currentMs)`. When audio pauses or seeks, countdown state and breathing phase react deterministically.
     - **Drift `QueryStream` Timers in Now Playing Tests**: Integrating `NowPlayingInlineLyrics` into `NowPlayingPage` caused existing widget tests in `now_playing_page_test.dart` to open a Drift SQLite query stream via `trackLyricsProvider(track.id)`. Because Drift's `QueryStream._onCancelOrPause` schedules a zero-duration cleanup timer (`Timer(Duration.zero, ...)`), tests asserting `tester.binding.hasScheduledFrame` or tearing down without an explicit stream override failed with `!timersPending`. All `NowPlayingPage` test harnesses must explicitly override `trackLyricsProvider.overrideWith((ref, trackId) => Stream.value(null))` when lyrics are not under test.
     - **Semantics Inspection in Widget Tests**: In Flutter test environments, `find.bySemanticsLabel(...)` requires `tester.ensureSemantics()` to be invoked before searching; otherwise the semantics tree is not compiled. Alternatively, inspecting widget properties via `find.byWidgetPredicate((w) => w is Semantics && w.properties.label == ...)` reliably matches semantics nodes regardless of whether full accessibility tree compilation is active.
 
@@ -439,7 +450,7 @@ dart run build_runner build --delete-conflicting-outputs
 # Verify static analysis (must be 0 issues)
 flutter analyze
 
-# Run all tests (all 266 tests must pass)
+# Run all tests (all 268 tests must pass)
 flutter test
 
 # Auto-format Dart source code

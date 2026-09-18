@@ -787,5 +787,265 @@ void main() {
       expect(find.text('with'), findsOneWidget);
       expect(find.text('me'), findsOneWidget);
     });
+
+    testWidgets(
+      'instrumental intro displays animated vocal dots and previews upcoming first line',
+      (tester) async {
+        tester.view.physicalSize = const Size(800, 1400);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        const introTrackLyrics = TrackLyrics(
+          id: 'lyric_intro',
+          trackId: 'track_1',
+          source: LyricSource.embeddedSynced,
+          isSynchronized: true,
+          lines: [
+            LyricLine(
+              timestampMs: 15000,
+              text: 'Midnight memories fade away',
+              sequence: 0,
+              words: [
+                LyricWord(
+                  startMs: 15000,
+                  endMs: 16000,
+                  text: 'Midnight',
+                  index: 0,
+                ),
+                LyricWord(
+                  startMs: 16000,
+                  endMs: 17000,
+                  text: 'memories',
+                  index: 1,
+                ),
+              ],
+            ),
+          ],
+        );
+
+        final stateController = StreamController<PlayerStateSnapshot>();
+        addTearDown(stateController.close);
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              appDatabaseProvider.overrideWithValue(db),
+              settingsRepositoryProvider.overrideWithValue(settingsRepo),
+              lastFmAccountProvider.overrideWith((ref) => Stream.value(null)),
+              playerStateProvider.overrideWith((ref) => stateController.stream),
+              trackLyricsProvider('track_1')
+                  .overrideWith((ref) => Stream.value(introTrackLyrics)),
+              isTrackFavoriteProvider('track_1')
+                  .overrideWith((ref) => Stream.value(false)),
+            ],
+            child: const CupertinoApp(home: NowPlayingPage()),
+          ),
+        );
+
+        // Position at 2000ms: Instrumental intro
+        stateController.add(
+          const PlayerStateSnapshot(
+            currentTrack: track1,
+            duration: Duration(milliseconds: 243000),
+            position: Duration(milliseconds: 2000),
+            isPlaying: true,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Vocal dots are active in ambient breathing phase
+        expect(
+          find.byWidgetPredicate(
+            (w) =>
+                w is Semantics && w.properties.label == 'Instrumental section',
+          ),
+          findsOneWidget,
+        );
+        // Upcoming first lyric is previewed in bottom slot
+        expect(find.text('Midnight memories fade away'), findsOneWidget);
+
+        // Advance to 12500ms (2.5s before vocals: countdown 3)
+        stateController.add(
+          const PlayerStateSnapshot(
+            currentTrack: track1,
+            duration: Duration(milliseconds: 243000),
+            position: Duration(milliseconds: 12500),
+            isPlaying: true,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(
+          find.byWidgetPredicate(
+            (w) => w is Semantics && w.properties.label == 'Vocals start in 3',
+          ),
+          findsOneWidget,
+        );
+
+        // Advance to 13500ms (1.5s before vocals: countdown 2)
+        stateController.add(
+          const PlayerStateSnapshot(
+            currentTrack: track1,
+            duration: Duration(milliseconds: 243000),
+            position: Duration(milliseconds: 13500),
+            isPlaying: true,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(
+          find.byWidgetPredicate(
+            (w) => w is Semantics && w.properties.label == 'Vocals start in 2',
+          ),
+          findsOneWidget,
+        );
+
+        // Advance to 14500ms (0.5s before vocals: countdown 1)
+        stateController.add(
+          const PlayerStateSnapshot(
+            currentTrack: track1,
+            duration: Duration(milliseconds: 243000),
+            position: Duration(milliseconds: 14500),
+            isPlaying: true,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(
+          find.byWidgetPredicate(
+            (w) => w is Semantics && w.properties.label == 'Vocals start in 1',
+          ),
+          findsOneWidget,
+        );
+
+        // Vocals begin at 15500ms: Hero lyric active in center spotlight!
+        stateController.add(
+          const PlayerStateSnapshot(
+            currentTrack: track1,
+            duration: Duration(milliseconds: 243000),
+            position: Duration(milliseconds: 15500),
+            isPlaying: true,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(
+          findCurrentLyricSemantics('Midnight memories fade away'),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets(
+      'mid-song solo triggers vocal dots countdown and previews next lyric',
+      (tester) async {
+        tester.view.physicalSize = const Size(800, 1400);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        const soloTrackLyrics = TrackLyrics(
+          id: 'lyric_solo',
+          trackId: 'track_1',
+          source: LyricSource.embeddedSynced,
+          isSynchronized: true,
+          lines: [
+            LyricLine(
+              timestampMs: 0,
+              text: 'Chorus line before guitar solo',
+              sequence: 0,
+              words: [
+                LyricWord(
+                  startMs: 0,
+                  endMs: 3000,
+                  text: 'Chorus line before guitar solo',
+                  index: 0,
+                ),
+              ],
+            ),
+            LyricLine(
+              timestampMs: 20000,
+              text: 'Verse begins after solo',
+              sequence: 1,
+              words: [],
+            ),
+          ],
+        );
+
+        final stateController = StreamController<PlayerStateSnapshot>();
+        addTearDown(stateController.close);
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              appDatabaseProvider.overrideWithValue(db),
+              settingsRepositoryProvider.overrideWithValue(settingsRepo),
+              lastFmAccountProvider.overrideWith((ref) => Stream.value(null)),
+              playerStateProvider.overrideWith((ref) => stateController.stream),
+              trackLyricsProvider('track_1')
+                  .overrideWith((ref) => Stream.value(soloTrackLyrics)),
+              isTrackFavoriteProvider('track_1')
+                  .overrideWith((ref) => Stream.value(false)),
+            ],
+            child: const CupertinoApp(home: NowPlayingPage()),
+          ),
+        );
+
+        // 10000ms: deep in the 17-second solo
+        stateController.add(
+          const PlayerStateSnapshot(
+            currentTrack: track1,
+            duration: Duration(milliseconds: 243000),
+            position: Duration(milliseconds: 10000),
+            isPlaying: true,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(
+          find.byWidgetPredicate(
+            (w) =>
+                w is Semantics && w.properties.label == 'Instrumental section',
+          ),
+          findsOneWidget,
+        );
+        expect(find.text('Verse begins after solo'), findsOneWidget);
+
+        // 18500ms (1.5s before verse: countdown 2)
+        stateController.add(
+          const PlayerStateSnapshot(
+            currentTrack: track1,
+            duration: Duration(milliseconds: 243000),
+            position: Duration(milliseconds: 18500),
+            isPlaying: true,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(
+          find.byWidgetPredicate(
+            (w) => w is Semantics && w.properties.label == 'Vocals start in 2',
+          ),
+          findsOneWidget,
+        );
+
+        // 20500ms: Verse starts
+        stateController.add(
+          const PlayerStateSnapshot(
+            currentTrack: track1,
+            duration: Duration(milliseconds: 243000),
+            position: Duration(milliseconds: 20500),
+            isPlaying: true,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(
+          findCurrentLyricSemantics('Verse begins after solo'),
+          findsOneWidget,
+        );
+      },
+    );
   });
 }
