@@ -532,10 +532,14 @@ void main() {
       // 3. Call startup recovery
       await newLibraryRepo.recoverInterruptedSyncIfNeeded();
 
-      // Allow background async resume to complete
-      for (int i = 0; i < 50; i++) {
-        if (fakeDrive.downloadedFileIds.contains('df_3')) break;
-        await Future<void>.delayed(const Duration(milliseconds: 20));
+      // Allow background async resume to complete and commit all tracks to database
+      for (int i = 0; i < 100; i++) {
+        final currentTracks = await (db.select(db.tracks)).get();
+        if (currentTracks.length >= 3 &&
+            fakeDrive.downloadedFileIds.contains('df_3')) {
+          break;
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 50));
       }
 
       // df_1 was already in database -> should have been skipped!
