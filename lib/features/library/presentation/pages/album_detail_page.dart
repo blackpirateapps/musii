@@ -209,8 +209,7 @@ class AlbumDetailPage extends ConsumerWidget {
                     SliverList(
                       delegate: SliverChildBuilderDelegate((context, index) {
                         final track = tracks[index];
-                        final isPlaying =
-                            currentTrackId == track.id;
+                        final isPlaying = currentTrackId == track.id;
 
                         final showDiscHeader = index == 0
                             ? (track.discNumber != null &&

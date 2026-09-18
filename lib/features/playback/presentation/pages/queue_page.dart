@@ -72,8 +72,8 @@ class QueuePage extends ConsumerWidget {
 
     final List<QueueItem> upNextList =
         effectiveQueueItems.length > currentIndex + 1
-            ? effectiveQueueItems.sublist(currentIndex + 1)
-            : <QueueItem>[];
+        ? effectiveQueueItems.sublist(currentIndex + 1)
+        : <QueueItem>[];
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.85,

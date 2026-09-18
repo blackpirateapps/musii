@@ -13,6 +13,8 @@ abstract class SettingsRepository {
   Future<void> setCrossfadeDurationMs(int ms);
   Future<AppThemeMode> getThemeMode();
   Future<void> setThemeMode(AppThemeMode mode);
+  Future<bool> getInlineLyricsEnabled();
+  Future<void> setInlineLyricsEnabled(bool enabled);
 }
 
 class SettingsRepositoryImpl implements SettingsRepository {
@@ -82,5 +84,16 @@ class SettingsRepositoryImpl implements SettingsRepository {
   @override
   Future<void> setThemeMode(AppThemeMode mode) async {
     await _setValue('theme_mode', mode.name);
+  }
+
+  @override
+  Future<bool> getInlineLyricsEnabled() async {
+    final val = await _getValue('inline_lyrics_enabled');
+    return val != 'false';
+  }
+
+  @override
+  Future<void> setInlineLyricsEnabled(bool enabled) async {
+    await _setValue('inline_lyrics_enabled', enabled.toString());
   }
 }

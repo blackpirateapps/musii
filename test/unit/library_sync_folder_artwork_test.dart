@@ -340,133 +340,138 @@ void main() {
     },
   );
 
-  test(
-    'persists folder artwork on tracks and resolves in watchAllTracks and other repositories even with differing artist and albumArtist',
-    () async {
-      fakeDrive.files = [
-        const DriveFileItem(
-          id: 'audio_feat',
-          name: 'CollabSong.mp3',
-          mimeType: 'audio/mpeg',
-          size: 1000,
-          parentFolderId: 'folder_collab',
-        ),
-        const DriveFileItem(
-          id: 'art_collab',
-          name: 'folder.jpg',
-          mimeType: 'image/jpeg',
-          size: 5000,
-          parentFolderId: 'folder_collab',
-          isImage: true,
-        ),
-      ];
+  test('persists folder artwork on tracks and resolves in watchAllTracks and other repositories even with differing artist and albumArtist', () async {
+    fakeDrive.files = [
+      const DriveFileItem(
+        id: 'audio_feat',
+        name: 'CollabSong.mp3',
+        mimeType: 'audio/mpeg',
+        size: 1000,
+        parentFolderId: 'folder_collab',
+      ),
+      const DriveFileItem(
+        id: 'art_collab',
+        name: 'folder.jpg',
+        mimeType: 'image/jpeg',
+        size: 5000,
+        parentFolderId: 'folder_collab',
+        isImage: true,
+      ),
+    ];
 
-      fakeExtractor.customMetadata['CollabSong.mp3'] =
-          const ParsedAudioMetadata(
-        title: 'Collab Song',
-        artist: 'Main Artist feat. Guest',
-        albumArtist: 'Main Artist',
-        album: 'Collab Album',
-        format: 'MP3',
-        fileSize: 1000,
-        artworkBytes: null,
-      );
+    fakeExtractor.customMetadata['CollabSong.mp3'] = const ParsedAudioMetadata(
+      title: 'Collab Song',
+      artist: 'Main Artist feat. Guest',
+      albumArtist: 'Main Artist',
+      album: 'Collab Album',
+      format: 'MP3',
+      fileSize: 1000,
+      artworkBytes: null,
+    );
 
-      final res = await libraryRepo.syncLibrary(
-        rootFolderId: 'root',
-        rootFolderName: 'Music',
-      );
+    final res = await libraryRepo.syncLibrary(
+      rootFolderId: 'root',
+      rootFolderName: 'Music',
+    );
 
-      expect(res.isSuccess, isTrue);
-      expect(fakeDrive.downloadedFileIds, contains('art_collab'));
+    expect(res.isSuccess, isTrue);
+    expect(fakeDrive.downloadedFileIds, contains('art_collab'));
 
-      // 1. Verify track in database has artwork_path persisted
-      final dbTracks = await db.select(db.tracks).get();
-      expect(dbTracks, hasLength(1));
-      expect(dbTracks.first.artworkPath, isNotNull);
-      expect(File(dbTracks.first.artworkPath!).existsSync(), isTrue);
+    // 1. Verify track in database has artwork_path persisted
+    final dbTracks = await db.select(db.tracks).get();
+    expect(dbTracks, hasLength(1));
+    expect(dbTracks.first.artworkPath, isNotNull);
+    expect(File(dbTracks.first.artworkPath!).existsSync(), isTrue);
 
-      // 2. Verify watchAllTracks (used in Home, Songs tab, Queue) resolves artworkPath
-      final allTracks = await libraryRepo.watchAllTracks().first;
-      expect(allTracks, hasLength(1));
-      expect(allTracks.first.artworkPath, equals(dbTracks.first.artworkPath));
+    // 2. Verify watchAllTracks (used in Home, Songs tab, Queue) resolves artworkPath
+    final allTracks = await libraryRepo.watchAllTracks().first;
+    expect(allTracks, hasLength(1));
+    expect(allTracks.first.artworkPath, equals(dbTracks.first.artworkPath));
 
-      // 3. Verify watchAlbum resolves artworkPath
-      final albums = await libraryRepo.watchAllAlbums().first;
-      expect(albums, hasLength(1));
-      final albumWithTracks =
-          await libraryRepo.watchAlbum(albums.first.id).first;
-      expect(albumWithTracks!.tracks.first.artworkPath, equals(dbTracks.first.artworkPath));
+    // 3. Verify watchAlbum resolves artworkPath
+    final albums = await libraryRepo.watchAllAlbums().first;
+    expect(albums, hasLength(1));
+    final albumWithTracks = await libraryRepo.watchAlbum(albums.first.id).first;
+    expect(
+      albumWithTracks!.tracks.first.artworkPath,
+      equals(dbTracks.first.artworkPath),
+    );
 
-      // 4. Verify search repository resolves track artworkPath
-      final searchRepo = SearchRepositoryImpl(database: db, fileSystem: fs);
-      final searchRes = await searchRepo.search('Collab');
-      expect(searchRes.isSuccess, isTrue);
-      expect(searchRes.dataOrNull!.tracks, hasLength(1));
-      expect(
-        searchRes.dataOrNull!.tracks.first.artworkPath,
-        equals(dbTracks.first.artworkPath),
-      );
+    // 4. Verify search repository resolves track artworkPath
+    final searchRepo = SearchRepositoryImpl(database: db, fileSystem: fs);
+    final searchRes = await searchRepo.search('Collab');
+    expect(searchRes.isSuccess, isTrue);
+    expect(searchRes.dataOrNull!.tracks, hasLength(1));
+    expect(
+      searchRes.dataOrNull!.tracks.first.artworkPath,
+      equals(dbTracks.first.artworkPath),
+    );
 
-      // 5. Verify favorites repository resolves track artworkPath
-      final favRepo = FavoriteRepositoryImpl(database: db, fileSystem: fs);
-      await favRepo.toggleFavorite(allTracks.first.id);
-      final favTracks = await favRepo.watchFavoriteTracks().first;
-      expect(favTracks, hasLength(1));
-      expect(favTracks.first.artworkPath, equals(dbTracks.first.artworkPath));
+    // 5. Verify favorites repository resolves track artworkPath
+    final favRepo = FavoriteRepositoryImpl(database: db, fileSystem: fs);
+    await favRepo.toggleFavorite(allTracks.first.id);
+    final favTracks = await favRepo.watchFavoriteTracks().first;
+    expect(favTracks, hasLength(1));
+    expect(favTracks.first.artworkPath, equals(dbTracks.first.artworkPath));
 
-      // 6. Verify recently played repository resolves track artworkPath
-      final recentRepo =
-          RecentlyPlayedRepositoryImpl(database: db, fileSystem: fs);
-      await recentRepo.recordPlayback(allTracks.first.id, 1000, true);
-      final recentTracks = await recentRepo.watchRecentlyPlayed().first;
-      expect(recentTracks, hasLength(1));
-      expect(recentTracks.first.artworkPath, equals(dbTracks.first.artworkPath));
+    // 6. Verify recently played repository resolves track artworkPath
+    final recentRepo = RecentlyPlayedRepositoryImpl(
+      database: db,
+      fileSystem: fs,
+    );
+    await recentRepo.recordPlayback(allTracks.first.id, 1000, true);
+    final recentTracks = await recentRepo.watchRecentlyPlayed().first;
+    expect(recentTracks, hasLength(1));
+    expect(recentTracks.first.artworkPath, equals(dbTracks.first.artworkPath));
 
-      // 7. Verify playlist repository resolves track artworkPath
-      final playlistRepo = PlaylistRepositoryImpl(database: db, fileSystem: fs);
-      final createPlRes = await playlistRepo.createPlaylist('Favorites List');
-      expect(createPlRes.isSuccess, isTrue);
-      await playlistRepo.addTrackToPlaylist(
-        createPlRes.dataOrNull!,
-        allTracks.first.id,
-      );
-      final plTracks =
-          await playlistRepo.watchPlaylistTracks(createPlRes.dataOrNull!).first;
-      expect(plTracks, hasLength(1));
-      expect(plTracks.first.artworkPath, equals(dbTracks.first.artworkPath));
-    },
-  );
+    // 7. Verify playlist repository resolves track artworkPath
+    final playlistRepo = PlaylistRepositoryImpl(database: db, fileSystem: fs);
+    final createPlRes = await playlistRepo.createPlaylist('Favorites List');
+    expect(createPlRes.isSuccess, isTrue);
+    await playlistRepo.addTrackToPlaylist(
+      createPlRes.dataOrNull!,
+      allTracks.first.id,
+    );
+    final plTracks = await playlistRepo
+        .watchPlaylistTracks(createPlRes.dataOrNull!)
+        .first;
+    expect(plTracks, hasLength(1));
+    expect(plTracks.first.artworkPath, equals(dbTracks.first.artworkPath));
+  });
 
   test('schema v10 backfills artwork_path from albums to tracks', () async {
-    await db.into(db.albums).insert(
-      AlbumsCompanion.insert(
-        id: 'album_v10',
-        albumKey: 'v10_album::test',
-        title: 'V10 Album',
-        normalizedTitle: 'v10 album',
-        artistName: const Value('Test Artist'),
-        trackCount: const Value(1),
-        artworkPath: const Value('/path/to/v10_art.jpg'),
-      ),
-    );
+    await db
+        .into(db.albums)
+        .insert(
+          AlbumsCompanion.insert(
+            id: 'album_v10',
+            albumKey: 'v10_album::test',
+            title: 'V10 Album',
+            normalizedTitle: 'v10 album',
+            artistName: const Value('Test Artist'),
+            trackCount: const Value(1),
+            artworkPath: const Value('/path/to/v10_art.jpg'),
+          ),
+        );
 
-    await db.into(db.tracks).insert(
-      TracksCompanion.insert(
-        id: 'track_v10',
-        driveFileId: 'df_v10',
-        sourceId: 'src_v10',
-        title: 'V10 Track',
-        normalizedTitle: 'v10 track',
-        albumId: const Value('album_v10'),
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      ),
-    );
+    await db
+        .into(db.tracks)
+        .insert(
+          TracksCompanion.insert(
+            id: 'track_v10',
+            driveFileId: 'df_v10',
+            sourceId: 'src_v10',
+            title: 'V10 Track',
+            normalizedTitle: 'v10 track',
+            albumId: const Value('album_v10'),
+            createdAt: DateTime.now(),
+            updatedAt: DateTime.now(),
+          ),
+        );
 
-    var track = (await (db.select(db.tracks)
-          ..where((t) => t.id.equals('track_v10')))
-        .getSingle());
+    var track = (await (db.select(
+      db.tracks,
+    )..where((t) => t.id.equals('track_v10'))).getSingle());
     expect(track.artworkPath, isNull);
 
     // Run the migration statement
@@ -476,68 +481,83 @@ void main() {
       WHERE tracks.album_id IS NOT NULL;
     ''');
 
-    track = (await (db.select(db.tracks)
-          ..where((t) => t.id.equals('track_v10')))
-        .getSingle());
+    track = (await (db.select(
+      db.tracks,
+    )..where((t) => t.id.equals('track_v10'))).getSingle());
     expect(track.artworkPath, equals('/path/to/v10_art.jpg'));
   });
 
-  test('reconcileDuplicateAlbums propagates artwork_path to all tracks', () async {
-    // Seed two duplicate albums, one with artworkPath
-    await db.into(db.albums).insert(
-      AlbumsCompanion.insert(
-        id: 'album_dup_1',
-        albumKey: 'dup_key_1',
-        title: 'Duplicate Album',
-        normalizedTitle: 'duplicate album',
-        artistName: const Value('Artist A'),
-        artworkPath: const Value('/path/to/dup_art.png'),
-      ),
-    );
-    await db.into(db.albums).insert(
-      AlbumsCompanion.insert(
-        id: 'album_dup_2',
-        albumKey: 'dup_key_2',
-        title: 'Duplicate Album',
-        normalizedTitle: 'duplicate album',
-        artistName: const Value('Artist A'),
-      ),
-    );
+  test(
+    'reconcileDuplicateAlbums propagates artwork_path to all tracks',
+    () async {
+      // Seed two duplicate albums, one with artworkPath
+      await db
+          .into(db.albums)
+          .insert(
+            AlbumsCompanion.insert(
+              id: 'album_dup_1',
+              albumKey: 'dup_key_1',
+              title: 'Duplicate Album',
+              normalizedTitle: 'duplicate album',
+              artistName: const Value('Artist A'),
+              artworkPath: const Value('/path/to/dup_art.png'),
+            ),
+          );
+      await db
+          .into(db.albums)
+          .insert(
+            AlbumsCompanion.insert(
+              id: 'album_dup_2',
+              albumKey: 'dup_key_2',
+              title: 'Duplicate Album',
+              normalizedTitle: 'duplicate album',
+              artistName: const Value('Artist A'),
+            ),
+          );
 
-    // Track 1 points to album 1 (with null artwork on track)
-    await db.into(db.tracks).insert(
-      TracksCompanion.insert(
-        id: 'track_dup_1',
-        driveFileId: 'df_dup_1',
-        sourceId: 'src_dup',
-        title: 'Track 1',
-        normalizedTitle: 'track 1',
-        albumId: const Value('album_dup_1'),
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      ),
-    );
-    // Track 2 points to album 2 (with null artwork on track)
-    await db.into(db.tracks).insert(
-      TracksCompanion.insert(
-        id: 'track_dup_2',
-        driveFileId: 'df_dup_2',
-        sourceId: 'src_dup',
-        title: 'Track 2',
-        normalizedTitle: 'track 2',
-        albumId: const Value('album_dup_2'),
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      ),
-    );
+      // Track 1 points to album 1 (with null artwork on track)
+      await db
+          .into(db.tracks)
+          .insert(
+            TracksCompanion.insert(
+              id: 'track_dup_1',
+              driveFileId: 'df_dup_1',
+              sourceId: 'src_dup',
+              title: 'Track 1',
+              normalizedTitle: 'track 1',
+              albumId: const Value('album_dup_1'),
+              createdAt: DateTime.now(),
+              updatedAt: DateTime.now(),
+            ),
+          );
+      // Track 2 points to album 2 (with null artwork on track)
+      await db
+          .into(db.tracks)
+          .insert(
+            TracksCompanion.insert(
+              id: 'track_dup_2',
+              driveFileId: 'df_dup_2',
+              sourceId: 'src_dup',
+              title: 'Track 2',
+              normalizedTitle: 'track 2',
+              albumId: const Value('album_dup_2'),
+              createdAt: DateTime.now(),
+              updatedAt: DateTime.now(),
+            ),
+          );
 
-    // Reconcile
-    await db.reconcileDuplicateAlbums();
+      // Reconcile
+      await db.reconcileDuplicateAlbums();
 
-    // Verify both tracks now have artworkPath = /path/to/dup_art.png
-    final t1 = await (db.select(db.tracks)..where((t) => t.id.equals('track_dup_1'))).getSingle();
-    final t2 = await (db.select(db.tracks)..where((t) => t.id.equals('track_dup_2'))).getSingle();
-    expect(t1.artworkPath, equals('/path/to/dup_art.png'));
-    expect(t2.artworkPath, equals('/path/to/dup_art.png'));
-  });
+      // Verify both tracks now have artworkPath = /path/to/dup_art.png
+      final t1 = await (db.select(
+        db.tracks,
+      )..where((t) => t.id.equals('track_dup_1'))).getSingle();
+      final t2 = await (db.select(
+        db.tracks,
+      )..where((t) => t.id.equals('track_dup_2'))).getSingle();
+      expect(t1.artworkPath, equals('/path/to/dup_art.png'));
+      expect(t2.artworkPath, equals('/path/to/dup_art.png'));
+    },
+  );
 }

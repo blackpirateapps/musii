@@ -77,7 +77,8 @@ void main() {
       test('removes quotes, whitespace, and hidden unicode characters', () {
         expect(
           LastFmApiClient.cleanCredential(
-              '" 979031f3a1b042ab166295f2b7bbfce3 "\n'),
+            '" 979031f3a1b042ab166295f2b7bbfce3 "\n',
+          ),
           equals('979031f3a1b042ab166295f2b7bbfce3'),
         );
       });
@@ -113,10 +114,8 @@ void main() {
 
       test('throws ArgumentError when apiKey is empty', () {
         expect(
-          () => LastFmApiClient.buildAuthUrl(
-            apiKey: '',
-            token: 'validtoken123',
-          ),
+          () =>
+              LastFmApiClient.buildAuthUrl(apiKey: '', token: 'validtoken123'),
           throwsArgumentError,
         );
       });

@@ -390,12 +390,13 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
       localPath: row.localPath,
       isCached: row.isCached,
       isPinnedOffline: row.isPinnedOffline,
-      artworkPath: (row.artworkPath != null &&
+      artworkPath:
+          (row.artworkPath != null &&
               row.artworkPath!.isNotEmpty &&
               File(row.artworkPath!).existsSync())
           ? row.artworkPath
           : (_resolveArtworkPath(row.albumName, row.albumArtist) ??
-              _resolveArtworkPath(row.albumName, row.artistName)),
+                _resolveArtworkPath(row.albumName, row.artistName)),
     );
   }
 
@@ -662,18 +663,21 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
     _currentCancellationToken = cancellationToken;
 
     String? targetSyncRunId = requestedSyncRunId;
-    if (targetSyncRunId == null && isResume && _currentProgress.syncRunId != null) {
+    if (targetSyncRunId == null &&
+        isResume &&
+        _currentProgress.syncRunId != null) {
       targetSyncRunId = _currentProgress.syncRunId;
     }
     if (targetSyncRunId == null && isResume) {
-      final latest = await (_database.select(_database.syncRuns)
-            ..where((tbl) => tbl.rootFolderId.equals(rootFolderId))
-            ..orderBy([
-              (tbl) => OrderingTerm.desc(tbl.startedAt),
-              (tbl) => OrderingTerm.desc(tbl.id),
-            ])
-            ..limit(1))
-          .getSingleOrNull();
+      final latest =
+          await (_database.select(_database.syncRuns)
+                ..where((tbl) => tbl.rootFolderId.equals(rootFolderId))
+                ..orderBy([
+                  (tbl) => OrderingTerm.desc(tbl.startedAt),
+                  (tbl) => OrderingTerm.desc(tbl.id),
+                ])
+                ..limit(1))
+              .getSingleOrNull();
       if (latest != null) {
         targetSyncRunId = latest.id;
       }
@@ -720,13 +724,13 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
               filesDiscovered: Value(
                 isResume
                     ? (existingRun?.filesDiscovered ??
-                        _currentProgress.filesDiscovered)
+                          _currentProgress.filesDiscovered)
                     : 0,
               ),
               filesProcessed: Value(
                 isResume
                     ? (existingRun?.filesProcessed ??
-                        _currentProgress.filesProcessed)
+                          _currentProgress.filesProcessed)
                     : 0,
               ),
               filesAdded: Value(
@@ -737,13 +741,13 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
               filesUpdated: Value(
                 isResume
                     ? (existingRun?.filesUpdated ??
-                        _currentProgress.filesUpdated)
+                          _currentProgress.filesUpdated)
                     : 0,
               ),
               filesRemoved: Value(
                 isResume
                     ? (existingRun?.filesRemoved ??
-                        _currentProgress.filesRemoved)
+                          _currentProgress.filesRemoved)
                     : 0,
               ),
               errorsCount: Value(
@@ -754,7 +758,7 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
               progressPercent: Value(
                 isResume
                     ? (existingRun?.progressPercent ??
-                        _currentProgress.progressPercent)
+                          _currentProgress.progressPercent)
                     : 0.0,
               ),
               discoveryCompleted: Value(
@@ -864,9 +868,9 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
       final Map<String, String?> folderParentMap = {};
 
       if (discoveryAlreadyComplete) {
-        final savedFolders = await (_database.select(_database.driveFolders)
-              ..where((tbl) => tbl.sourceId.equals(sourceId)))
-            .get();
+        final savedFolders = await (_database.select(
+          _database.driveFolders,
+        )..where((tbl) => tbl.sourceId.equals(sourceId))).get();
         for (final df in savedFolders) {
           folderParentMap[df.folderId] = df.parentFolderId;
         }
@@ -1056,15 +1060,15 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
         final unchangedRowIds = unchangedComplete
             .map((f) => '${syncRunId}_${f.id}')
             .toList();
-        await (_database.update(_database.discoveredFiles)
-              ..where((tbl) => tbl.id.isIn(unchangedRowIds)))
-            .write(
-              DiscoveredFilesCompanion(
-                isProcessed: const Value(true),
-                processStatus: const Value('unchanged'),
-                processedAt: Value(DateTime.now()),
-              ),
-            );
+        await (_database.update(
+          _database.discoveredFiles,
+        )..where((tbl) => tbl.id.isIn(unchangedRowIds))).write(
+          DiscoveredFilesCompanion(
+            isProcessed: const Value(true),
+            processStatus: const Value('unchanged'),
+            processedAt: Value(DateTime.now()),
+          ),
+        );
       }
 
       final totalDiscovered = driveAudioFiles.length;
@@ -1209,9 +1213,9 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
                 lrcMap: lrcMap,
               );
 
-              await (_database.update(_database.discoveredFiles)
-                    ..where((tbl) =>
-                        tbl.id.equals('${syncRunId}_${driveFile.id}')))
+              await (_database.update(_database.discoveredFiles)..where(
+                    (tbl) => tbl.id.equals('${syncRunId}_${driveFile.id}'),
+                  ))
                   .write(
                     DiscoveredFilesCompanion(
                       isProcessed: const Value(true),
@@ -1548,14 +1552,14 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
           ),
         );
 
-        await (_database.update(_database.discoveredFiles)
-              ..where((tbl) => tbl.id.equals('${syncRunId}_${file.id}')))
-            .write(
-              const DiscoveredFilesCompanion(
-                isProcessed: Value(false),
-                processStatus: Value('failed'),
-              ),
-            );
+        await (_database.update(
+          _database.discoveredFiles,
+        )..where((tbl) => tbl.id.equals('${syncRunId}_${file.id}'))).write(
+          const DiscoveredFilesCompanion(
+            isProcessed: Value(false),
+            processStatus: Value('failed'),
+          ),
+        );
       });
     } catch (_) {}
   }
@@ -1626,14 +1630,15 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
     }
 
     final existingArt = existingAlbum?.artworkPath;
-    final effectiveArtwork = resolvedArtworkPath ??
+    final effectiveArtwork =
+        resolvedArtworkPath ??
         (artworkFile.existsSync()
             ? artworkFile.path
             : (existingArt != null &&
-                    existingArt.isNotEmpty &&
-                    File(existingArt).existsSync()
-                ? existingArt
-                : null));
+                      existingArt.isNotEmpty &&
+                      File(existingArt).existsSync()
+                  ? existingArt
+                  : null));
 
     final String albumId;
     if (existingAlbum != null) {
@@ -1880,13 +1885,9 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
       if (currentArtwork != null &&
           currentArtwork.isNotEmpty &&
           File(currentArtwork).existsSync()) {
-        await (_database.update(
-          _database.tracks,
-        )..where((tbl) => tbl.albumId.equals(alb.id))).write(
-          TracksCompanion(
-            artworkPath: Value(currentArtwork),
-          ),
-        );
+        await (_database.update(_database.tracks)
+              ..where((tbl) => tbl.albumId.equals(alb.id)))
+            .write(TracksCompanion(artworkPath: Value(currentArtwork)));
       }
     }
 

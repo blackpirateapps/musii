@@ -208,47 +208,44 @@ void main() {
       },
     );
 
-    test(
-      'PlaybackRepositoryImpl.playAlbum propagates album artwork to tracks lacking artwork',
-      () async {
-        final repo = PlaybackRepositoryImpl(audioHandler: handler);
-        const album = Album(
-          id: 'alb_1',
-          title: 'Album With Art',
-          normalizedTitle: 'album with art',
-          artworkPath: '/path/to/folder_art.jpg',
-        );
-        const trackWithoutArt = Track(
-          id: 't_no_art',
-          driveFileId: 'df1',
-          sourceId: 's1',
-          title: 'Track Without Art',
-          normalizedTitle: 'track without art',
-          durationMs: 120000,
-          artworkPath: null,
-        );
-        const trackWithArt = Track(
-          id: 't_has_art',
-          driveFileId: 'df2',
-          sourceId: 's1',
-          title: 'Track With Art',
-          normalizedTitle: 'track with art',
-          durationMs: 140000,
-          artworkPath: '/path/to/embedded.jpg',
-        );
+    test('PlaybackRepositoryImpl.playAlbum propagates album artwork to tracks lacking artwork', () async {
+      final repo = PlaybackRepositoryImpl(audioHandler: handler);
+      const album = Album(
+        id: 'alb_1',
+        title: 'Album With Art',
+        normalizedTitle: 'album with art',
+        artworkPath: '/path/to/folder_art.jpg',
+      );
+      const trackWithoutArt = Track(
+        id: 't_no_art',
+        driveFileId: 'df1',
+        sourceId: 's1',
+        title: 'Track Without Art',
+        normalizedTitle: 'track without art',
+        durationMs: 120000,
+        artworkPath: null,
+      );
+      const trackWithArt = Track(
+        id: 't_has_art',
+        driveFileId: 'df2',
+        sourceId: 's1',
+        title: 'Track With Art',
+        normalizedTitle: 'track with art',
+        durationMs: 140000,
+        artworkPath: '/path/to/embedded.jpg',
+      );
 
-        await repo.playAlbum(album, [trackWithoutArt, trackWithArt]);
+      await repo.playAlbum(album, [trackWithoutArt, trackWithArt]);
 
-        final queue = handler.currentSnapshot.queueItems;
-        expect(queue.length, equals(2));
-        expect(queue[0].track.artworkPath, equals('/path/to/folder_art.jpg'));
-        expect(queue[1].track.artworkPath, equals('/path/to/embedded.jpg'));
-        expect(
-          handler.currentSnapshot.currentTrack?.artworkPath,
-          equals('/path/to/folder_art.jpg'),
-        );
-        await pumpEventQueue();
-      },
-    );
+      final queue = handler.currentSnapshot.queueItems;
+      expect(queue.length, equals(2));
+      expect(queue[0].track.artworkPath, equals('/path/to/folder_art.jpg'));
+      expect(queue[1].track.artworkPath, equals('/path/to/embedded.jpg'));
+      expect(
+        handler.currentSnapshot.currentTrack?.artworkPath,
+        equals('/path/to/folder_art.jpg'),
+      );
+      await pumpEventQueue();
+    });
   });
 }

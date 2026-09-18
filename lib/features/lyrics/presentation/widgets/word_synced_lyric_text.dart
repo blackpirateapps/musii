@@ -10,6 +10,7 @@ class WordSyncedLyricText extends StatelessWidget {
   final TextStyle style;
   final TextAlign textAlign;
   final int? nextLineTimestampMs;
+  final bool enableSimulatedLineSweep;
 
   const WordSyncedLyricText({
     super.key,
@@ -20,6 +21,7 @@ class WordSyncedLyricText extends StatelessWidget {
     required this.style,
     this.textAlign = TextAlign.left,
     this.nextLineTimestampMs,
+    this.enableSimulatedLineSweep = true,
   });
 
   @override
@@ -33,8 +35,16 @@ class WordSyncedLyricText extends StatelessWidget {
     if (!line.hasWords) {
       if (!isActive) {
         return Text(
-          line.text.isNotEmpty ? line.text : '♪',
+          line.text,
           style: style.copyWith(color: inactiveColor),
+          textAlign: textAlign,
+        );
+      }
+
+      if (!enableSimulatedLineSweep) {
+        return Text(
+          line.text,
+          style: style.copyWith(color: activeColor),
           textAlign: textAlign,
         );
       }
@@ -52,7 +62,7 @@ class WordSyncedLyricText extends StatelessWidget {
           : ((curMs - startMs) / lineDuration).clamp(0.0, 1.0);
 
       return _FeatheredProgressText(
-        text: line.text.isNotEmpty ? line.text : '♪',
+        text: line.text,
         progress: progress,
         activeColor: activeColor,
         inactiveColor: inactiveColor,

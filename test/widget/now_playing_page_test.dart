@@ -44,6 +44,8 @@ void main() {
           ),
           isTrackFavoriteProvider('track_test_1')
               .overrideWith((ref) => Stream.value(false)),
+          trackLyricsProvider('track_test_1')
+              .overrideWith((ref) => Stream.value(null)),
         ],
         child: const CupertinoApp(home: NowPlayingPage()),
       ),
@@ -102,6 +104,8 @@ void main() {
           ),
           isTrackFavoriteProvider('track_test_1')
               .overrideWith((ref) => Stream.value(false)),
+          trackLyricsProvider('track_test_1')
+              .overrideWith((ref) => Stream.value(null)),
         ],
         child: const CupertinoApp(home: NowPlayingPage()),
       ),
@@ -142,6 +146,8 @@ void main() {
           ),
           isTrackFavoriteProvider('track_test_1')
               .overrideWith((ref) => Stream.value(false)),
+          trackLyricsProvider('track_test_1')
+              .overrideWith((ref) => Stream.value(null)),
         ],
         child: CupertinoApp(
           home: Builder(
@@ -186,6 +192,8 @@ void main() {
           ),
           isTrackFavoriteProvider('track_test_1')
               .overrideWith((ref) => Stream.value(false)),
+          trackLyricsProvider('track_test_1')
+              .overrideWith((ref) => Stream.value(null)),
         ],
         child: CupertinoApp(
           home: Builder(
@@ -231,6 +239,8 @@ void main() {
           ),
           isTrackFavoriteProvider('track_test_1')
               .overrideWith((ref) => Stream.value(false)),
+          trackLyricsProvider('track_test_1')
+              .overrideWith((ref) => Stream.value(null)),
         ],
         child: const CupertinoApp(home: NowPlayingPage()),
       ),
@@ -271,6 +281,8 @@ void main() {
             ),
             isTrackFavoriteProvider('track_test_1')
                 .overrideWith((ref) => Stream.value(false)),
+            trackLyricsProvider('track_test_1')
+                .overrideWith((ref) => Stream.value(null)),
           ],
           child: const CupertinoApp(home: NowPlayingPage()),
         ),
@@ -306,6 +318,8 @@ void main() {
             ),
             isTrackFavoriteProvider('track_test_1')
                 .overrideWith((ref) => Stream.value(false)),
+            trackLyricsProvider('track_test_1')
+                .overrideWith((ref) => Stream.value(null)),
           ],
           child: const CupertinoApp(home: NowPlayingPage()),
         ),

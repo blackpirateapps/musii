@@ -226,14 +226,15 @@ class AppDatabase extends _$AppDatabase {
 
         final albumArt =
             album.artworkPath != null && album.artworkPath!.isNotEmpty
-                ? album.artworkPath
-                : null;
+            ? album.artworkPath
+            : null;
 
         await (update(tracks)..where((t) => t.albumId.equals(album.id))).write(
           TracksCompanion(
             albumArtist: Value(effectiveArtist),
-            artworkPath:
-                albumArt != null ? Value(albumArt) : const Value.absent(),
+            artworkPath: albumArt != null
+                ? Value(albumArt)
+                : const Value.absent(),
           ),
         );
         continue;
@@ -362,8 +363,8 @@ class AppDatabase extends _$AppDatabase {
 
         final survivorArt =
             survivor.artworkPath != null && survivor.artworkPath!.isNotEmpty
-                ? survivor.artworkPath
-                : null;
+            ? survivor.artworkPath
+            : null;
 
         if (duplicates.isNotEmpty) {
           final dupIds = duplicates.map((d) => d.id).toList();
@@ -404,7 +405,9 @@ class AppDatabase extends _$AppDatabase {
           ),
         );
 
-        await (update(tracks)..where((t) => t.albumId.equals(survivor.id))).write(
+        await (update(
+          tracks,
+        )..where((t) => t.albumId.equals(survivor.id))).write(
           TracksCompanion(
             albumArtist: Value(winningArtist),
             artworkPath: survivorArt != null

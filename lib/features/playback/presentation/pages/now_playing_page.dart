@@ -24,6 +24,7 @@ import '../../../library/presentation/widgets/track_overflow_sheet.dart';
 import '../../../lyrics/presentation/pages/lyrics_sheet.dart';
 import '../../../last_fm/presentation/providers/last_fm_providers.dart';
 import '../../domain/entities/playback_state.dart';
+import '../widgets/now_playing_inline_lyrics.dart';
 import 'queue_page.dart';
 
 class NowPlayingPage extends ConsumerStatefulWidget {
@@ -132,6 +133,7 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
     final screenHeight = mediaSize.height;
     // Sized responsively to usable screen width and height
     final artworkSize = min(screenWidth * 0.64, screenHeight * 0.33);
+    final isCompactScreen = screenHeight < 620;
 
     final isFavAsync = track != null
         ? ref.watch(isTrackFavoriteProvider(track.id))
@@ -452,7 +454,15 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
                               ),
                             ),
 
-                            const SizedBox(height: AppSpacing.lg),
+                            const SizedBox(height: AppSpacing.sm),
+
+                            // Inline Synced Lyrics (between metadata and scrubber)
+                            NowPlayingInlineLyrics(
+                              track: track,
+                              isCompactScreen: isCompactScreen,
+                            ),
+
+                            const SizedBox(height: AppSpacing.sm),
 
                             // Apple-Style Scrubber (isolated — only scrubber rebuilds on position ticks)
                             const _NowPlayingScrubber(),
@@ -557,14 +567,11 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
                                         .read(playbackRepositoryProvider)
                                         .cycleRepeatMode(),
                                     child: Icon(
-                                      repeatMode ==
-                                              AudioRepeatMode.one
+                                      repeatMode == AudioRepeatMode.one
                                           ? CupertinoIcons.repeat_1
                                           : CupertinoIcons.repeat,
                                       size: 22,
-                                      color:
-                                          repeatMode !=
-                                              AudioRepeatMode.off
+                                      color: repeatMode != AudioRepeatMode.off
                                           ? CupertinoColors.systemPink
                                           : CupertinoColors.white.withOpacity(
                                               0.70,
@@ -732,14 +739,15 @@ class _NowPlayingScrubberState extends ConsumerState<_NowPlayingScrubber>
   @override
   void initState() {
     super.initState();
-    _lerpController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 200),
-    )..addListener(() {
-        if (!_isScrubbing && mounted) {
-          setState(() {});
-        }
-      });
+    _lerpController =
+        AnimationController(
+          vsync: this,
+          duration: const Duration(milliseconds: 200),
+        )..addListener(() {
+          if (!_isScrubbing && mounted) {
+            setState(() {});
+          }
+        });
   }
 
   @override
@@ -816,9 +824,9 @@ class _NowPlayingScrubberState extends ConsumerState<_NowPlayingScrubber>
                   _isScrubbing = false;
                   _lerpStart = val;
                   _lerpEnd = val;
-                  ref.read(playbackRepositoryProvider).seek(
-                    Duration(milliseconds: val.toInt()),
-                  );
+                  ref
+                      .read(playbackRepositoryProvider)
+                      .seek(Duration(milliseconds: val.toInt()));
                 },
               ),
             ),

@@ -122,7 +122,10 @@ void main() {
             authUrl.queryParameters['api_key'],
             equals('979031f3a1b042ab166295f2b7bbfce3'),
           );
-          expect(authUrl.queryParameters['token'], equals('sampletokenxyz123456'));
+          expect(
+            authUrl.queryParameters['token'],
+            equals('sampletokenxyz123456'),
+          );
 
           final secret = await repo.getApiSecret();
           expect(secret, equals('c0ffee1234567890abcdef1234567890'));

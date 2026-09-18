@@ -60,9 +60,7 @@ class FakeGoogleDriveRepository implements GoogleDriveRepository {
     void Function(int receivedBytes, int totalBytes)? onProgress,
   }) async {
     if (failingFileIds.contains(fileId)) {
-      return const Result.failure(
-        NetworkFailure('Simulated download failure'),
-      );
+      return const Result.failure(NetworkFailure('Simulated download failure'));
     }
     downloadCallCount++;
     downloadedFileIds.add(fileId);
@@ -1073,9 +1071,9 @@ void main() {
       expect(lastSession, isNotNull);
       final runId = lastSession!.syncRunId!;
 
-      final discoveredRows = await (db.select(db.discoveredFiles)
-            ..where((tbl) => tbl.syncRunId.equals(runId)))
-          .get();
+      final discoveredRows = await (db.select(
+        db.discoveredFiles,
+      )..where((tbl) => tbl.syncRunId.equals(runId))).get();
       expect(discoveredRows.length, equals(3));
 
       final df1 = discoveredRows.firstWhere((r) => r.driveFileId == 'df_p1');
@@ -1107,9 +1105,9 @@ void main() {
       expect(fakeExtractor.extractCallCount, equals(2));
 
       // After resume completion, all files must be marked isProcessed == true
-      final completedRows = await (db.select(db.discoveredFiles)
-            ..where((tbl) => tbl.syncRunId.equals(runId)))
-          .get();
+      final completedRows = await (db.select(
+        db.discoveredFiles,
+      )..where((tbl) => tbl.syncRunId.equals(runId))).get();
       expect(completedRows.every((r) => r.isProcessed), isTrue);
       expect(
         completedRows.map((r) => r.processStatus),
@@ -1151,9 +1149,9 @@ void main() {
       expect(lastSession, isNotNull);
       final runId = lastSession!.syncRunId!;
 
-      final rows = await (db.select(db.discoveredFiles)
-            ..where((tbl) => tbl.syncRunId.equals(runId)))
-          .get();
+      final rows = await (db.select(
+        db.discoveredFiles,
+      )..where((tbl) => tbl.syncRunId.equals(runId))).get();
       final failRow = rows.firstWhere((r) => r.driveFileId == 'df_fail');
       expect(failRow.isProcessed, isFalse);
       expect(failRow.processStatus, equals('failed'));
@@ -1175,9 +1173,9 @@ void main() {
       expect(fakeDrive.downloadCallCount, equals(1));
 
       // Check DB: df_fail is now processed
-      final rowsAfter = await (db.select(db.discoveredFiles)
-            ..where((tbl) => tbl.syncRunId.equals(runId)))
-          .get();
+      final rowsAfter = await (db.select(
+        db.discoveredFiles,
+      )..where((tbl) => tbl.syncRunId.equals(runId))).get();
       final retryRow = rowsAfter.firstWhere((r) => r.driveFileId == 'df_fail');
       expect(retryRow.isProcessed, isTrue);
       expect(retryRow.processStatus, equals('added'));
@@ -1221,9 +1219,9 @@ void main() {
       // Verified as unchanged in discovered_files
       final lastSession = await libraryRepo.getLastSyncSession();
 
-      final rows = await (db.select(db.discoveredFiles)
-            ..where((tbl) => tbl.syncRunId.equals(lastSession!.syncRunId!)))
-          .get();
+      final rows = await (db.select(
+        db.discoveredFiles,
+      )..where((tbl) => tbl.syncRunId.equals(lastSession!.syncRunId!))).get();
       final row = rows.firstWhere((r) => r.driveFileId == 'df_subsecond');
       expect(row.isProcessed, isTrue);
       expect(row.processStatus, equals('unchanged'));

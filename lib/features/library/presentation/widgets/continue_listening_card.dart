@@ -25,12 +25,18 @@ class ContinueListeningCard extends ConsumerWidget {
       playerStateProvider.select((s) => s.value?.currentTrack?.id == track.id),
     );
     final isPlaying = ref.watch(
-      playerStateProvider.select((s) =>
-        s.value?.currentTrack?.id == track.id && (s.value?.isPlaying ?? false)),
+      playerStateProvider.select(
+        (s) =>
+            s.value?.currentTrack?.id == track.id &&
+            (s.value?.isPlaying ?? false),
+      ),
     );
     final isBuffering = ref.watch(
-      playerStateProvider.select((s) =>
-        s.value?.currentTrack?.id == track.id && (s.value?.isBuffering ?? false)),
+      playerStateProvider.select(
+        (s) =>
+            s.value?.currentTrack?.id == track.id &&
+            (s.value?.isBuffering ?? false),
+      ),
     );
 
     return Container(
@@ -275,10 +281,7 @@ class _ContinueListeningScrubber extends ConsumerWidget {
         LayoutBuilder(
           builder: (context, constraints) {
             final barWidth = constraints.maxWidth;
-            final thumbPos = (barWidth * progress).clamp(
-              0.0,
-              barWidth,
-            );
+            final thumbPos = (barWidth * progress).clamp(0.0, barWidth);
 
             return SizedBox(
               height: 8,
@@ -309,10 +312,7 @@ class _ContinueListeningScrubber extends ConsumerWidget {
                   ),
                   // Thumb dot
                   Positioned(
-                    left: (thumbPos - 3.5).clamp(
-                      0.0,
-                      barWidth - 7.0,
-                    ),
+                    left: (thumbPos - 3.5).clamp(0.0, barWidth - 7.0),
                     child: Container(
                       width: 7,
                       height: 7,

@@ -162,6 +162,26 @@ final themeModeProvider = NotifierProvider<ThemeModeNotifier, AppThemeMode>(
   ThemeModeNotifier.new,
 );
 
+class InlineLyricsNotifier extends Notifier<bool> {
+  @override
+  bool build() {
+    final settings = ref.watch(settingsRepositoryProvider);
+    settings.getInlineLyricsEnabled().then((enabled) {
+      state = enabled;
+    });
+    return true;
+  }
+
+  Future<void> setEnabled(bool enabled) async {
+    state = enabled;
+    final settings = ref.read(settingsRepositoryProvider);
+    await settings.setInlineLyricsEnabled(enabled);
+  }
+}
+
+final inlineLyricsEnabledProvider =
+    NotifierProvider<InlineLyricsNotifier, bool>(InlineLyricsNotifier.new);
+
 // Connectivity
 final connectivityServiceProvider = Provider<ConnectivityService>((ref) {
   return ConnectivityService();

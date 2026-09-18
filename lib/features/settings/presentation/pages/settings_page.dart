@@ -390,7 +390,28 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 ],
               ),
 
-              // 3. Storage & Cache
+              // 3. Lyrics Settings
+              CupertinoListSection.insetGrouped(
+                header: const Text('LYRICS'),
+                children: [
+                  CupertinoListTile(
+                    title: const Text('Inline Synced Lyrics'),
+                    subtitle: const Text(
+                      'Show synchronized lyrics on the Now Playing screen',
+                    ),
+                    trailing: CupertinoSwitch(
+                      value: ref.watch(inlineLyricsEnabledProvider),
+                      onChanged: (val) async {
+                        await ref
+                            .read(inlineLyricsEnabledProvider.notifier)
+                            .setEnabled(val);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+
+              // 4. Storage & Cache
               CupertinoListSection.insetGrouped(
                 header: const Text('STORAGE & CACHE'),
                 children: [

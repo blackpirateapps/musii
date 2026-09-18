@@ -95,9 +95,9 @@ class MusiiAudioHandler extends BaseAudioHandler
     Uri? artUri;
     final artworkPath =
         (track.artworkPath != null && track.artworkPath!.isNotEmpty)
-            ? track.artworkPath
-            : (_resolveArtworkPath(track.albumName, track.albumArtist) ??
-                _resolveArtworkPath(track.albumName, track.artistName));
+        ? track.artworkPath
+        : (_resolveArtworkPath(track.albumName, track.albumArtist) ??
+              _resolveArtworkPath(track.albumName, track.artistName));
     if (artworkPath != null && artworkPath.isNotEmpty) {
       final file = File(artworkPath);
       if (file.existsSync()) {
@@ -998,7 +998,8 @@ class PlaybackRepositoryImpl implements PlaybackRepository {
     if (tracks.isEmpty) return Future.value();
     final effectiveTracks = tracks.map((t) {
       if (t.artworkPath != null && t.artworkPath!.isNotEmpty) return t;
-      final resolved = album.artworkPath ??
+      final resolved =
+          album.artworkPath ??
           _audioHandler._resolveArtworkPath(t.albumName, t.albumArtist) ??
           _audioHandler._resolveArtworkPath(t.albumName, t.artistName);
       return resolved != null ? t.copyWith(artworkPath: resolved) : t;
@@ -1022,7 +1023,8 @@ class PlaybackRepositoryImpl implements PlaybackRepository {
     if (tracks.isEmpty) return Future.value();
     final effectiveTracks = tracks.map((t) {
       if (t.artworkPath != null && t.artworkPath!.isNotEmpty) return t;
-      final resolved = playlist.artworkPath ??
+      final resolved =
+          playlist.artworkPath ??
           _audioHandler._resolveArtworkPath(t.albumName, t.albumArtist) ??
           _audioHandler._resolveArtworkPath(t.albumName, t.artistName);
       return resolved != null ? t.copyWith(artworkPath: resolved) : t;

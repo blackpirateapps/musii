@@ -385,8 +385,10 @@ class _LastFmSettingsPageState extends ConsumerState<LastFmSettingsPage> {
                 if (_pendingAuthUrl != null) ...[
                   const SizedBox(height: 14),
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
                       color: isDark
                           ? const Color(0xFF12131A)
@@ -475,10 +477,7 @@ class _LastFmSettingsPageState extends ConsumerState<LastFmSettingsPage> {
                       children: [
                         Icon(CupertinoIcons.compass, size: 15),
                         SizedBox(width: 6),
-                        Text(
-                          'Re-open Browser',
-                          style: TextStyle(fontSize: 13),
-                        ),
+                        Text('Re-open Browser', style: TextStyle(fontSize: 13)),
                       ],
                     ),
                   ),
@@ -509,8 +508,10 @@ class _LastFmSettingsPageState extends ConsumerState<LastFmSettingsPage> {
               padding: const EdgeInsets.only(bottom: 16.0),
               child: Center(
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: CupertinoColors.activeGreen.withOpacity(0.12),
                     borderRadius: BorderRadius.circular(16),

@@ -12,6 +12,13 @@ class LyricLineWidget extends ConsumerStatefulWidget {
   final bool isDark;
   final VoidCallback onTap;
   final int? nextLineTimestampMs;
+  final TextAlign textAlign;
+  final Alignment alignment;
+  final EdgeInsetsGeometry padding;
+  final TextStyle? activeStyle;
+  final TextStyle? inactiveStyle;
+  final bool enableScale;
+  final bool enableSimulatedLineSweep;
 
   const LyricLineWidget({
     super.key,
@@ -21,6 +28,13 @@ class LyricLineWidget extends ConsumerStatefulWidget {
     required this.isDark,
     required this.onTap,
     this.nextLineTimestampMs,
+    this.textAlign = TextAlign.left,
+    this.alignment = Alignment.centerLeft,
+    this.padding = const EdgeInsets.symmetric(vertical: 12.0),
+    this.activeStyle,
+    this.inactiveStyle,
+    this.enableScale = true,
+    this.enableSimulatedLineSweep = true,
   });
 
   @override
@@ -60,7 +74,9 @@ class _LyricLineWidgetState extends ConsumerState<LyricLineWidget>
     _isPlaying = isPlaying;
     _speed = 1.0;
 
-    if (_isPlaying) {
+    final bool needsVsync =
+        widget.line.hasWords || widget.enableSimulatedLineSweep;
+    if (_isPlaying && needsVsync) {
       _extrapolationController.forward(from: 0.0);
     }
   }
@@ -110,17 +126,19 @@ class _LyricLineWidgetState extends ConsumerState<LyricLineWidget>
         _anchorPositionMs + (_extrapolationController.value * 500.0 * _speed);
     final diff = (rawMs - currentCalcMs).abs();
 
+    final bool needsVsync =
+        widget.line.hasWords || widget.enableSimulatedLineSweep;
     if (diff > 300) {
       // Seek or jump: snap immediately
       _anchorPositionMs = rawMs;
       _smoothPosition = Duration(milliseconds: rawMs.round());
-      if (_isPlaying) {
+      if (_isPlaying && needsVsync) {
         _extrapolationController.forward(from: 0.0);
       }
     } else {
       // Minor audio clock drift: blend anchor smoothly
       _anchorPositionMs = (currentCalcMs + rawMs) / 2.0;
-      if (_isPlaying) {
+      if (_isPlaying && needsVsync) {
         _extrapolationController.forward(from: 0.0);
       }
     }
@@ -147,11 +165,13 @@ class _LyricLineWidgetState extends ConsumerState<LyricLineWidget>
       _isPlaying = isPlaying;
       _speed = 1.0;
 
+      final bool needsVsync =
+          widget.line.hasWords || widget.enableSimulatedLineSweep;
       final rawMs = rawPos.inMilliseconds.toDouble();
       if ((rawMs - _anchorPositionMs).abs() > 0.001) {
         _onPositionUpdated(rawMs);
       } else if (isPlayingChanged) {
-        if (_isPlaying) {
+        if (_isPlaying && needsVsync) {
           _extrapolationController.forward(from: 0.0);
         } else {
           _extrapolationController.stop();
@@ -170,23 +190,39 @@ class _LyricLineWidgetState extends ConsumerState<LyricLineWidget>
         ? CupertinoColors.white.withOpacity(0.38)
         : CupertinoColors.black.withOpacity(0.38);
 
-    final textStyle = TextStyle(
-      fontSize: widget.isActive ? 23 : 19,
-      fontWeight: widget.isActive ? FontWeight.w700 : FontWeight.w500,
-      letterSpacing: widget.isActive ? -0.3 : -0.2,
+    final defaultActiveStyle = TextStyle(
+      fontSize: 23,
+      fontWeight: FontWeight.w700,
+      letterSpacing: -0.3,
       height: 1.4,
-      color: widget.isActive ? activeColor : inactiveColor,
+      color: activeColor,
     );
+
+    final defaultInactiveStyle = TextStyle(
+      fontSize: 19,
+      fontWeight: FontWeight.w500,
+      letterSpacing: -0.2,
+      height: 1.4,
+      color: inactiveColor,
+    );
+
+    final textStyle = widget.isActive
+        ? (widget.activeStyle ?? defaultActiveStyle)
+        : (widget.inactiveStyle ?? defaultInactiveStyle);
+
+    final double scale = widget.enableScale
+        ? (widget.isActive ? 1.0 : 0.97)
+        : 1.0;
 
     return RepaintBoundary(
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: widget.onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12.0),
+          padding: widget.padding,
           child: AnimatedScale(
-            scale: widget.isActive ? 1.0 : 0.97,
-            alignment: Alignment.centerLeft,
+            scale: scale,
+            alignment: widget.alignment,
             duration: const Duration(milliseconds: 280),
             curve: Curves.easeOutCubic,
             child: AnimatedDefaultTextStyle(
@@ -199,7 +235,9 @@ class _LyricLineWidgetState extends ConsumerState<LyricLineWidget>
                 isActive: widget.isActive,
                 isDark: widget.isDark,
                 style: textStyle,
+                textAlign: widget.textAlign,
                 nextLineTimestampMs: widget.nextLineTimestampMs,
+                enableSimulatedLineSweep: widget.enableSimulatedLineSweep,
               ),
             ),
           ),
