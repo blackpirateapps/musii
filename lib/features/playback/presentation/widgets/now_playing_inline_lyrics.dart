@@ -217,7 +217,8 @@ class _NowPlayingInlineLyricsState
   int _estimateLineDuration(List<LyricLine> lines, int index) {
     final line = lines[index];
     if (line.hasWords) {
-      return (line.words.last.endMs - line.timestampMs).clamp(1200, 5000);
+      final actualDuration = line.words.last.endMs - line.timestampMs;
+      return actualDuration > 0 ? actualDuration : 3500;
     }
     if (index + 1 < lines.length) {
       final diff = lines[index + 1].timestampMs - line.timestampMs;
@@ -263,8 +264,8 @@ class _NowPlayingInlineLyricsState
           : null;
 
       // 2. Mid-Song Instrumental Gap Check
-      if (nextMs != null && (nextMs - lineEndMs >= 3000)) {
-        if (curMs >= lineEndMs + 400 && curMs < nextMs) {
+      if (nextMs != null && (nextMs - lineEndMs >= 3500)) {
+        if (curMs >= lineEndMs + 800 && curMs < nextMs) {
           return _ReelSlotData(
             phase: _ReelPhase.gap,
             activeIndex: activeIndex,
@@ -525,7 +526,6 @@ class _InlineLyricsReelState extends State<_InlineLyricsReel>
     required int targetMs,
     required int currentMs,
     required bool isDark,
-    required Duration position,
     bool isInstrumentalHero = false,
   }) {
     if (showDots) {
@@ -598,7 +598,6 @@ class _InlineLyricsReelState extends State<_InlineLyricsReel>
                     height: 1.35,
                     color: textBaseColor.withOpacity(0.38),
                   ),
-                  position: position,
                   onTap: widget.onTap ?? () {},
                 ),
               ),
@@ -683,7 +682,6 @@ class _InlineLyricsReelState extends State<_InlineLyricsReel>
                     targetMs: 0,
                     currentMs: currentMs,
                     isDark: isDark,
-                    position: widget.currentPosition,
                   ),
 
                 // Center Slot: Hero Lyric OR Vocal Countdown Dots
@@ -698,7 +696,6 @@ class _InlineLyricsReelState extends State<_InlineLyricsReel>
                     targetMs: 0,
                     currentMs: currentMs,
                     isDark: isDark,
-                    position: widget.currentPosition,
                     isInstrumentalHero: isInstrumental,
                   ),
 
@@ -713,7 +710,6 @@ class _InlineLyricsReelState extends State<_InlineLyricsReel>
                     targetMs: _toSlotData.targetMs,
                     currentMs: currentMs,
                     isDark: isDark,
-                    position: widget.currentPosition,
                   ),
 
                 // Bottom Slot: Upcoming line preview
@@ -728,7 +724,6 @@ class _InlineLyricsReelState extends State<_InlineLyricsReel>
                     targetMs: 0,
                     currentMs: currentMs,
                     isDark: isDark,
-                    position: widget.currentPosition,
                   ),
               ],
             );
@@ -757,7 +752,6 @@ class _InlineLyricsReelState extends State<_InlineLyricsReel>
                     targetMs: 0,
                     currentMs: currentMs,
                     isDark: isDark,
-                    position: widget.currentPosition,
                   ),
 
                 // 2. Old center rolls up to top slot
@@ -771,7 +765,6 @@ class _InlineLyricsReelState extends State<_InlineLyricsReel>
                   targetMs: from.targetMs,
                   currentMs: currentMs,
                   isDark: isDark,
-                  position: widget.currentPosition,
                 ),
 
                 // 3. Old bottom rolls up to center spotlight
@@ -785,7 +778,6 @@ class _InlineLyricsReelState extends State<_InlineLyricsReel>
                   targetMs: to.targetMs,
                   currentMs: currentMs,
                   isDark: isDark,
-                  position: widget.currentPosition,
                 ),
 
                 // 4. New bottom emerges into preview slot
@@ -800,7 +792,6 @@ class _InlineLyricsReelState extends State<_InlineLyricsReel>
                     targetMs: 0,
                     currentMs: currentMs,
                     isDark: isDark,
-                    position: widget.currentPosition,
                   ),
               ],
             );
@@ -821,7 +812,6 @@ class _InlineLyricsReelState extends State<_InlineLyricsReel>
                     targetMs: 0,
                     currentMs: currentMs,
                     isDark: isDark,
-                    position: widget.currentPosition,
                   ),
 
                 // 2. Old top rolls down into center slot
@@ -835,7 +825,6 @@ class _InlineLyricsReelState extends State<_InlineLyricsReel>
                   targetMs: to.targetMs,
                   currentMs: currentMs,
                   isDark: isDark,
-                  position: widget.currentPosition,
                 ),
 
                 // 3. Old center rolls down into bottom slot
@@ -849,7 +838,6 @@ class _InlineLyricsReelState extends State<_InlineLyricsReel>
                   targetMs: from.targetMs,
                   currentMs: currentMs,
                   isDark: isDark,
-                  position: widget.currentPosition,
                 ),
 
                 // 4. Old bottom exits downward
@@ -864,7 +852,6 @@ class _InlineLyricsReelState extends State<_InlineLyricsReel>
                     targetMs: 0,
                     currentMs: currentMs,
                     isDark: isDark,
-                    position: widget.currentPosition,
                   ),
               ],
             );

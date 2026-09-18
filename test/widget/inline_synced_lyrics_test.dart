@@ -370,6 +370,143 @@ void main() {
       expect(find.text('me'), findsOneWidget);
     });
 
+    testWidgets(
+      'word-by-word synced line continuously highlights words to end of sentence without getting stuck',
+      (tester) async {
+        tester.view.physicalSize = const Size(800, 1400);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        final stateController =
+            StreamController<PlayerStateSnapshot>.broadcast();
+        addTearDown(stateController.close);
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              appDatabaseProvider.overrideWithValue(db),
+              settingsRepositoryProvider.overrideWithValue(settingsRepo),
+              lastFmAccountProvider.overrideWith((ref) => Stream.value(null)),
+              playerStateProvider.overrideWith((ref) => stateController.stream),
+              trackLyricsProvider('track_1')
+                  .overrideWith((ref) => Stream.value(syncedLyricsTrack1)),
+              isTrackFavoriteProvider('track_1')
+                  .overrideWith((ref) => Stream.value(false)),
+            ],
+            child: const CupertinoApp(home: NowPlayingPage()),
+          ),
+        );
+
+        // 1. Initial line entry at 5200ms: First word ("Stay") is actively singing
+        stateController.add(
+          const PlayerStateSnapshot(
+            currentTrack: track1,
+            duration: Duration(milliseconds: 243000),
+            position: Duration(milliseconds: 5200),
+            isPlaying: true,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(findCurrentLyricSemantics('Stay with me'), findsOneWidget);
+        expect(find.byType(WordSyncedLyricText), findsOneWidget);
+        // Active singing word has ShaderMask feathered reveal
+        expect(
+          find.descendant(
+            of: find.byType(WordSyncedLyricText),
+            matching: find.byType(ShaderMask),
+          ),
+          findsOneWidget,
+        );
+
+        // 2. Advance to 6500ms (1500ms into line, well beyond 500ms):
+        // Word 0 ("Stay") finished, Word 1 ("with") is actively singing.
+        stateController.add(
+          const PlayerStateSnapshot(
+            currentTrack: track1,
+            duration: Duration(milliseconds: 243000),
+            position: Duration(milliseconds: 6500),
+            isPlaying: true,
+          ),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
+
+        expect(findCurrentLyricSemantics('Stay with me'), findsOneWidget);
+        expect(
+          find.descendant(
+            of: find.byType(WordSyncedLyricText),
+            matching: find.byType(ShaderMask),
+          ),
+          findsOneWidget,
+        );
+
+        // 3. Advance to 7800ms (2800ms into line):
+        // Word 0 and Word 1 finished, Word 2 ("me") is actively singing.
+        stateController.add(
+          const PlayerStateSnapshot(
+            currentTrack: track1,
+            duration: Duration(milliseconds: 243000),
+            position: Duration(milliseconds: 7800),
+            isPlaying: true,
+          ),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
+
+        expect(findCurrentLyricSemantics('Stay with me'), findsOneWidget);
+        expect(
+          find.descendant(
+            of: find.byType(WordSyncedLyricText),
+            matching: find.byType(ShaderMask),
+          ),
+          findsOneWidget,
+        );
+
+        // 4. Advance to 8800ms: All words have finished singing (endMs is 8500ms).
+        // Sentence remains visible during dwell period.
+        stateController.add(
+          const PlayerStateSnapshot(
+            currentTrack: track1,
+            duration: Duration(milliseconds: 243000),
+            position: Duration(milliseconds: 8800),
+            isPlaying: true,
+          ),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
+
+        expect(findCurrentLyricSemantics('Stay with me'), findsOneWidget);
+        // All words finished: no ShaderMask currently actively feathered
+        expect(
+          find.descendant(
+            of: find.byType(WordSyncedLyricText),
+            matching: find.byType(ShaderMask),
+          ),
+          findsNothing,
+        );
+
+        // 5. Advance to 10000ms: Seamless roll transition to next line
+        stateController.add(
+          const PlayerStateSnapshot(
+            currentTrack: track1,
+            duration: Duration(milliseconds: 243000),
+            position: Duration(milliseconds: 10000),
+            isPlaying: true,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(
+          findCurrentLyricSemantics('Mayonaka no door o tataki'),
+          findsOneWidget,
+        );
+        // Previous line 'Stay with me' is cleanly preserved in top slot
+        expect(find.text('Stay with me'), findsOneWidget);
+      },
+    );
+
     testWidgets('toggling Inline Synced Lyrics OFF collapses lyric area', (
       tester,
     ) async {
