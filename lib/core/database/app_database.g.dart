@@ -2852,6 +2852,17 @@ class $TracksTable extends Tracks with TableInfo<$TracksTable, TrackRow> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _artworkPathMeta = const VerificationMeta(
+    'artworkPath',
+  );
+  @override
+  late final GeneratedColumn<String> artworkPath = GeneratedColumn<String>(
+    'artwork_path',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _isCachedMeta = const VerificationMeta(
     'isCached',
   );
@@ -2942,6 +2953,7 @@ class $TracksTable extends Tracks with TableInfo<$TracksTable, TrackRow> {
     driveModifiedAt,
     driveMd5Checksum,
     localPath,
+    artworkPath,
     isCached,
     isPinnedOffline,
     rawMetadataJson,
@@ -3135,6 +3147,15 @@ class $TracksTable extends Tracks with TableInfo<$TracksTable, TrackRow> {
         localPath.isAcceptableOrUnknown(data['local_path']!, _localPathMeta),
       );
     }
+    if (data.containsKey('artwork_path')) {
+      context.handle(
+        _artworkPathMeta,
+        artworkPath.isAcceptableOrUnknown(
+          data['artwork_path']!,
+          _artworkPathMeta,
+        ),
+      );
+    }
     if (data.containsKey('is_cached')) {
       context.handle(
         _isCachedMeta,
@@ -3284,6 +3305,10 @@ class $TracksTable extends Tracks with TableInfo<$TracksTable, TrackRow> {
         DriftSqlType.string,
         data['${effectivePrefix}local_path'],
       ),
+      artworkPath: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}artwork_path'],
+      ),
       isCached: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}is_cached'],
@@ -3339,6 +3364,7 @@ class TrackRow extends DataClass implements Insertable<TrackRow> {
   final DateTime? driveModifiedAt;
   final String? driveMd5Checksum;
   final String? localPath;
+  final String? artworkPath;
   final bool isCached;
   final bool isPinnedOffline;
   final String? rawMetadataJson;
@@ -3370,6 +3396,7 @@ class TrackRow extends DataClass implements Insertable<TrackRow> {
     this.driveModifiedAt,
     this.driveMd5Checksum,
     this.localPath,
+    this.artworkPath,
     required this.isCached,
     required this.isPinnedOffline,
     this.rawMetadataJson,
@@ -3439,6 +3466,9 @@ class TrackRow extends DataClass implements Insertable<TrackRow> {
     }
     if (!nullToAbsent || localPath != null) {
       map['local_path'] = Variable<String>(localPath);
+    }
+    if (!nullToAbsent || artworkPath != null) {
+      map['artwork_path'] = Variable<String>(artworkPath);
     }
     map['is_cached'] = Variable<bool>(isCached);
     map['is_pinned_offline'] = Variable<bool>(isPinnedOffline);
@@ -3511,6 +3541,9 @@ class TrackRow extends DataClass implements Insertable<TrackRow> {
       localPath: localPath == null && nullToAbsent
           ? const Value.absent()
           : Value(localPath),
+      artworkPath: artworkPath == null && nullToAbsent
+          ? const Value.absent()
+          : Value(artworkPath),
       isCached: Value(isCached),
       isPinnedOffline: Value(isPinnedOffline),
       rawMetadataJson: rawMetadataJson == null && nullToAbsent
@@ -3552,6 +3585,7 @@ class TrackRow extends DataClass implements Insertable<TrackRow> {
       driveModifiedAt: serializer.fromJson<DateTime?>(json['driveModifiedAt']),
       driveMd5Checksum: serializer.fromJson<String?>(json['driveMd5Checksum']),
       localPath: serializer.fromJson<String?>(json['localPath']),
+      artworkPath: serializer.fromJson<String?>(json['artworkPath']),
       isCached: serializer.fromJson<bool>(json['isCached']),
       isPinnedOffline: serializer.fromJson<bool>(json['isPinnedOffline']),
       rawMetadataJson: serializer.fromJson<String?>(json['rawMetadataJson']),
@@ -3588,6 +3622,7 @@ class TrackRow extends DataClass implements Insertable<TrackRow> {
       'driveModifiedAt': serializer.toJson<DateTime?>(driveModifiedAt),
       'driveMd5Checksum': serializer.toJson<String?>(driveMd5Checksum),
       'localPath': serializer.toJson<String?>(localPath),
+      'artworkPath': serializer.toJson<String?>(artworkPath),
       'isCached': serializer.toJson<bool>(isCached),
       'isPinnedOffline': serializer.toJson<bool>(isPinnedOffline),
       'rawMetadataJson': serializer.toJson<String?>(rawMetadataJson),
@@ -3622,6 +3657,7 @@ class TrackRow extends DataClass implements Insertable<TrackRow> {
     Value<DateTime?> driveModifiedAt = const Value.absent(),
     Value<String?> driveMd5Checksum = const Value.absent(),
     Value<String?> localPath = const Value.absent(),
+    Value<String?> artworkPath = const Value.absent(),
     bool? isCached,
     bool? isPinnedOffline,
     Value<String?> rawMetadataJson = const Value.absent(),
@@ -3657,6 +3693,7 @@ class TrackRow extends DataClass implements Insertable<TrackRow> {
         ? driveMd5Checksum.value
         : this.driveMd5Checksum,
     localPath: localPath.present ? localPath.value : this.localPath,
+    artworkPath: artworkPath.present ? artworkPath.value : this.artworkPath,
     isCached: isCached ?? this.isCached,
     isPinnedOffline: isPinnedOffline ?? this.isPinnedOffline,
     rawMetadataJson: rawMetadataJson.present
@@ -3712,6 +3749,9 @@ class TrackRow extends DataClass implements Insertable<TrackRow> {
           ? data.driveMd5Checksum.value
           : this.driveMd5Checksum,
       localPath: data.localPath.present ? data.localPath.value : this.localPath,
+      artworkPath: data.artworkPath.present
+          ? data.artworkPath.value
+          : this.artworkPath,
       isCached: data.isCached.present ? data.isCached.value : this.isCached,
       isPinnedOffline: data.isPinnedOffline.present
           ? data.isPinnedOffline.value
@@ -3752,6 +3792,7 @@ class TrackRow extends DataClass implements Insertable<TrackRow> {
           ..write('driveModifiedAt: $driveModifiedAt, ')
           ..write('driveMd5Checksum: $driveMd5Checksum, ')
           ..write('localPath: $localPath, ')
+          ..write('artworkPath: $artworkPath, ')
           ..write('isCached: $isCached, ')
           ..write('isPinnedOffline: $isPinnedOffline, ')
           ..write('rawMetadataJson: $rawMetadataJson, ')
@@ -3788,6 +3829,7 @@ class TrackRow extends DataClass implements Insertable<TrackRow> {
     driveModifiedAt,
     driveMd5Checksum,
     localPath,
+    artworkPath,
     isCached,
     isPinnedOffline,
     rawMetadataJson,
@@ -3823,6 +3865,7 @@ class TrackRow extends DataClass implements Insertable<TrackRow> {
           other.driveModifiedAt == this.driveModifiedAt &&
           other.driveMd5Checksum == this.driveMd5Checksum &&
           other.localPath == this.localPath &&
+          other.artworkPath == this.artworkPath &&
           other.isCached == this.isCached &&
           other.isPinnedOffline == this.isPinnedOffline &&
           other.rawMetadataJson == this.rawMetadataJson &&
@@ -3856,6 +3899,7 @@ class TracksCompanion extends UpdateCompanion<TrackRow> {
   final Value<DateTime?> driveModifiedAt;
   final Value<String?> driveMd5Checksum;
   final Value<String?> localPath;
+  final Value<String?> artworkPath;
   final Value<bool> isCached;
   final Value<bool> isPinnedOffline;
   final Value<String?> rawMetadataJson;
@@ -3888,6 +3932,7 @@ class TracksCompanion extends UpdateCompanion<TrackRow> {
     this.driveModifiedAt = const Value.absent(),
     this.driveMd5Checksum = const Value.absent(),
     this.localPath = const Value.absent(),
+    this.artworkPath = const Value.absent(),
     this.isCached = const Value.absent(),
     this.isPinnedOffline = const Value.absent(),
     this.rawMetadataJson = const Value.absent(),
@@ -3921,6 +3966,7 @@ class TracksCompanion extends UpdateCompanion<TrackRow> {
     this.driveModifiedAt = const Value.absent(),
     this.driveMd5Checksum = const Value.absent(),
     this.localPath = const Value.absent(),
+    this.artworkPath = const Value.absent(),
     this.isCached = const Value.absent(),
     this.isPinnedOffline = const Value.absent(),
     this.rawMetadataJson = const Value.absent(),
@@ -3960,6 +4006,7 @@ class TracksCompanion extends UpdateCompanion<TrackRow> {
     Expression<DateTime>? driveModifiedAt,
     Expression<String>? driveMd5Checksum,
     Expression<String>? localPath,
+    Expression<String>? artworkPath,
     Expression<bool>? isCached,
     Expression<bool>? isPinnedOffline,
     Expression<String>? rawMetadataJson,
@@ -3993,6 +4040,7 @@ class TracksCompanion extends UpdateCompanion<TrackRow> {
       if (driveModifiedAt != null) 'drive_modified_at': driveModifiedAt,
       if (driveMd5Checksum != null) 'drive_md5_checksum': driveMd5Checksum,
       if (localPath != null) 'local_path': localPath,
+      if (artworkPath != null) 'artwork_path': artworkPath,
       if (isCached != null) 'is_cached': isCached,
       if (isPinnedOffline != null) 'is_pinned_offline': isPinnedOffline,
       if (rawMetadataJson != null) 'raw_metadata_json': rawMetadataJson,
@@ -4028,6 +4076,7 @@ class TracksCompanion extends UpdateCompanion<TrackRow> {
     Value<DateTime?>? driveModifiedAt,
     Value<String?>? driveMd5Checksum,
     Value<String?>? localPath,
+    Value<String?>? artworkPath,
     Value<bool>? isCached,
     Value<bool>? isPinnedOffline,
     Value<String?>? rawMetadataJson,
@@ -4061,6 +4110,7 @@ class TracksCompanion extends UpdateCompanion<TrackRow> {
       driveModifiedAt: driveModifiedAt ?? this.driveModifiedAt,
       driveMd5Checksum: driveMd5Checksum ?? this.driveMd5Checksum,
       localPath: localPath ?? this.localPath,
+      artworkPath: artworkPath ?? this.artworkPath,
       isCached: isCached ?? this.isCached,
       isPinnedOffline: isPinnedOffline ?? this.isPinnedOffline,
       rawMetadataJson: rawMetadataJson ?? this.rawMetadataJson,
@@ -4148,6 +4198,9 @@ class TracksCompanion extends UpdateCompanion<TrackRow> {
     if (localPath.present) {
       map['local_path'] = Variable<String>(localPath.value);
     }
+    if (artworkPath.present) {
+      map['artwork_path'] = Variable<String>(artworkPath.value);
+    }
     if (isCached.present) {
       map['is_cached'] = Variable<bool>(isCached.value);
     }
@@ -4197,6 +4250,7 @@ class TracksCompanion extends UpdateCompanion<TrackRow> {
           ..write('driveModifiedAt: $driveModifiedAt, ')
           ..write('driveMd5Checksum: $driveMd5Checksum, ')
           ..write('localPath: $localPath, ')
+          ..write('artworkPath: $artworkPath, ')
           ..write('isCached: $isCached, ')
           ..write('isPinnedOffline: $isPinnedOffline, ')
           ..write('rawMetadataJson: $rawMetadataJson, ')
@@ -15146,6 +15200,7 @@ typedef $$TracksTableCreateCompanionBuilder = TracksCompanion Function({
   Value<DateTime?> driveModifiedAt,
   Value<String?> driveMd5Checksum,
   Value<String?> localPath,
+  Value<String?> artworkPath,
   Value<bool> isCached,
   Value<bool> isPinnedOffline,
   Value<String?> rawMetadataJson,
@@ -15179,6 +15234,7 @@ typedef $$TracksTableUpdateCompanionBuilder = TracksCompanion Function({
   Value<DateTime?> driveModifiedAt,
   Value<String?> driveMd5Checksum,
   Value<String?> localPath,
+  Value<String?> artworkPath,
   Value<bool> isCached,
   Value<bool> isPinnedOffline,
   Value<String?> rawMetadataJson,
@@ -15318,6 +15374,11 @@ class $$TracksTableFilterComposer
 
   ColumnFilters<String> get localPath => $composableBuilder(
     column: $table.localPath,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get artworkPath => $composableBuilder(
+    column: $table.artworkPath,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -15481,6 +15542,11 @@ class $$TracksTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get artworkPath => $composableBuilder(
+    column: $table.artworkPath,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<bool> get isCached => $composableBuilder(
     column: $table.isCached,
     builder: (column) => ColumnOrderings(column),
@@ -15611,6 +15677,11 @@ class $$TracksTableAnnotationComposer
   GeneratedColumn<String> get localPath =>
       $composableBuilder(column: $table.localPath, builder: (column) => column);
 
+  GeneratedColumn<String> get artworkPath => $composableBuilder(
+    column: $table.artworkPath,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<bool> get isCached =>
       $composableBuilder(column: $table.isCached, builder: (column) => column);
 
@@ -15684,6 +15755,7 @@ class $$TracksTableTableManager
                 Value<DateTime?> driveModifiedAt = const Value.absent(),
                 Value<String?> driveMd5Checksum = const Value.absent(),
                 Value<String?> localPath = const Value.absent(),
+                Value<String?> artworkPath = const Value.absent(),
                 Value<bool> isCached = const Value.absent(),
                 Value<bool> isPinnedOffline = const Value.absent(),
                 Value<String?> rawMetadataJson = const Value.absent(),
@@ -15716,6 +15788,7 @@ class $$TracksTableTableManager
                 driveModifiedAt: driveModifiedAt,
                 driveMd5Checksum: driveMd5Checksum,
                 localPath: localPath,
+                artworkPath: artworkPath,
                 isCached: isCached,
                 isPinnedOffline: isPinnedOffline,
                 rawMetadataJson: rawMetadataJson,
@@ -15750,6 +15823,7 @@ class $$TracksTableTableManager
                 Value<DateTime?> driveModifiedAt = const Value.absent(),
                 Value<String?> driveMd5Checksum = const Value.absent(),
                 Value<String?> localPath = const Value.absent(),
+                Value<String?> artworkPath = const Value.absent(),
                 Value<bool> isCached = const Value.absent(),
                 Value<bool> isPinnedOffline = const Value.absent(),
                 Value<String?> rawMetadataJson = const Value.absent(),
@@ -15782,6 +15856,7 @@ class $$TracksTableTableManager
                 driveModifiedAt: driveModifiedAt,
                 driveMd5Checksum: driveMd5Checksum,
                 localPath: localPath,
+                artworkPath: artworkPath,
                 isCached: isCached,
                 isPinnedOffline: isPinnedOffline,
                 rawMetadataJson: rawMetadataJson,

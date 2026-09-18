@@ -390,7 +390,12 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
       localPath: row.localPath,
       isCached: row.isCached,
       isPinnedOffline: row.isPinnedOffline,
-      artworkPath: _resolveArtworkPath(row.albumName, row.artistName),
+      artworkPath: (row.artworkPath != null &&
+              row.artworkPath!.isNotEmpty &&
+              File(row.artworkPath!).existsSync())
+          ? row.artworkPath
+          : (_resolveArtworkPath(row.albumName, row.albumArtist) ??
+              _resolveArtworkPath(row.albumName, row.artistName)),
     );
   }
 
@@ -858,6 +863,15 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
 
       final Map<String, String?> folderParentMap = {};
 
+      if (discoveryAlreadyComplete) {
+        final savedFolders = await (_database.select(_database.driveFolders)
+              ..where((tbl) => tbl.sourceId.equals(sourceId)))
+            .get();
+        for (final df in savedFolders) {
+          folderParentMap[df.folderId] = df.parentFolderId;
+        }
+      }
+
       if (!discoveryAlreadyComplete) {
         _updateProgress(
           _currentProgress.copyWith(
@@ -1170,7 +1184,7 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
                 : 1.0;
 
             // Ensure album artwork is downloaded (from folder if embedded is missing)
-            await _ensureAlbumArtwork(
+            final resolvedArtworkPath = await _ensureAlbumArtwork(
               meta: normalized,
               driveFile: driveFile,
               folderImagesMap: folderImagesMap,
@@ -1184,6 +1198,7 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
                 driveFile: driveFile,
                 meta: normalized,
                 rawJson: jsonEncode(parsedMeta.rawMetadata ?? {}),
+                resolvedArtworkPath: resolvedArtworkPath,
               );
 
               final trackId = 'track_${driveFile.id}';
@@ -1550,6 +1565,7 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
     required DriveFileItem driveFile,
     required NormalizedMetadata meta,
     required String rawJson,
+    String? resolvedArtworkPath,
   }) async {
     // 1. Artist
     final artistId = 'artist_${meta.normalizedArtist}';
@@ -1609,6 +1625,16 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
       }
     }
 
+    final existingArt = existingAlbum?.artworkPath;
+    final effectiveArtwork = resolvedArtworkPath ??
+        (artworkFile.existsSync()
+            ? artworkFile.path
+            : (existingArt != null &&
+                    existingArt.isNotEmpty &&
+                    File(existingArt).existsSync()
+                ? existingArt
+                : null));
+
     final String albumId;
     if (existingAlbum != null) {
       albumId = existingAlbum.id;
@@ -1639,10 +1665,10 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
         );
       }
 
-      if (existingAlbum.artworkPath == null && artworkFile.existsSync()) {
+      if (existingAlbum.artworkPath == null && effectiveArtwork != null) {
         await (_database.update(_database.albums)
               ..where((tbl) => tbl.id.equals(albumId)))
-            .write(AlbumsCompanion(artworkPath: Value(artworkFile.path)));
+            .write(AlbumsCompanion(artworkPath: Value(effectiveArtwork)));
       }
     } else {
       albumId = 'album_$canonicalAlbumKey';
@@ -1672,8 +1698,8 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
               artistId: Value(albumArtistId),
               artistName: Value(effectiveAlbumArtist),
               year: Value(meta.year),
-              artworkPath: artworkFile.existsSync()
-                  ? Value(artworkFile.path)
+              artworkPath: effectiveArtwork != null
+                  ? Value(effectiveArtwork)
                   : const Value(null),
             ),
           );
@@ -1723,6 +1749,9 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
             mimeType: Value(driveFile.mimeType),
             driveModifiedAt: Value(driveFile.modifiedTime),
             driveMd5Checksum: Value(driveFile.md5Checksum),
+            artworkPath: effectiveArtwork != null
+                ? Value(effectiveArtwork)
+                : const Value(null),
             rawMetadataJson: Value(rawJson),
             createdAt: Value(DateTime.now()),
             updatedAt: Value(DateTime.now()),
@@ -1730,7 +1759,7 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
         );
   }
 
-  Future<void> _ensureAlbumArtwork({
+  Future<String?> _ensureAlbumArtwork({
     required NormalizedMetadata meta,
     required DriveFileItem driveFile,
     required Map<String, List<DriveFileItem>> folderImagesMap,
@@ -1746,7 +1775,7 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
         effectiveAlbumArtist,
       );
       final artworkFile = _fileSystem.getArtworkCacheFile(artworkKey);
-      if (artworkFile.existsSync()) return;
+      if (artworkFile.existsSync()) return artworkFile.path;
 
       final candidate = FolderArtworkResolver.resolveCandidate(
         folderId: driveFile.parentFolderId,
@@ -1764,8 +1793,10 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
             LogCategory.metadata,
             'Downloaded folder artwork for "${meta.album}" from "${candidate.name}" (${artworkFile.lengthSync()} bytes)',
           );
+          return artworkFile.path;
         }
       }
+      return null;
     } catch (e, st) {
       AppLogger.warning(
         LogCategory.metadata,
@@ -1773,6 +1804,7 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
         e,
         st,
       );
+      return null;
     }
   }
 
@@ -1844,6 +1876,18 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
               : const Value.absent(),
         ),
       );
+
+      if (currentArtwork != null &&
+          currentArtwork.isNotEmpty &&
+          File(currentArtwork).existsSync()) {
+        await (_database.update(
+          _database.tracks,
+        )..where((tbl) => tbl.albumId.equals(alb.id))).write(
+          TracksCompanion(
+            artworkPath: Value(currentArtwork),
+          ),
+        );
+      }
     }
 
     final artists = await _database.select(_database.artists).get();

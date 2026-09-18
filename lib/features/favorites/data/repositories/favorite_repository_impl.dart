@@ -58,7 +58,10 @@ class FavoriteRepositoryImpl implements FavoriteRepository {
       localPath: row.localPath,
       isCached: row.isCached,
       isPinnedOffline: row.isPinnedOffline,
-      artworkPath: _resolveArtworkPath(row.albumName, row.artistName),
+      artworkPath:
+          row.artworkPath ??
+          _resolveArtworkPath(row.albumName, row.albumArtist) ??
+          _resolveArtworkPath(row.albumName, row.artistName),
     );
   }
 

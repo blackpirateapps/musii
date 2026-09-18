@@ -103,6 +103,7 @@ class Tracks extends Table {
   DateTimeColumn get driveModifiedAt => dateTime().nullable()();
   TextColumn get driveMd5Checksum => text().nullable()();
   TextColumn get localPath => text().nullable()();
+  TextColumn get artworkPath => text().nullable()();
   BoolColumn get isCached => boolean().withDefault(const Constant(false))();
   BoolColumn get isPinnedOffline =>
       boolean().withDefault(const Constant(false))();

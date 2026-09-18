@@ -1,10 +1,10 @@
 # Musii — AI Engineering Handoff Document
 
-> **Document Version**: 1.15.0  
+> **Document Version**: 1.16.0  
 > **Target Audience**: Incoming AI Coding Assistants & Human Software Engineers  
 > **Last Verified**: September 2026  
 > **App Identifier**: `com.blackpirateapps.musii`  
-> **Test Status**: 248 / 248 Passing (`flutter test`), 0 Analyzer Warnings (`flutter analyze`)
+> **Test Status**: 252 / 252 Passing (`flutter test`), 0 Analyzer Warnings (`flutter analyze`)
 
 ---
 
@@ -37,7 +37,7 @@ The codebase strictly adheres to standard four-layer Clean Architecture:
    - `constants/app_constants.dart`: Design tokens (`AppRadii`, `AppSpacing`, `AppAudioConstants`, `AppGreeting`).
    - `filesystem/app_file_system.dart`: Centralized cache directory management, `.partial` file staging, and atomic commits.
    - `storage/secure_credential_store.dart`: Abstract `SecureCredentialStore` with hardware-backed Android Keystore (`FlutterSecureStorage`) and in-memory test store.
-   - `database/`: Drift SQLite setup, 25 tables with `@DataClassName` annotations and schema v9 migration.
+   - `database/`: Drift SQLite setup, 25 tables with `@DataClassName` annotations and schema v10 migration.
 2. **Domain (`lib/features/*/domain/`)**:
    - Pure Dart entities (`Track`, `Album`, `Artist`, `Genre`, `Playlist`, `CacheEntry`, `PlayerStateSnapshot`, `TrackLyrics`, `LyricLine`, `LyricWord`, `LyricSource`, `SyncProgress`, `SyncPhase`, `SyncCancellationToken`).
    - Repository interfaces declaring business contracts (`MusicLibraryRepository`, `GoogleDriveRepository`, `CacheRepository`, `PlaybackRepository`, `LyricsRepository`, `PlaylistRepository`, etc.).
@@ -340,9 +340,28 @@ Located in `lib/features/last_fm/`, `lib/core/storage/secure_credential_store.da
 14. **CupertinoTabBar Dynamic Opacity & Artist Artwork Resolution Pipeline**:
     - **CupertinoDynamicColor withOpacity() Gotcha**: Never call `.withOpacity()` directly on `CupertinoDynamicColor` instances (like `CupertinoColors.systemBackground.withOpacity(0.9)`). Because `CupertinoDynamicColor` extends `Color`, `.withOpacity()` strips dynamic brightness resolution and evaluates the light base ARGB value (`0xFFFFFFFF`), rendering a white background in dark mode. Always resolve brightness dynamically via `CupertinoTheme.brightnessOf(context) == Brightness.dark` before calculating bar translucent colors.
     - **Artist Artwork Resolution & Deezer Integration**: Audio file tags (MP3 ID3, FLAC Vorbis, MP4 covr) only embed album artwork. To prevent artist profiles from defaulting to empty initial-letter tiles, `MusicLibraryRepositoryImpl` applies a two-stage pipeline: (1) Immediate local fallback to the artist's first indexed album artwork for 100% offline visual presentation; (2) Background download of official artist photography via Deezer's public API (`https://api.deezer.com/search/artist?q={name}`) with zero API key requirement, caching files under `AppFileSystem.getArtworkCacheFile('artist_{normalizedName}')` and updating `Artists.artworkPath` in SQLite reactively.
-15. **Folder-Based Album Artwork Discovery & Precedence Pipeline**:
-    - **Issue**: Albums without embedded ID3/Vorbis/MP4 artwork previously rendered fallback initial-letter gradients, even when high-resolution `cover.jpg` or `folder.png` files were present in the album's Google Drive directory.
-    - **Solution**: Google Drive discovery in `listAudioFilesRecursively` captures image files (`.jpg`, `.jpeg`, `.png`, `.webp` and `image/*` MIME types), building a `folderImagesMap` alongside audio files. When a track lacks embedded artwork, `FolderArtworkResolver` selects the best candidate image using case-insensitive standard names (`cover`, `folder`, `front`, `albumart`, `album`, `artwork`), falling back to parent folders for multi-disc layouts (e.g. `CD1/`, `CD2/`) and arbitrary image files as final fallback. The selected image is downloaded and cached at `_fileSystem.getArtworkCacheFile(artworkKey)` ahead of database transactions, saving `artworkPath` to `Albums` and ensuring all tracks in the album inherit it automatically.
+15. **Folder-Based Album Artwork Discovery, Track-Level Persistence & Schema v10 Migration**:
+    - **Issue**: Previously, songs whose album artwork was fetched from an external image in the same folder (`cover.jpg`, `folder.png`, etc.) on Google Drive rather than embedded in audio tags only displayed artwork on the Album Details page (`AlbumDetailPage`), but failed to appear everywhere else (Home screen carousels, Search results, Playback Queue, MiniPlayer, and Now Playing screen).
+    - **Root Causes**:
+      1. *Album vs Track Artwork Storage*: The `Albums` table stored `artworkPath`, which `AlbumDetailPage` read directly from the `Album` entity. However, the `Tracks` table lacked an `artworkPath` column, and all other views relied on `Track.artworkPath`.
+      2. *Artist Key Discrepancy*: Other repositories and streams (`watchAllTracks`, `SearchRepositoryImpl`, `FavoriteRepositoryImpl`, `RecentlyPlayedRepositoryImpl`, `PlaylistRepositoryImpl`) resolved artwork dynamically via `_resolveArtworkPath(row.albumName, row.artistName)`. When external folder art was cached, it was keyed using `effectiveAlbumArtist` (or `album.artistName`). Whenever a track had a distinct track artist (e.g., featured artists, guest vocalists, compilations, or after `reconcileDuplicateAlbums()`), the key looked up for `(albumName, trackArtist)` did not match the cached file `(albumName, albumArtist)` and returned `null`.
+      3. *Sync Ingestion Disconnect*: When folder art was resolved during `_recomputeLibraryAggregates()`, existing tracks already written to SQLite were never updated with `artworkPath`.
+      4. *Playback Queue Loss*: `PlaybackRepositoryImpl.playAlbum()` loaded tracks into `MusiiAudioHandler` without propagating `album.artworkPath` to tracks that lacked embedded artwork.
+      5. *Incremental Sync Gap*: When `discoveryAlreadyComplete` was true (incremental/resumed syncs), `folderParentMap` was not populated from SQLite, preventing multi-disc folder lookups.
+    - **Solution & Architecture (Schema v10)**:
+      1. *Drift Schema v10*: Added `TextColumn get artworkPath => text().nullable()();` to the `Tracks` table (`lib/core/database/tables.dart`, `app_database.dart`). Added migration from schema version $< 10$ with `addColumn(tracks, tracks.artworkPath)` and an immediate SQLite backfill:
+         ```sql
+         UPDATE tracks 
+         SET artwork_path = (SELECT albums.artwork_path FROM albums WHERE albums.id = tracks.album_id)
+         WHERE tracks.album_id IS NOT NULL;
+         ```
+      2. *Track Ingestion & Checkpointing*: In `_upsertTrackAndRelationsInTx()`, tracks are persisted with `artworkPath: Value(effectiveArtwork)` in `TracksCompanion`.
+      3. *Post-Sync Aggregate Backfill*: In `_recomputeLibraryAggregates()`, after downloading any newly discovered folder images or resolving candidate images, all tracks belonging to the album are updated in SQLite via `update(tracks)..where((t) => t.albumId.equals(album.id)).write(TracksCompanion(artworkPath: Value(currentArtwork)))`.
+      4. *Duplicate Album Reconciliation Propagation*: In `reconcileDuplicateAlbums()`, when duplicate or single albums are reconciled, all surviving tracks (both moved from duplicate albums and already belonging to the survivor) missing artwork inherit `survivorArt`.
+      5. *Incremental Sync Parent Map*: In `syncLibrary()`, when `discoveryAlreadyComplete` is true, `folderParentMap` is populated from `DriveFolders` table so folder hierarchies are preserved.
+      6. *Multi-Key Fallback Resolution*: In all repository track mappers (`MusicLibraryRepositoryImpl`, `FavoriteRepositoryImpl`, `RecentlyPlayedRepositoryImpl`, `SearchRepositoryImpl`, `PlaylistRepositoryImpl`), `_mapDbTrackToEntity` evaluates:
+         `row.artworkPath ?? _resolveArtworkPath(row.albumName, row.albumArtist) ?? _resolveArtworkPath(row.albumName, row.artistName)`.
+      7. *Playback Inheritance & Media Item Resolution*: `PlaybackRepositoryImpl.playAlbum()` and `playPlaylist()` inherit `album.artworkPath` / `playlist.artworkPath` for any queue tracks lacking artwork. In `_MusiiAudioHandler`, `_toMediaItem()`, `loadAndPlayTrack()`, `playNext()`, `playLast()`, and `_restoreSavedState()` all resolve track artwork through the fallback chain, ensuring lock screen, Bluetooth metadata, system notifications, and in-memory queue items always render folder artwork.
 16. **`flutter_secure_storage` 11.2+ `AndroidOptions` Migration**:
     - In `flutter_secure_storage: ^11.2.0`, the deprecated constructor parameter `encryptedSharedPreferences: true` was removed. The Android implementation uses standard Android KeyStore with AES-GCM encryption out of the box. Always instantiate using `const AndroidOptions(resetOnError: true)` to avoid runtime argument exceptions and ensure auto-recovery if the KeyStore key is corrupted or invalidated across OS upgrades.
 17. **Drift `QueryStream` 0-Duration Cleanup Timers in Riverpod Tests**:

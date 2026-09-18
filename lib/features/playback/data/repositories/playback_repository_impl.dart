@@ -81,10 +81,25 @@ class MusiiAudioHandler extends BaseAudioHandler
     }
   }
 
+  Track _resolveTrackArtwork(Track track) {
+    if (track.artworkPath != null && track.artworkPath!.isNotEmpty) {
+      return track;
+    }
+    final resolved =
+        _resolveArtworkPath(track.albumName, track.albumArtist) ??
+        _resolveArtworkPath(track.albumName, track.artistName);
+    return resolved != null ? track.copyWith(artworkPath: resolved) : track;
+  }
+
   MediaItem _toMediaItem(Track track) {
     Uri? artUri;
-    if (track.artworkPath != null && track.artworkPath!.isNotEmpty) {
-      final file = File(track.artworkPath!);
+    final artworkPath =
+        (track.artworkPath != null && track.artworkPath!.isNotEmpty)
+            ? track.artworkPath
+            : (_resolveArtworkPath(track.albumName, track.albumArtist) ??
+                _resolveArtworkPath(track.albumName, track.artistName));
+    if (artworkPath != null && artworkPath.isNotEmpty) {
+      final file = File(artworkPath);
       if (file.existsSync()) {
         artUri = Uri.file(file.path);
       }
@@ -267,8 +282,10 @@ class MusiiAudioHandler extends BaseAudioHandler
     int? queueIndex,
   }) async {
     if (queueItems != null) {
-      _currentQueue = List.from(queueItems);
-      _unshuffledQueue = List.from(queueItems);
+      _currentQueue = queueItems
+          .map((q) => QueueItem(id: q.id, track: _resolveTrackArtwork(q.track)))
+          .toList();
+      _unshuffledQueue = List.from(_currentQueue);
       _currentIndex =
           queueIndex ?? _currentQueue.indexWhere((q) => q.track.id == track.id);
       if (_currentIndex == -1) _currentIndex = 0;
@@ -277,7 +294,12 @@ class MusiiAudioHandler extends BaseAudioHandler
       _currentQueue = queue
           .asMap()
           .entries
-          .map((e) => QueueItem(id: 'q_${e.key}_${e.value.id}', track: e.value))
+          .map(
+            (e) => QueueItem(
+              id: 'q_${e.key}_${e.value.id}',
+              track: _resolveTrackArtwork(e.value),
+            ),
+          )
           .toList();
       _unshuffledQueue = List.from(_currentQueue);
       _currentIndex =
@@ -285,7 +307,7 @@ class MusiiAudioHandler extends BaseAudioHandler
       if (_currentIndex == -1) _currentIndex = 0;
       _playNextCount = 0;
     } else if (!_currentQueue.any((q) => q.track.id == track.id)) {
-      final item = QueueItem.fromTrack(track);
+      final item = QueueItem.fromTrack(_resolveTrackArtwork(track));
       _currentQueue = [item];
       _unshuffledQueue = [item];
       _currentIndex = 0;
@@ -296,7 +318,7 @@ class MusiiAudioHandler extends BaseAudioHandler
       _playNextCount = 0;
     }
 
-    final targetTrack = _currentTrack ?? track;
+    final targetTrack = _currentTrack ?? _resolveTrackArtwork(track);
     _cacheRepository.setCurrentlyPlayingTrackId(targetTrack.id);
 
     // Sync media session queue immediately
@@ -639,11 +661,12 @@ class MusiiAudioHandler extends BaseAudioHandler
 
   void playNext(Track track) {
     AppLogger.info(LogCategory.playback, 'Queue play next: ${track.title}');
+    final resolvedTrack = _resolveTrackArtwork(track);
     if (_currentQueue.isEmpty) {
-      loadAndPlayTrack(track);
+      loadAndPlayTrack(resolvedTrack);
       return;
     }
-    final item = QueueItem.fromTrack(track);
+    final item = QueueItem.fromTrack(resolvedTrack);
     final insertIndex = (_currentIndex + 1 + _playNextCount).clamp(
       0,
       _currentQueue.length,
@@ -660,11 +683,12 @@ class MusiiAudioHandler extends BaseAudioHandler
 
   void playLast(Track track) {
     AppLogger.info(LogCategory.playback, 'Queue add to end: ${track.title}');
+    final resolvedTrack = _resolveTrackArtwork(track);
     if (_currentQueue.isEmpty) {
-      loadAndPlayTrack(track);
+      loadAndPlayTrack(resolvedTrack);
       return;
     }
-    final item = QueueItem.fromTrack(track);
+    final item = QueueItem.fromTrack(resolvedTrack);
     _currentQueue.add(item);
     _unshuffledQueue.add(item);
     _syncMediaQueue();
@@ -890,7 +914,10 @@ class MusiiAudioHandler extends BaseAudioHandler
             isCached: t.isCached,
             isPinnedOffline: t.isPinnedOffline,
             localPath: t.localPath,
-            artworkPath: _resolveArtworkPath(t.albumName, t.artistName),
+            artworkPath:
+                t.artworkPath ??
+                _resolveArtworkPath(t.albumName, t.albumArtist) ??
+                _resolveArtworkPath(t.albumName, t.artistName),
           );
           return QueueItem(id: qRow.id, track: track);
         }).toList();
@@ -969,12 +996,19 @@ class PlaybackRepositoryImpl implements PlaybackRepository {
     int startIndex = 0,
   }) {
     if (tracks.isEmpty) return Future.value();
-    final startTrack = (startIndex >= 0 && startIndex < tracks.length)
-        ? tracks[startIndex]
-        : tracks.first;
+    final effectiveTracks = tracks.map((t) {
+      if (t.artworkPath != null && t.artworkPath!.isNotEmpty) return t;
+      final resolved = album.artworkPath ??
+          _audioHandler._resolveArtworkPath(t.albumName, t.albumArtist) ??
+          _audioHandler._resolveArtworkPath(t.albumName, t.artistName);
+      return resolved != null ? t.copyWith(artworkPath: resolved) : t;
+    }).toList();
+    final startTrack = (startIndex >= 0 && startIndex < effectiveTracks.length)
+        ? effectiveTracks[startIndex]
+        : effectiveTracks.first;
     return _audioHandler.loadAndPlayTrack(
       startTrack,
-      queue: tracks,
+      queue: effectiveTracks,
       queueIndex: startIndex,
     );
   }
@@ -986,12 +1020,19 @@ class PlaybackRepositoryImpl implements PlaybackRepository {
     int startIndex = 0,
   }) {
     if (tracks.isEmpty) return Future.value();
-    final startTrack = (startIndex >= 0 && startIndex < tracks.length)
-        ? tracks[startIndex]
-        : tracks.first;
+    final effectiveTracks = tracks.map((t) {
+      if (t.artworkPath != null && t.artworkPath!.isNotEmpty) return t;
+      final resolved = playlist.artworkPath ??
+          _audioHandler._resolveArtworkPath(t.albumName, t.albumArtist) ??
+          _audioHandler._resolveArtworkPath(t.albumName, t.artistName);
+      return resolved != null ? t.copyWith(artworkPath: resolved) : t;
+    }).toList();
+    final startTrack = (startIndex >= 0 && startIndex < effectiveTracks.length)
+        ? effectiveTracks[startIndex]
+        : effectiveTracks.first;
     return _audioHandler.loadAndPlayTrack(
       startTrack,
-      queue: tracks,
+      queue: effectiveTracks,
       queueIndex: startIndex,
     );
   }

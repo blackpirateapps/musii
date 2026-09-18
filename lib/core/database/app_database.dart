@@ -43,7 +43,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? e]) : super(e ?? _openConnection());
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 10;
 
   @override
   MigrationStrategy get migration {
@@ -155,6 +155,18 @@ class AppDatabase extends _$AppDatabase {
           await m.addColumn(discoveredFiles, discoveredFiles.processStatus);
           await m.addColumn(discoveredFiles, discoveredFiles.processedAt);
         }
+        if (from < 10) {
+          await m.addColumn(tracks, tracks.artworkPath);
+          await customStatement('''
+            UPDATE tracks 
+            SET artwork_path = (
+              SELECT albums.artwork_path 
+              FROM albums 
+              WHERE albums.id = tracks.album_id
+            )
+            WHERE tracks.album_id IS NOT NULL;
+          ''');
+        }
       },
       beforeOpen: (details) async {
         await customStatement('PRAGMA foreign_keys = ON');
@@ -212,12 +224,18 @@ class AppDatabase extends _$AppDatabase {
           ),
         );
 
-        await (update(tracks)..where(
-              (t) =>
-                  t.albumId.equals(album.id) &
-                  (t.albumArtist.isNull() | t.albumArtist.equals('')),
-            ))
-            .write(TracksCompanion(albumArtist: Value(effectiveArtist)));
+        final albumArt =
+            album.artworkPath != null && album.artworkPath!.isNotEmpty
+                ? album.artworkPath
+                : null;
+
+        await (update(tracks)..where((t) => t.albumId.equals(album.id))).write(
+          TracksCompanion(
+            albumArtist: Value(effectiveArtist),
+            artworkPath:
+                albumArt != null ? Value(albumArt) : const Value.absent(),
+          ),
+        );
         continue;
       }
 
@@ -342,15 +360,31 @@ class AppDatabase extends _$AppDatabase {
           trackArtist: winningArtist,
         );
 
+        final survivorArt =
+            survivor.artworkPath != null && survivor.artworkPath!.isNotEmpty
+                ? survivor.artworkPath
+                : null;
+
         if (duplicates.isNotEmpty) {
           final dupIds = duplicates.map((d) => d.id).toList();
           await (update(tracks)..where((t) => t.albumId.isIn(dupIds))).write(
             TracksCompanion(
               albumId: Value(survivor.id),
               albumArtist: Value(winningArtist),
+              artworkPath: survivorArt != null
+                  ? Value(survivorArt)
+                  : const Value.absent(),
             ),
           );
           await (delete(albums)..where((t) => t.id.isIn(dupIds))).go();
+        }
+
+        // Also ensure all tracks belonging to survivor inherit artworkPath if missing
+        if (survivorArt != null) {
+          await (update(tracks)..where(
+                (t) => t.albumId.equals(survivor.id) & t.artworkPath.isNull(),
+              ))
+              .write(TracksCompanion(artworkPath: Value(survivorArt)));
         }
 
         final survivorTracks = await (select(
@@ -370,12 +404,14 @@ class AppDatabase extends _$AppDatabase {
           ),
         );
 
-        await (update(tracks)..where(
-              (t) =>
-                  t.albumId.equals(survivor.id) &
-                  (t.albumArtist.isNull() | t.albumArtist.equals('')),
-            ))
-            .write(TracksCompanion(albumArtist: Value(winningArtist)));
+        await (update(tracks)..where((t) => t.albumId.equals(survivor.id))).write(
+          TracksCompanion(
+            albumArtist: Value(winningArtist),
+            artworkPath: survivorArt != null
+                ? Value(survivorArt)
+                : const Value.absent(),
+          ),
+        );
       }
     }
 
