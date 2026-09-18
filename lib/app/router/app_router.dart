@@ -139,8 +139,9 @@ class RootNavigationShell extends ConsumerStatefulWidget {
 class _RootNavigationShellState extends ConsumerState<RootNavigationShell> {
   @override
   Widget build(BuildContext context) {
-    final playerSnapshot = ref.watch(playerStateProvider).value;
-    final hasActiveTrack = playerSnapshot?.currentTrack != null;
+    final hasActiveTrack = ref.watch(
+      playerStateProvider.select((s) => s.value?.currentTrack != null),
+    );
     final isDark = CupertinoTheme.brightnessOf(context) == Brightness.dark;
 
     return CupertinoPageScaffold(

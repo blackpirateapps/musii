@@ -23,28 +23,25 @@ class AlbumArtwork extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (artworkPath != null && artworkPath!.isNotEmpty) {
-      final file = File(artworkPath!);
-      if (file.existsSync()) {
-        final dpr = MediaQuery.maybeDevicePixelRatioOf(context) ?? 2.0;
-        final targetCacheDim = size.isFinite
-            ? (size * dpr).round().clamp(64, 800)
-            : 800;
+      final dpr = MediaQuery.maybeDevicePixelRatioOf(context) ?? 2.0;
+      final targetCacheDim = size.isFinite
+          ? (size * dpr).round().clamp(64, 800)
+          : 800;
 
-        return ClipRRect(
-          borderRadius: BorderRadius.circular(borderRadius),
-          child: Image.file(
-            file,
-            width: size.isFinite ? size : null,
-            height: size.isFinite ? size : null,
-            cacheWidth: targetCacheDim,
-            cacheHeight: targetCacheDim,
-            fit: BoxFit.cover,
-            gaplessPlayback: true,
-            filterQuality: FilterQuality.medium,
-            errorBuilder: (_, _, _) => _buildFallback(),
-          ),
-        );
-      }
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(borderRadius),
+        child: Image.file(
+          File(artworkPath!),
+          width: size.isFinite ? size : null,
+          height: size.isFinite ? size : null,
+          cacheWidth: targetCacheDim,
+          cacheHeight: targetCacheDim,
+          fit: BoxFit.cover,
+          gaplessPlayback: true,
+          filterQuality: FilterQuality.medium,
+          errorBuilder: (_, _, _) => _buildFallback(),
+        ),
+      );
     }
     return _buildFallback();
   }

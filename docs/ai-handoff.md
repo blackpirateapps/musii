@@ -1,10 +1,10 @@
 # Musii — AI Engineering Handoff Document
 
-> **Document Version**: 1.13.0  
+> **Document Version**: 1.14.0  
 > **Target Audience**: Incoming AI Coding Assistants & Human Software Engineers  
 > **Last Verified**: September 2026  
 > **App Identifier**: `com.blackpirateapps.musii`  
-> **Test Status**: 240 / 240 Passing (`flutter test`), 0 Analyzer Warnings (`flutter analyze`)
+> **Test Status**: 245 / 245 Passing (`flutter test`), 0 Analyzer Warnings (`flutter analyze`)
 
 ---
 
@@ -359,6 +359,13 @@ Located in `lib/features/last_fm/`, `lib/core/storage/secure_credential_store.da
 21. **Sub-Second SQLite Timestamp Truncation & Millisecond Run ID Tie-Breaking in Sync Engine**:
     - **Sub-Second Truncation Bug in `_classifyTrack`**: Google Drive API returns RFC 3339 timestamps with millisecond fractions (e.g., `2026-09-15T12:00:00.456Z`), but Drift/SQLite stores `DateTime` as an integer unix epoch in whole seconds. A direct comparison `remote.modifiedTime.isAfter(local.driveModifiedAt)` evaluates to `true` whenever remote has non-zero milliseconds, falsely marking unchanged songs as `updateModified` and triggering redundant re-downloads. `_classifyTrack` truncates both remote and local timestamps to second precision (`millisecondsSinceEpoch ~/ 1000`) before evaluating modification.
     - **Same-Second Sync Run Disambiguation**: When sync runs start within the same integer second, their `startedAt` SQLite timestamps are identical. Queries ordering by `OrderingTerm.desc(tbl.startedAt)` without tie-breaking can return older runs arbitrarily. To guarantee deterministic resolution of the most recent sync session, all `syncRuns` queries (`getLastSyncSession`, `recoverInterruptedSyncIfNeeded`, `resumeSync`, `syncFromSavedFolder`, `syncLibrary`) order by `[(tbl) => OrderingTerm.desc(tbl.startedAt), (tbl) => OrderingTerm.desc(tbl.id)]`, leveraging the monotonic millisecond epoch embedded in `tbl.id` (`sync_${timestampMs}`).
+22. **Playback State Granularity, Repaint Boundaries & High-Frequency Stream Isolation**:
+    - **Root Cause of UI Lag**: `playerStateProvider` emitted a new `PlayerStateSnapshot` on every audio position tick (~200ms). Because 13 consumer widgets across the app (including `RootNavigationShell`, `HomePage` with 7 carousels, `LibraryPage`, `SearchPage`, `NowPlayingPage`, `MiniPlayer`, and `ContinueListeningCard`) watched `playerStateProvider` without `.select()`, the entire widget hierarchy, navigation tab bar, and heavy Gaussian blurs (`BackdropFilter` sigma 20-90) rebuilt repeatedly at 5 FPS while music played.
+    - **Selective Watching (`.select()`)**: Root pages and structural layouts now select only the specific immutable properties they require (e.g., `s.value?.currentTrack?.id`, `s.value?.isPlaying`, `s.value?.queueIndex`). When position ticks occur, Riverpod verifies selector equality and skips rebuilding entire parent trees.
+    - **Dedicated Scrubber Isolation & 60 FPS Interpolation**: Real-time progress bars (`_MiniPlayerProgressBar`, `_NowPlayingScrubber`, `_ContinueListeningScrubber`) were extracted into isolated leaf `ConsumerWidget`s watching `playbackPositionProvider`. In `_NowPlayingScrubber`, an `AnimationController` smoothly lerps between 200ms position ticks at 60 FPS for a silky Apple Music-grade scrubber feel without triggering parent rebuilds.
+    - **Repaint Isolation**: Static heavy blur backdrops in `NowPlayingPage` and `MiniPlayer` are wrapped in `RepaintBoundary` to prevent canvas repainting when scrubbers or play/pause buttons update.
+    - **Non-blocking Artwork Verification**: Removed synchronous `File.existsSync()` checks from widget build methods (`AlbumArtwork`, `NowPlayingPage`, `LyricsSheet`), delegating missing-file fallbacks to Flutter's asynchronous `Image.file(..., errorBuilder: ...)` to prevent UI-thread I/O stalls during fast flings.
+    - **Image Cache Tuning**: Balanced `PaintingBinding.instance.imageCache.maximumSizeBytes` to 128 MB (down from 256 MB) to prevent garbage collection pauses on memory-constrained devices while retaining smooth scroll performance.
 
 ---
 

@@ -16,9 +16,9 @@ Future<void> bootstrap() async {
   // 1. Initialize Flutter bindings
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Configure high-performance in-memory image cache for smooth fast-scrolling
+  // Configure balanced in-memory image cache for smooth fast-scrolling without GC pressure
   PaintingBinding.instance.imageCache.maximumSizeBytes =
-      256 * 1024 * 1024; // 256 MB
+      128 * 1024 * 1024; // 128 MB
   PaintingBinding.instance.imageCache.maximumSize = 2000;
 
   // 2. Initialize logging

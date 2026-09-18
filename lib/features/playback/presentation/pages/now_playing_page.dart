@@ -35,9 +35,6 @@ class NowPlayingPage extends ConsumerStatefulWidget {
 
 class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
     with SingleTickerProviderStateMixin {
-  bool _isScrubbing = false;
-  double _scrubValue = 0.0;
-
   AnimationController? _dismissController;
   Animation<double>? _dismissAnimation;
   double _dragOffset = 0.0;
@@ -109,36 +106,32 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
     });
   }
 
-  String _formatDuration(Duration d) {
-    final minutes = d.inMinutes;
-    final seconds = d.inSeconds % 60;
-    return '$minutes:${seconds.toString().padLeft(2, '0')}';
-  }
-
   @override
   Widget build(BuildContext context) {
-    final playerSnapshot =
-        ref.watch(playerStateProvider).value ?? const PlayerStateSnapshot();
-    final track = playerSnapshot.currentTrack;
+    // Selective watches: only rebuild when these specific fields change
+    final track = ref.watch(
+      playerStateProvider.select((s) => s.value?.currentTrack),
+    );
+    final isPlaying = ref.watch(
+      playerStateProvider.select((s) => s.value?.isPlaying ?? false),
+    );
+    final isBuffering = ref.watch(
+      playerStateProvider.select((s) => s.value?.isBuffering ?? false),
+    );
+    final shuffleMode = ref.watch(
+      playerStateProvider.select((s) => s.value?.shuffleMode ?? false),
+    );
+    final repeatMode = ref.watch(
+      playerStateProvider.select(
+        (s) => s.value?.repeatMode ?? AudioRepeatMode.off,
+      ),
+    );
 
     final mediaSize = MediaQuery.of(context).size;
     final screenWidth = mediaSize.width;
     final screenHeight = mediaSize.height;
     // Sized responsively to usable screen width and height
     final artworkSize = min(screenWidth * 0.64, screenHeight * 0.33);
-
-    final duration = playerSnapshot.duration;
-    final position = playerSnapshot.position;
-
-    final double maxSec = duration.inMilliseconds > 0
-        ? duration.inMilliseconds.toDouble()
-        : 1.0;
-    final double curSec = _isScrubbing
-        ? _scrubValue
-        : position.inMilliseconds.toDouble().clamp(0.0, maxSec);
-
-    final remainingMs = (maxSec - curSec).toInt().clamp(0, 86400000);
-    final remainingDuration = Duration(milliseconds: remainingMs);
 
     final isFavAsync = track != null
         ? ref.watch(isTrackFavoriteProvider(track.id))
@@ -157,31 +150,37 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
           offset: Offset(0, _dragOffset),
           child: Stack(
             children: [
-              // 1. Blurred Backdrop from current artwork
-              if (track?.artworkPath != null &&
-                  File(track!.artworkPath!).existsSync())
-                Positioned.fill(
-                  child: Image.file(
-                    File(track.artworkPath!),
-                    fit: BoxFit.cover,
-                  ),
-                ),
-              Positioned.fill(
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 55, sigmaY: 55),
-                  child: Container(
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Color(0x40000000),
-                          Color(0x80000000),
-                          Color(0xB3000000),
-                        ],
+              // 1. Blurred Backdrop from current artwork (isolated from repaints)
+              RepaintBoundary(
+                child: Stack(
+                  children: [
+                    if (track?.artworkPath != null)
+                      Positioned.fill(
+                        child: Image.file(
+                          File(track!.artworkPath!),
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                        ),
+                      ),
+                    Positioned.fill(
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 55, sigmaY: 55),
+                        child: Container(
+                          decoration: const BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Color(0x40000000),
+                                Color(0x80000000),
+                                Color(0xB3000000),
+                              ],
+                            ),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ),
               ),
 
@@ -455,94 +454,8 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
 
                             const SizedBox(height: AppSpacing.lg),
 
-                            // Apple-Style Scrubber
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: AppSpacing.xl,
-                              ),
-                              child: Column(
-                                children: [
-                                  Material(
-                                    type: MaterialType.transparency,
-                                    child: SliderTheme(
-                                      data: SliderThemeData(
-                                        trackHeight: 4.0,
-                                        activeTrackColor: CupertinoColors.white,
-                                        inactiveTrackColor: CupertinoColors
-                                            .white
-                                            .withOpacity(0.3),
-                                        thumbColor: CupertinoColors.white,
-                                        overlayColor: CupertinoColors.white
-                                            .withOpacity(0.1),
-                                        thumbShape: const RoundSliderThumbShape(
-                                          enabledThumbRadius: 6.0,
-                                        ),
-                                        overlayShape:
-                                            const RoundSliderOverlayShape(
-                                              overlayRadius: 14.0,
-                                            ),
-                                        trackShape:
-                                            const RoundedRectSliderTrackShape(),
-                                      ),
-                                      child: Slider(
-                                        value: curSec,
-                                        min: 0.0,
-                                        max: maxSec,
-                                        onChangeStart: (_) {
-                                          setState(() => _isScrubbing = true);
-                                        },
-                                        onChanged: (val) {
-                                          setState(() => _scrubValue = val);
-                                        },
-                                        onChangeEnd: (val) {
-                                          _isScrubbing = false;
-                                          ref
-                                              .read(playbackRepositoryProvider)
-                                              .seek(
-                                                Duration(
-                                                  milliseconds: val.toInt(),
-                                                ),
-                                              );
-                                        },
-                                      ),
-                                    ),
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 4.0,
-                                    ),
-                                    child: Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Text(
-                                          _formatDuration(
-                                            Duration(
-                                              milliseconds: curSec.toInt(),
-                                            ),
-                                          ),
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w500,
-                                            color: CupertinoColors.white
-                                                .withOpacity(0.65),
-                                          ),
-                                        ),
-                                        Text(
-                                          '-${_formatDuration(remainingDuration)}',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w500,
-                                            color: CupertinoColors.white
-                                                .withOpacity(0.65),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
+                            // Apple-Style Scrubber (isolated — only scrubber rebuilds on position ticks)
+                            const _NowPlayingScrubber(),
 
                             const SizedBox(height: AppSpacing.md),
 
@@ -565,7 +478,7 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
                                     child: Icon(
                                       CupertinoIcons.shuffle,
                                       size: 22,
-                                      color: playerSnapshot.shuffleMode
+                                      color: shuffleMode
                                           ? CupertinoColors.systemPink
                                           : CupertinoColors.white.withOpacity(
                                               0.70,
@@ -590,7 +503,7 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
                                   CupertinoButton(
                                     padding: EdgeInsets.zero,
                                     onPressed: () {
-                                      if (playerSnapshot.isPlaying) {
+                                      if (isPlaying) {
                                         ref
                                             .read(playbackRepositoryProvider)
                                             .pause();
@@ -609,12 +522,12 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
                                             .withOpacity(0.24),
                                       ),
                                       child: Center(
-                                        child: playerSnapshot.isBuffering
+                                        child: isBuffering
                                             ? const CupertinoActivityIndicator(
                                                 color: CupertinoColors.white,
                                               )
                                             : Icon(
-                                                playerSnapshot.isPlaying
+                                                isPlaying
                                                     ? CupertinoIcons.pause_fill
                                                     : CupertinoIcons.play_fill,
                                                 size: 36,
@@ -644,13 +557,13 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
                                         .read(playbackRepositoryProvider)
                                         .cycleRepeatMode(),
                                     child: Icon(
-                                      playerSnapshot.repeatMode ==
+                                      repeatMode ==
                                               AudioRepeatMode.one
                                           ? CupertinoIcons.repeat_1
                                           : CupertinoIcons.repeat,
                                       size: 22,
                                       color:
-                                          playerSnapshot.repeatMode !=
+                                          repeatMode !=
                                               AudioRepeatMode.off
                                           ? CupertinoColors.systemPink
                                           : CupertinoColors.white.withOpacity(
@@ -791,6 +704,150 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Isolated scrubber widget that watches the high-frequency position stream.
+/// Uses AnimationController to lerp smoothly between ~200ms position ticks
+/// for a premium 60fps scrubber feel.
+class _NowPlayingScrubber extends ConsumerStatefulWidget {
+  const _NowPlayingScrubber();
+
+  @override
+  ConsumerState<_NowPlayingScrubber> createState() =>
+      _NowPlayingScrubberState();
+}
+
+class _NowPlayingScrubberState extends ConsumerState<_NowPlayingScrubber>
+    with SingleTickerProviderStateMixin {
+  bool _isScrubbing = false;
+  double _scrubValue = 0.0;
+
+  late final AnimationController _lerpController;
+  double _lerpStart = 0.0;
+  double _lerpEnd = 0.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _lerpController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 200),
+    )..addListener(() {
+        if (!_isScrubbing && mounted) {
+          setState(() {});
+        }
+      });
+  }
+
+  @override
+  void dispose() {
+    _lerpController.dispose();
+    super.dispose();
+  }
+
+  String _formatDuration(Duration d) {
+    final minutes = d.inMinutes;
+    final seconds = d.inSeconds % 60;
+    return '$minutes:${seconds.toString().padLeft(2, '0')}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final duration = ref.watch(
+      playerStateProvider.select((s) => s.value?.duration ?? Duration.zero),
+    );
+    final rawPosition = ref.watch(playbackPositionProvider);
+
+    // Smooth 60fps interpolation between position ticks
+    final posMs = rawPosition.inMilliseconds.toDouble();
+    if (posMs != _lerpEnd) {
+      _lerpStart = _lerpStart + (_lerpEnd - _lerpStart) * _lerpController.value;
+      _lerpEnd = posMs;
+      _lerpController.forward(from: 0.0);
+    }
+
+    final double maxMs = duration.inMilliseconds > 0
+        ? duration.inMilliseconds.toDouble()
+        : 1.0;
+    final double interpolatedPos =
+        _lerpStart + (_lerpEnd - _lerpStart) * _lerpController.value;
+    final double curMs = _isScrubbing
+        ? _scrubValue
+        : interpolatedPos.clamp(0.0, maxMs);
+
+    final remainingMs = (maxMs - curMs).toInt().clamp(0, 86400000);
+    final remainingDuration = Duration(milliseconds: remainingMs);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+      child: Column(
+        children: [
+          Material(
+            type: MaterialType.transparency,
+            child: SliderTheme(
+              data: SliderThemeData(
+                trackHeight: 4.0,
+                activeTrackColor: CupertinoColors.white,
+                inactiveTrackColor: CupertinoColors.white.withOpacity(0.3),
+                thumbColor: CupertinoColors.white,
+                overlayColor: CupertinoColors.white.withOpacity(0.1),
+                thumbShape: const RoundSliderThumbShape(
+                  enabledThumbRadius: 6.0,
+                ),
+                overlayShape: const RoundSliderOverlayShape(
+                  overlayRadius: 14.0,
+                ),
+                trackShape: const RoundedRectSliderTrackShape(),
+              ),
+              child: Slider(
+                value: curMs,
+                min: 0.0,
+                max: maxMs,
+                onChangeStart: (_) {
+                  setState(() => _isScrubbing = true);
+                },
+                onChanged: (val) {
+                  setState(() => _scrubValue = val);
+                },
+                onChangeEnd: (val) {
+                  _isScrubbing = false;
+                  _lerpStart = val;
+                  _lerpEnd = val;
+                  ref.read(playbackRepositoryProvider).seek(
+                    Duration(milliseconds: val.toInt()),
+                  );
+                },
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  _formatDuration(Duration(milliseconds: curMs.toInt())),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: CupertinoColors.white.withOpacity(0.65),
+                  ),
+                ),
+                Text(
+                  '-${_formatDuration(remainingDuration)}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: CupertinoColors.white.withOpacity(0.65),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

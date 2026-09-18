@@ -195,6 +195,14 @@ final playerStateProvider = StreamProvider<PlayerStateSnapshot>((ref) {
   return repo.watchPlayerState();
 });
 
+/// High-frequency position stream provider. Only widgets showing
+/// real-time progress bars/scrubbers should watch this provider.
+final playbackPositionProvider = Provider<Duration>((ref) {
+  return ref.watch(
+    playerStateProvider.select((s) => s.value?.position ?? Duration.zero),
+  );
+});
+
 // Lyrics
 final lyricsRepositoryProvider = Provider<LyricsRepository>((ref) {
   final db = ref.watch(appDatabaseProvider);
@@ -210,11 +218,12 @@ final trackLyricsProvider = StreamProvider.family<TrackLyrics?, String>((
 });
 
 final currentTrackLyricsProvider = StreamProvider<TrackLyrics?>((ref) {
-  final playerSnapshot = ref.watch(playerStateProvider).value;
-  final track = playerSnapshot?.currentTrack;
-  if (track == null) return Stream.value(null);
+  final trackId = ref.watch(
+    playerStateProvider.select((s) => s.value?.currentTrack?.id),
+  );
+  if (trackId == null) return Stream.value(null);
   final repo = ref.watch(lyricsRepositoryProvider);
-  return repo.watchLyricsForTrack(track.id);
+  return repo.watchLyricsForTrack(trackId);
 });
 
 // Artist Artwork Downloader

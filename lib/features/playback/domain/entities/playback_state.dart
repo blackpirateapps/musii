@@ -150,4 +150,32 @@ class PlayerStateSnapshot {
       queueIndex: queueIndex ?? this.queueIndex,
     );
   }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PlayerStateSnapshot &&
+          runtimeType == other.runtimeType &&
+          currentTrack == other.currentTrack &&
+          position == other.position &&
+          duration == other.duration &&
+          isPlaying == other.isPlaying &&
+          isBuffering == other.isBuffering &&
+          shuffleMode == other.shuffleMode &&
+          repeatMode == other.repeatMode &&
+          queueIndex == other.queueIndex &&
+          listEquals(_queueItems, other._queueItems);
+
+  @override
+  int get hashCode => Object.hash(
+    currentTrack,
+    position,
+    duration,
+    isPlaying,
+    isBuffering,
+    shuffleMode,
+    repeatMode,
+    queueIndex,
+    Object.hashAll(_queueItems),
+  );
 }

@@ -8,7 +8,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/bootstrap/providers.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../library/domain/entities/music_entities.dart';
-import '../../../playback/domain/entities/playback_state.dart';
 import '../../domain/entities/lyric_model.dart';
 import '../widgets/lyric_line_widget.dart';
 
@@ -144,8 +143,7 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet> {
   @override
   Widget build(BuildContext context) {
     final track = widget.track;
-    final playerSnapshot = ref.watch(playerStateProvider).value;
-    final position = playerSnapshot?.position ?? Duration.zero;
+    final position = ref.watch(playbackPositionProvider);
 
     final lyricsAsync = ref.watch(trackLyricsProvider(track.id));
     final lyrics = lyricsAsync.value;
@@ -153,18 +151,17 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet> {
     final isDark = CupertinoTheme.brightnessOf(context) == Brightness.dark;
 
     // Listen to playback position changes and update active line
-    ref.listen<AsyncValue<PlayerStateSnapshot>>(playerStateProvider, (
+    ref.listen<Duration>(playbackPositionProvider, (
       prev,
       next,
     ) {
-      final snapshot = next.value;
-      if (snapshot == null) return;
+      final currentPos = next;
       final currentLines = lyrics?.lines ?? const [];
       if (lyrics?.isSynchronized != true || currentLines.isEmpty) return;
 
       final newActiveIndex = TrackLyrics.calculateActiveIndex(
         currentLines,
-        snapshot.position,
+        currentPos,
       );
 
       if (newActiveIndex != _activeIndex) {
@@ -183,8 +180,7 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet> {
 
     // Initial positioning when lyrics data first becomes available
     if (lyrics != null && lyrics.isSynchronized && lyrics.lines.isNotEmpty) {
-      final currentPos =
-          ref.read(playerStateProvider).value?.position ?? Duration.zero;
+      final currentPos = ref.read(playbackPositionProvider);
       final currentActive = TrackLyrics.calculateActiveIndex(
         lyrics.lines,
         currentPos,
@@ -214,14 +210,17 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet> {
       child: Stack(
         children: [
           // 1. Blurred Backdrop from artwork if available
-          if (track.artworkPath != null &&
-              File(track.artworkPath!).existsSync())
+          if (track.artworkPath != null)
             Positioned.fill(
               child: ClipRRect(
                 borderRadius: const BorderRadius.vertical(
                   top: Radius.circular(AppRadii.sheet),
                 ),
-                child: Image.file(File(track.artworkPath!), fit: BoxFit.cover),
+                child: Image.file(
+                  File(track.artworkPath!),
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                ),
               ),
             ),
 

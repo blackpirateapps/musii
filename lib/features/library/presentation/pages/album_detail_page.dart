@@ -30,7 +30,9 @@ class AlbumDetailPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final albumWithTracksAsync = ref.watch(albumDetailProvider(albumId));
-    final playerState = ref.watch(playerStateProvider).value;
+    final currentTrackId = ref.watch(
+      playerStateProvider.select((s) => s.value?.currentTrack?.id),
+    );
     final isDark = CupertinoTheme.brightnessOf(context) == Brightness.dark;
 
     return CupertinoPageScaffold(
@@ -208,7 +210,7 @@ class AlbumDetailPage extends ConsumerWidget {
                       delegate: SliverChildBuilderDelegate((context, index) {
                         final track = tracks[index];
                         final isPlaying =
-                            playerState?.currentTrack?.id == track.id;
+                            currentTrackId == track.id;
 
                         final showDiscHeader = index == 0
                             ? (track.discNumber != null &&

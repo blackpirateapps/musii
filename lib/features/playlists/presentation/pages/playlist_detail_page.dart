@@ -49,7 +49,9 @@ class PlaylistDetailPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final playlistsAsync = ref.watch(playlistsProvider);
     final tracksAsync = ref.watch(playlistTracksProvider(playlistId));
-    final playerState = ref.watch(playerStateProvider).value;
+    final currentTrackId = ref.watch(
+      playerStateProvider.select((s) => s.value?.currentTrack?.id),
+    );
     final isDark = CupertinoTheme.brightnessOf(context) == Brightness.dark;
 
     final playlists = playlistsAsync.value ?? <Playlist>[];
@@ -296,8 +298,7 @@ class PlaylistDetailPage extends ConsumerWidget {
                   SliverList(
                     delegate: SliverChildBuilderDelegate((context, index) {
                       final track = tracks[index];
-                      final isPlaying =
-                          playerState?.currentTrack?.id == track.id;
+                      final isPlaying = currentTrackId == track.id;
                       return SongRow(
                         track: track,
                         isPlaying: isPlaying,

@@ -57,16 +57,23 @@ class QueuePage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final playerSnapshot =
-        ref.watch(playerStateProvider).value ?? const PlayerStateSnapshot();
-    final currentIndex = playerSnapshot.queueIndex;
-    final currentTrack = playerSnapshot.currentTrack;
+    final currentIndex = ref.watch(
+      playerStateProvider.select((s) => s.value?.queueIndex ?? 0),
+    );
+    final currentTrack = ref.watch(
+      playerStateProvider.select((s) => s.value?.currentTrack),
+    );
+    final effectiveQueueItems = ref.watch(
+      playerStateProvider.select(
+        (s) => s.value?.effectiveQueueItems ?? const <QueueItem>[],
+      ),
+    );
     final isDark = CupertinoTheme.brightnessOf(context) == Brightness.dark;
 
     final List<QueueItem> upNextList =
-        playerSnapshot.effectiveQueueItems.length > currentIndex + 1
-        ? playerSnapshot.effectiveQueueItems.sublist(currentIndex + 1)
-        : <QueueItem>[];
+        effectiveQueueItems.length > currentIndex + 1
+            ? effectiveQueueItems.sublist(currentIndex + 1)
+            : <QueueItem>[];
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.85,

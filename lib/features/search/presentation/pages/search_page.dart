@@ -45,7 +45,9 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   Widget build(BuildContext context) {
     final query = ref.watch(searchQueryStateProvider);
     final searchResultsAsync = ref.watch(searchResultsProvider);
-    final playerState = ref.watch(playerStateProvider).value;
+    final currentTrackId = ref.watch(
+      playerStateProvider.select((s) => s.value?.currentTrack?.id),
+    );
     final isDark = CupertinoTheme.brightnessOf(context) == Brightness.dark;
 
     return CupertinoPageScaffold(
@@ -109,7 +111,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                       ...results.tracks.map(
                         (track) => SongRow(
                           track: track,
-                          isPlaying: playerState?.currentTrack?.id == track.id,
+                          isPlaying: currentTrackId == track.id,
                           onTap: () => ref
                               .read(playbackRepositoryProvider)
                               .playTrack(track, queue: results.tracks),

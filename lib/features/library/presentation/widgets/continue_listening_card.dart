@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/bootstrap/providers.dart';
 import '../../../../core/constants/app_constants.dart';
-import '../../../playback/domain/entities/playback_state.dart';
 import '../../../playback/presentation/pages/now_playing_page.dart';
 import '../../domain/entities/music_entities.dart';
 import 'album_artwork.dart';
@@ -17,37 +16,22 @@ class ContinueListeningCard extends ConsumerWidget {
 
   const ContinueListeningCard({super.key, required this.track});
 
-  String _formatDuration(Duration d) {
-    final minutes = d.inMinutes;
-    final seconds = d.inSeconds % 60;
-    return '$minutes:${seconds.toString().padLeft(2, '0')}';
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = CupertinoTheme.brightnessOf(context) == Brightness.dark;
-    final playerSnapshot =
-        ref.watch(playerStateProvider).value ?? const PlayerStateSnapshot();
 
-    final isCurrent = playerSnapshot.currentTrack?.id == track.id;
-    final isPlaying = isCurrent && playerSnapshot.isPlaying;
-    final isBuffering = isCurrent && playerSnapshot.isBuffering;
-
-    final duration = isCurrent && playerSnapshot.duration.inMilliseconds > 0
-        ? playerSnapshot.duration
-        : Duration(milliseconds: track.durationMs);
-
-    final position = isCurrent ? playerSnapshot.position : Duration.zero;
-
-    final maxMs = duration.inMilliseconds > 0
-        ? duration.inMilliseconds
-        : (track.durationMs > 0 ? track.durationMs : 1);
-    final curMs = position.inMilliseconds.clamp(0, maxMs);
-
-    final remainingMs = (maxMs - curMs).clamp(0, 86400000);
-    final remainingDuration = Duration(milliseconds: remainingMs);
-
-    final progress = (curMs / maxMs).clamp(0.0, 1.0);
+    // Only rebuild when play/pause/buffer state changes — NOT on every position tick
+    final isCurrent = ref.watch(
+      playerStateProvider.select((s) => s.value?.currentTrack?.id == track.id),
+    );
+    final isPlaying = ref.watch(
+      playerStateProvider.select((s) =>
+        s.value?.currentTrack?.id == track.id && (s.value?.isPlaying ?? false)),
+    );
+    final isBuffering = ref.watch(
+      playerStateProvider.select((s) =>
+        s.value?.currentTrack?.id == track.id && (s.value?.isBuffering ?? false)),
+    );
 
     return Container(
       margin: const EdgeInsets.symmetric(
@@ -228,107 +212,10 @@ class ContinueListeningCard extends ConsumerWidget {
 
                   const SizedBox(height: 12),
 
-                  // Bottom Scrubber Bar & Times
-                  Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Custom Thin Progress Bar with Thumb Dot
-                      LayoutBuilder(
-                        builder: (context, constraints) {
-                          final barWidth = constraints.maxWidth;
-                          final thumbPos = (barWidth * progress).clamp(
-                            0.0,
-                            barWidth,
-                          );
-
-                          return SizedBox(
-                            height: 8,
-                            child: Stack(
-                              alignment: Alignment.centerLeft,
-                              children: [
-                                // Background track
-                                Container(
-                                  height: 3,
-                                  width: barWidth,
-                                  decoration: BoxDecoration(
-                                    color: isDark
-                                        ? CupertinoColors.white.withOpacity(
-                                            0.20,
-                                          )
-                                        : CupertinoColors.black.withOpacity(
-                                            0.12,
-                                          ),
-                                    borderRadius: BorderRadius.circular(1.5),
-                                  ),
-                                ),
-                                // Active track
-                                Container(
-                                  height: 3,
-                                  width: thumbPos,
-                                  decoration: BoxDecoration(
-                                    color: isDark
-                                        ? CupertinoColors.white
-                                        : CupertinoColors.black,
-                                    borderRadius: BorderRadius.circular(1.5),
-                                  ),
-                                ),
-                                // Thumb dot
-                                Positioned(
-                                  left: (thumbPos - 3.5).clamp(
-                                    0.0,
-                                    barWidth - 7.0,
-                                  ),
-                                  child: Container(
-                                    width: 7,
-                                    height: 7,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: isDark
-                                          ? CupertinoColors.white
-                                          : CupertinoColors.black,
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: CupertinoColors.black
-                                              .withOpacity(0.3),
-                                          blurRadius: 3,
-                                          offset: const Offset(0, 1),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 2),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            _formatDuration(position),
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w500,
-                              color: isDark
-                                  ? CupertinoColors.white.withOpacity(0.60)
-                                  : CupertinoColors.secondaryLabel,
-                            ),
-                          ),
-                          Text(
-                            '-${_formatDuration(remainingDuration)}',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w500,
-                              color: isDark
-                                  ? CupertinoColors.white.withOpacity(0.60)
-                                  : CupertinoColors.secondaryLabel,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                  // Bottom Scrubber Bar & Times — isolated to avoid rebuilding the card
+                  _ContinueListeningScrubber(
+                    track: track,
+                    isCurrent: isCurrent,
                   ),
                 ],
               ),
@@ -336,6 +223,146 @@ class ContinueListeningCard extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Isolated scrubber that watches the high-frequency position stream.
+/// Only this sub-widget rebuilds on position ticks.
+class _ContinueListeningScrubber extends ConsumerWidget {
+  final Track track;
+  final bool isCurrent;
+
+  const _ContinueListeningScrubber({
+    required this.track,
+    required this.isCurrent,
+  });
+
+  String _formatDuration(Duration d) {
+    final minutes = d.inMinutes;
+    final seconds = d.inSeconds % 60;
+    return '$minutes:${seconds.toString().padLeft(2, '0')}';
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isDark = CupertinoTheme.brightnessOf(context) == Brightness.dark;
+
+    final rawPosition = ref.watch(playbackPositionProvider);
+    final streamDuration = ref.watch(
+      playerStateProvider.select((s) => s.value?.duration ?? Duration.zero),
+    );
+
+    final duration = isCurrent && streamDuration.inMilliseconds > 0
+        ? streamDuration
+        : Duration(milliseconds: track.durationMs);
+    final position = isCurrent ? rawPosition : Duration.zero;
+
+    final maxMs = duration.inMilliseconds > 0
+        ? duration.inMilliseconds
+        : (track.durationMs > 0 ? track.durationMs : 1);
+    final curMs = position.inMilliseconds.clamp(0, maxMs);
+
+    final remainingMs = (maxMs - curMs).clamp(0, 86400000);
+    final remainingDuration = Duration(milliseconds: remainingMs);
+
+    final progress = (curMs / maxMs).clamp(0.0, 1.0);
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Custom Thin Progress Bar with Thumb Dot
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final barWidth = constraints.maxWidth;
+            final thumbPos = (barWidth * progress).clamp(
+              0.0,
+              barWidth,
+            );
+
+            return SizedBox(
+              height: 8,
+              child: Stack(
+                alignment: Alignment.centerLeft,
+                children: [
+                  // Background track
+                  Container(
+                    height: 3,
+                    width: barWidth,
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? CupertinoColors.white.withOpacity(0.20)
+                          : CupertinoColors.black.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(1.5),
+                    ),
+                  ),
+                  // Active track
+                  Container(
+                    height: 3,
+                    width: thumbPos,
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? CupertinoColors.white
+                          : CupertinoColors.black,
+                      borderRadius: BorderRadius.circular(1.5),
+                    ),
+                  ),
+                  // Thumb dot
+                  Positioned(
+                    left: (thumbPos - 3.5).clamp(
+                      0.0,
+                      barWidth - 7.0,
+                    ),
+                    child: Container(
+                      width: 7,
+                      height: 7,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: isDark
+                            ? CupertinoColors.white
+                            : CupertinoColors.black,
+                        boxShadow: [
+                          BoxShadow(
+                            color: CupertinoColors.black.withOpacity(0.3),
+                            blurRadius: 3,
+                            offset: const Offset(0, 1),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+        const SizedBox(height: 2),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              _formatDuration(position),
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                color: isDark
+                    ? CupertinoColors.white.withOpacity(0.60)
+                    : CupertinoColors.secondaryLabel,
+              ),
+            ),
+            Text(
+              '-${_formatDuration(remainingDuration)}',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                color: isDark
+                    ? CupertinoColors.white.withOpacity(0.60)
+                    : CupertinoColors.secondaryLabel,
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

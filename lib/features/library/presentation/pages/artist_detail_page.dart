@@ -17,10 +17,11 @@ class ArtistDetailPage extends ConsumerWidget {
   const ArtistDetailPage({super.key, required this.artistId});
 
   @override
-  @override
   Widget build(BuildContext context, WidgetRef ref) {
     final artistWithAlbumsAsync = ref.watch(artistDetailProvider(artistId));
-    final playerState = ref.watch(playerStateProvider).value;
+    final currentTrackId = ref.watch(
+      playerStateProvider.select((s) => s.value?.currentTrack?.id),
+    );
     final isDark = CupertinoTheme.brightnessOf(context) == Brightness.dark;
 
     return CupertinoPageScaffold(
@@ -164,7 +165,7 @@ class ArtistDetailPage extends ConsumerWidget {
                 SliverList(
                   delegate: SliverChildBuilderDelegate((context, index) {
                     final track = tracks[index];
-                    final isPlaying = playerState?.currentTrack?.id == track.id;
+                    final isPlaying = currentTrackId == track.id;
                     return SongRow(
                       track: track,
                       isPlaying: isPlaying,

@@ -6,7 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/bootstrap/providers.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../google_drive/presentation/pages/drive_connect_page.dart';
-import '../../../playback/domain/entities/playback_state.dart';
 import '../../../playback/presentation/pages/now_playing_page.dart';
 import '../../../playlists/presentation/pages/playlist_detail_page.dart';
 import '../../domain/entities/music_entities.dart';
@@ -33,8 +32,9 @@ class HomePage extends ConsumerWidget {
     final artistsAsync = ref.watch(allArtistsProvider);
     final playlistsAsync = ref.watch(playlistsProvider);
     final recentTracksAsync = ref.watch(allTracksProvider('recent'));
-    final playerSnapshot =
-        ref.watch(playerStateProvider).value ?? const PlayerStateSnapshot();
+    final currentPlayingTrack = ref.watch(
+      playerStateProvider.select((s) => s.value?.currentTrack),
+    );
 
     final userAsync = ref.watch(currentUserProvider);
     final user = userAsync.value;
@@ -50,7 +50,7 @@ class HomePage extends ConsumerWidget {
     // 1. Currently active track
     // 2. Most recent track from recently played
     // 3. First track from recent tracks if available
-    Track? continueListeningTrack = playerSnapshot.currentTrack;
+    Track? continueListeningTrack = currentPlayingTrack;
     if (continueListeningTrack == null && recentlyPlayed.isNotEmpty) {
       continueListeningTrack = recentlyPlayed.first;
     } else if (continueListeningTrack == null && recentTracks.isNotEmpty) {

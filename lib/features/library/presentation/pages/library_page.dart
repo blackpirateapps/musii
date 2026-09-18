@@ -112,7 +112,9 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
     final artistsAsync = ref.watch(allArtistsProvider);
     final songsAsync = ref.watch(allTracksProvider(null));
     final playlistsAsync = ref.watch(playlistsProvider);
-    final playerState = ref.watch(playerStateProvider).value;
+    final currentTrackId = ref.watch(
+      playerStateProvider.select((s) => s.value?.currentTrack?.id),
+    );
 
     return CupertinoPageScaffold(
       child: CustomScrollView(
@@ -335,7 +337,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                 return SliverList(
                   delegate: SliverChildBuilderDelegate((context, index) {
                     final track = songs[index];
-                    final isPlaying = playerState?.currentTrack?.id == track.id;
+                    final isPlaying = currentTrackId == track.id;
                     return SongRow(
                       track: track,
                       isPlaying: isPlaying,
