@@ -173,6 +173,48 @@ void main() {
         expect(find.text('Total Artists'), findsOneWidget);
       },
     );
+
+    testWidgets(
+      'renders Select Music Folder empty state when signed in with no data',
+      (tester) async {
+        final db = AppDatabase(NativeDatabase.memory());
+        addTearDown(db.close);
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              appDatabaseProvider.overrideWithValue(db),
+              playerStateProvider.overrideWith(
+                (ref) => Stream.value(const PlayerStateSnapshot()),
+              ),
+              currentUserProvider.overrideWith((ref) => Stream.value(testUser)),
+              recentlyPlayedTracksProvider.overrideWith(
+                (ref) => Stream.value([]),
+              ),
+              favoriteTracksProvider.overrideWith((ref) => Stream.value([])),
+              allTracksProvider('recent')
+                  .overrideWith((ref) => Stream.value([])),
+              allTracksProvider(null).overrideWith((ref) => Stream.value([])),
+              allAlbumsProvider.overrideWith((ref) => Stream.value([])),
+              allArtistsProvider.overrideWith((ref) => Stream.value([])),
+              playlistsProvider.overrideWith((ref) => Stream.value([])),
+            ],
+            child: const CupertinoApp(home: HomePage()),
+          ),
+        );
+
+        await tester.pumpAndSettle();
+
+        expect(find.text('No Music Indexed Yet'), findsOneWidget);
+        expect(
+          find.text(
+            'Select your music folder to index your music library and start listening.',
+          ),
+          findsOneWidget,
+        );
+        expect(find.text('Select Music Folder'), findsOneWidget);
+      },
+    );
   });
 
   group('LibraryPage', () {

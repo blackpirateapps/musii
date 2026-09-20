@@ -136,7 +136,10 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
   }
 
   @override
-  Stream<SyncProgress> watchSyncProgress() => _syncProgressController.stream;
+  Stream<SyncProgress> watchSyncProgress() async* {
+    yield _currentProgress;
+    yield* _syncProgressController.stream;
+  }
 
   void _updateProgress(SyncProgress progress) {
     _currentProgress = progress;
@@ -348,11 +351,17 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
     }
 
     if (folderId == null) {
-      return const Result.failure(
-        DriveApiFailure(
-          'No music folder configured. Please select a folder first.',
+      const failure = DriveApiFailure(
+        'No music folder configured. Please select a folder first.',
+      );
+      _updateProgress(
+        _currentProgress.copyWith(
+          phase: SyncPhase.failed,
+          errorMessage: failure.message,
+          isResumable: false,
         ),
       );
+      return const Result.failure(failure);
     }
 
     return syncLibrary(
@@ -690,6 +699,25 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
       LogCategory.sync,
       '${isResume ? "Resuming" : "Starting"} library sync (Run ID: $syncRunId, Folder: $rootFolderName [$rootFolderId])',
     );
+
+    _updateProgress(
+      _currentProgress.copyWith(
+        syncRunId: syncRunId,
+        phase: SyncPhase.scanning,
+        rootFolderId: rootFolderId,
+        rootFolderName: rootFolderName,
+        filesDiscovered: isResume ? _currentProgress.filesDiscovered : 0,
+        filesProcessed: isResume ? _currentProgress.filesProcessed : 0,
+        filesAdded: isResume ? _currentProgress.filesAdded : 0,
+        filesUpdated: isResume ? _currentProgress.filesUpdated : 0,
+        filesRemoved: isResume ? _currentProgress.filesRemoved : 0,
+        errorsCount: isResume ? _currentProgress.errorsCount : 0,
+        progressPercent: isResume ? _currentProgress.progressPercent : 0.0,
+        errorMessage: null,
+        isResumable: false,
+      ),
+    );
+    onProgress?.call(_currentProgress);
 
     try {
       // If fresh sync, clean up obsolete discovered files from previous sync runs

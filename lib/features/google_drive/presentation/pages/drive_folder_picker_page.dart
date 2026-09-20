@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/bootstrap/providers.dart';
+import '../../../../app/router/app_router.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../library/presentation/widgets/empty_state.dart';
 import '../../../library/presentation/widgets/sync_progress_sheet.dart';
@@ -86,21 +89,24 @@ class _DriveFolderPickerPageState extends ConsumerState<DriveFolderPickerPage> {
     );
   }
 
-  void _startSync(String folderId, String folderName) async {
-    // Show sync progress sheet
-    showSyncProgressSheet(context);
+  void _startSync(String folderId, String folderName) {
+    // 1. Pop setup routes first back to root/home so the setup stack is cleared cleanly
+    Navigator.of(context).popUntil((route) => route.isFirst);
 
-    // Trigger sync in background
-    final libraryRepo = ref.read(musicLibraryRepositoryProvider);
-    await libraryRepo.syncLibrary(
-      rootFolderId: folderId,
-      rootFolderName: folderName,
-    );
-
-    if (mounted) {
-      // Navigate to Home / main tabs
-      Navigator.of(context).popUntil((route) => route.isFirst);
+    // 2. Open sync progress sheet on the root context (above Home/tabs)
+    final rootContext = rootNavigatorKey.currentContext;
+    if (rootContext != null) {
+      showSyncProgressSheet(rootContext);
     }
+
+    // 3. Trigger library sync in background
+    final libraryRepo = ref.read(musicLibraryRepositoryProvider);
+    unawaited(
+      libraryRepo.syncLibrary(
+        rootFolderId: folderId,
+        rootFolderName: folderName,
+      ),
+    );
   }
 
   @override
@@ -114,21 +120,21 @@ class _DriveFolderPickerPageState extends ConsumerState<DriveFolderPickerPage> {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
-        trailing: widget.initialParentId != null
-            ? CupertinoButton(
-                padding: EdgeInsets.zero,
-                minSize: 0,
-                onPressed: () =>
-                    _selectFolder(widget.initialParentId!, widget.currentPath),
-                child: const Text(
-                  'Select Here',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: CupertinoColors.systemPink,
-                  ),
-                ),
-              )
-            : null,
+        trailing: CupertinoButton(
+          padding: EdgeInsets.zero,
+          minSize: 0,
+          onPressed: () => _selectFolder(
+            widget.initialParentId ?? 'root',
+            widget.currentPath,
+          ),
+          child: const Text(
+            'Select Here',
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              color: CupertinoColors.systemPink,
+            ),
+          ),
+        ),
       ),
       child: SafeArea(
         child: _isLoading
@@ -149,9 +155,10 @@ class _DriveFolderPickerPageState extends ConsumerState<DriveFolderPickerPage> {
                     'You can choose this folder as your music library root.',
                 actionLabel: 'Select This Folder',
                 onAction: () {
-                  if (widget.initialParentId != null) {
-                    _selectFolder(widget.initialParentId!, widget.currentPath);
-                  }
+                  _selectFolder(
+                    widget.initialParentId ?? 'root',
+                    widget.currentPath,
+                  );
                 },
               )
             : ListView.separated(

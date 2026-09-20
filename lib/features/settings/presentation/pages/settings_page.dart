@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart' show showLicensePage;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -107,11 +109,11 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     );
   }
 
-  void _triggerSync(
+  Future<void> _triggerSync(
     BuildContext context,
     WidgetRef ref, {
     bool forceSync = false,
-  }) {
+  }) async {
     final syncProgress =
         ref.read(syncProgressProvider).value ?? const SyncProgress();
 
@@ -121,13 +123,31 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       return;
     }
 
+    final lastSession = await ref
+        .read(musicLibraryRepositoryProvider)
+        .getLastSyncSession();
+    final savedFolder = syncProgress.rootFolderId ?? lastSession?.rootFolderId;
+
+    if (savedFolder == null) {
+      if (context.mounted) {
+        Navigator.of(context).push(
+          CupertinoPageRoute(builder: (_) => const DriveFolderPickerPage()),
+        );
+      }
+      return;
+    }
+
     // Show progress sheet immediately
-    showSyncProgressSheet(context);
+    if (context.mounted) {
+      showSyncProgressSheet(context);
+    }
 
     // Trigger sync using the saved folder
-    ref
-        .read(musicLibraryRepositoryProvider)
-        .syncFromSavedFolder(forceSync: forceSync);
+    unawaited(
+      ref
+          .read(musicLibraryRepositoryProvider)
+          .syncFromSavedFolder(forceSync: forceSync),
+    );
   }
 
   void _triggerForceSync(BuildContext context, WidgetRef ref) {

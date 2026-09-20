@@ -67,7 +67,7 @@ class GoogleDriveRepositoryImpl implements GoogleDriveRepository {
 
       final fileList = await driveApi.files.list(
         q: query,
-        $fields: 'files(id, name, parents)',
+        $fields: 'files(id,name,parents)',
         orderBy: 'name',
         pageSize: 100,
         spaces: 'drive',
@@ -150,7 +150,7 @@ class GoogleDriveRepositoryImpl implements GoogleDriveRepository {
           final query = "'$currentFolderId' in parents and trashed = false";
           final result = await driveApi.files.list(
             q: query,
-            $fields: 'nextPageToken, files(id, name, mimeType, size, modifiedTime, md5Checksum, parents)',
+            $fields: 'nextPageToken,files(id,name,mimeType,size,modifiedTime,md5Checksum,parents)',
             pageSize: 100,
             pageToken: pageToken,
             spaces: 'drive',

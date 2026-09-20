@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -291,10 +293,20 @@ class AccountInfoSheet extends ConsumerWidget {
                     CupertinoButton.filled(
                       onPressed: () {
                         Navigator.pop(context);
-                        showSyncProgressSheet(context);
-                        ref
-                            .read(musicLibraryRepositoryProvider)
-                            .syncFromSavedFolder();
+                        if (syncProgress.rootFolderId == null) {
+                          Navigator.of(context).push(
+                            CupertinoPageRoute(
+                              builder: (_) => const DriveFolderPickerPage(),
+                            ),
+                          );
+                        } else {
+                          showSyncProgressSheet(context);
+                          unawaited(
+                            ref
+                                .read(musicLibraryRepositoryProvider)
+                                .syncFromSavedFolder(),
+                          );
+                        }
                       },
                       child: const Text('Sync Library Now'),
                     ),

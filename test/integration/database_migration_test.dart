@@ -265,20 +265,24 @@ void main() {
   }
 
   group('Database Migration Suite', () {
-    test('fresh database creation initializes at schemaVersion 10 with all tables', () async {
-      final db = AppDatabase(NativeDatabase.memory());
-      addTearDown(db.close);
+    test(
+      'fresh database creation initializes at schemaVersion 10 with all tables',
+      () async {
+        final db = AppDatabase(NativeDatabase.memory());
+        addTearDown(db.close);
 
-      final syncRuns = await db.select(db.syncRuns).get();
-      expect(syncRuns, isEmpty);
+        final syncRuns = await db.select(db.syncRuns).get();
+        expect(syncRuns, isEmpty);
 
-      final discoveredFiles = await db.select(db.discoveredFiles).get();
-      expect(discoveredFiles, isEmpty);
+        final discoveredFiles = await db.select(db.discoveredFiles).get();
+        expect(discoveredFiles, isEmpty);
 
-      final userVersionResult =
-          await db.customSelect('PRAGMA user_version;').getSingle();
-      expect(userVersionResult.read<int>('user_version'), 10);
-    });
+        final userVersionResult = await db
+            .customSelect('PRAGMA user_version;')
+            .getSingle();
+        expect(userVersionResult.read<int>('user_version'), 10);
+      },
+    );
 
     test('reproduction: migration from schema v4 to v10 succeeds without duplicate column error', () async {
       final dbFile = createDbFile('v4_to_v10.sqlite');
@@ -298,13 +302,16 @@ void main() {
       final discoveredList = await db.select(db.discoveredFiles).get();
       expect(discoveredList, isEmpty);
 
-      final uvResult =
-          await db.customSelect('PRAGMA user_version;').getSingle();
+      final uvResult = await db
+          .customSelect('PRAGMA user_version;')
+          .getSingle();
       expect(uvResult.read<int>('user_version'), 10);
 
       // Verify columns in discovered_files exist and can be inserted/selected
       final now = DateTime.now();
-      await db.into(db.discoveredFiles).insert(
+      await db
+          .into(db.discoveredFiles)
+          .insert(
             DiscoveredFilesCompanion.insert(
               id: 'sync1_file1',
               syncRunId: 'sync1',
@@ -318,15 +325,17 @@ void main() {
             ),
           );
 
-      final inserted = await (db.select(db.discoveredFiles)
-            ..where((tbl) => tbl.id.equals('sync1_file1')))
-          .getSingle();
+      final inserted = await (db.select(
+        db.discoveredFiles,
+      )..where((tbl) => tbl.id.equals('sync1_file1'))).getSingle();
       expect(inserted.isProcessed, isTrue);
       expect(inserted.processStatus, 'added');
       expect(inserted.processedAt, isNotNull);
 
       // Verify sync_runs has v5 columns
-      await db.into(db.syncRuns).insert(
+      await db
+          .into(db.syncRuns)
+          .insert(
             SyncRunsCompanion.insert(
               id: 'sync1',
               sourceId: 'gdrive',
@@ -337,13 +346,15 @@ void main() {
               visitedFoldersJson: const Value('["root"]'),
             ),
           );
-      final run = await (db.select(db.syncRuns)
-            ..where((tbl) => tbl.id.equals('sync1')))
-          .getSingle();
+      final run = await (db.select(
+        db.syncRuns,
+      )..where((tbl) => tbl.id.equals('sync1'))).getSingle();
       expect(run.discoveryCompleted, isTrue);
 
       // Verify tracks has v10 artworkPath column
-      await db.into(db.tracks).insert(
+      await db
+          .into(db.tracks)
+          .insert(
             TracksCompanion.insert(
               id: 'track1',
               driveFileId: 'df1',
@@ -355,9 +366,9 @@ void main() {
               updatedAt: now,
             ),
           );
-      final track = await (db.select(db.tracks)
-            ..where((tbl) => tbl.id.equals('track1')))
-          .getSingle();
+      final track = await (db.select(
+        db.tracks,
+      )..where((tbl) => tbl.id.equals('track1'))).getSingle();
       expect(track.artworkPath, '/path/to/art.jpg');
     });
 
@@ -375,8 +386,9 @@ void main() {
       final discoveredList = await db.select(db.discoveredFiles).get();
       expect(discoveredList, isEmpty);
 
-      final uvResult =
-          await db.customSelect('PRAGMA user_version;').getSingle();
+      final uvResult = await db
+          .customSelect('PRAGMA user_version;')
+          .getSingle();
       expect(uvResult.read<int>('user_version'), 10);
     });
 
@@ -398,13 +410,16 @@ void main() {
       final discoveredList = await db.select(db.discoveredFiles).get();
       expect(discoveredList, isEmpty);
 
-      final uvResult =
-          await db.customSelect('PRAGMA user_version;').getSingle();
+      final uvResult = await db
+          .customSelect('PRAGMA user_version;')
+          .getSingle();
       expect(uvResult.read<int>('user_version'), 10);
 
       // Ensure newly added columns can be written and read
       final now = DateTime.now();
-      await db.into(db.discoveredFiles).insert(
+      await db
+          .into(db.discoveredFiles)
+          .insert(
             DiscoveredFilesCompanion.insert(
               id: 'sync5_file1',
               syncRunId: 'sync5',
@@ -417,9 +432,9 @@ void main() {
             ),
           );
 
-      final row = await (db.select(db.discoveredFiles)
-            ..where((tbl) => tbl.id.equals('sync5_file1')))
-          .getSingle();
+      final row = await (db.select(
+        db.discoveredFiles,
+      )..where((tbl) => tbl.id.equals('sync5_file1'))).getSingle();
       expect(row.isProcessed, isTrue);
       expect(row.processStatus, 'updated');
     });
@@ -458,14 +473,15 @@ void main() {
       final db = AppDatabase(NativeDatabase(dbFile));
       addTearDown(db.close);
 
-      final track = await (db.select(db.tracks)
-            ..where((tbl) => tbl.id.equals('t1')))
-          .getSingle();
+      final track = await (db.select(
+        db.tracks,
+      )..where((tbl) => tbl.id.equals('t1'))).getSingle();
 
       expect(track.artworkPath, '/cache/artworks/alb1.jpg');
 
-      final uvResult =
-          await db.customSelect('PRAGMA user_version;').getSingle();
+      final uvResult = await db
+          .customSelect('PRAGMA user_version;')
+          .getSingle();
       expect(uvResult.read<int>('user_version'), 10);
     });
 
@@ -478,10 +494,7 @@ void main() {
 
       // Manually invoke onUpgrade from 1 to 10 on the already fully formed database
       final migrator = db.createMigrator();
-      await expectLater(
-        db.migration.onUpgrade(migrator, 1, 10),
-        completes,
-      );
+      await expectLater(db.migration.onUpgrade(migrator, 1, 10), completes);
 
       // Verify database still operates normally
       final tracks = await db.select(db.tracks).get();

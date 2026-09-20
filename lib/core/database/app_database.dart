@@ -153,9 +153,21 @@ class AppDatabase extends _$AppDatabase {
           );
         }
         if (from < 9) {
-          await _addColumnSafely(m, discoveredFiles, discoveredFiles.isProcessed);
-          await _addColumnSafely(m, discoveredFiles, discoveredFiles.processStatus);
-          await _addColumnSafely(m, discoveredFiles, discoveredFiles.processedAt);
+          await _addColumnSafely(
+            m,
+            discoveredFiles,
+            discoveredFiles.isProcessed,
+          );
+          await _addColumnSafely(
+            m,
+            discoveredFiles,
+            discoveredFiles.processStatus,
+          );
+          await _addColumnSafely(
+            m,
+            discoveredFiles,
+            discoveredFiles.processedAt,
+          );
         }
         if (from < 10) {
           await _addColumnSafely(m, tracks, tracks.artworkPath);
@@ -185,16 +197,11 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Future<bool> _columnExists(String tableName, String columnName) async {
-    final result = await customSelect(
-      'PRAGMA table_info("$tableName");',
-    ).get();
+    final result = await customSelect('PRAGMA table_info("$tableName");').get();
     return result.any((row) => row.read<String>('name') == columnName);
   }
 
-  Future<void> _createTableSafely(
-    Migrator m,
-    TableInfo table,
-  ) async {
+  Future<void> _createTableSafely(Migrator m, TableInfo table) async {
     if (!await _tableExists(table.actualTableName)) {
       await m.createTable(table);
     }

@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/bootstrap/providers.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../google_drive/presentation/pages/drive_connect_page.dart';
+import '../../../google_drive/presentation/pages/drive_folder_picker_page.dart';
 import '../../../playback/presentation/pages/now_playing_page.dart';
 import '../../../playlists/presentation/pages/playlist_detail_page.dart';
 import '../../domain/entities/music_entities.dart';
@@ -230,15 +231,21 @@ class HomePage extends ConsumerWidget {
                         : 'No Music Indexed Yet',
                     subtitle: user == null
                         ? 'Connect your Google Drive to build your personal music library.'
-                        : 'Select your music folder in Settings or sync your library to start listening.',
+                        : 'Select your music folder to index your music library and start listening.',
                     actionLabel: user == null
                         ? 'Connect Drive'
-                        : 'Go to Settings',
+                        : 'Select Music Folder',
                     onAction: () {
                       if (user == null) {
                         Navigator.of(context).push(
                           CupertinoPageRoute(
                             builder: (_) => const DriveConnectPage(),
+                          ),
+                        );
+                      } else {
+                        Navigator.of(context).push(
+                          CupertinoPageRoute(
+                            builder: (_) => const DriveFolderPickerPage(),
                           ),
                         );
                       }
