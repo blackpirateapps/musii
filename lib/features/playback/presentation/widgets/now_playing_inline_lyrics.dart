@@ -357,8 +357,6 @@ class _NowPlayingInlineLyricsState
       }
     }
 
-    final isDark = CupertinoTheme.brightnessOf(context) == Brightness.dark;
-
     return AnimatedSize(
       duration: disableAnimations
           ? Duration.zero
@@ -394,7 +392,7 @@ class _NowPlayingInlineLyricsState
                     child: _InlineLyricsReel(
                       slotData: _slotData,
                       currentPosition: _currentPosition,
-                      isDark: isDark,
+                      isDark: true,
                       disableAnimations: disableAnimations,
                       onTap: () {
                         if (widget.track != null) {
@@ -646,6 +644,8 @@ class _InlineLyricsReelState extends State<_InlineLyricsReel>
   @override
   Widget build(BuildContext context) {
     const pitch = 36.0;
+    const previousOpacity = 0.64;
+    const upcomingOpacity = 0.76;
     final currentMs = widget.currentPosition.inMilliseconds;
     final isDark = widget.isDark;
 
@@ -683,7 +683,7 @@ class _InlineLyricsReelState extends State<_InlineLyricsReel>
                   _buildLineItem(
                     centerY: 18.0,
                     scale: 0.72,
-                    opacity: 0.24,
+                    opacity: previousOpacity,
                     line: _toSlotData.prevLine,
                     isCenterHero: false,
                     showDots: false,
@@ -725,7 +725,7 @@ class _InlineLyricsReelState extends State<_InlineLyricsReel>
                   _buildLineItem(
                     centerY: 90.0,
                     scale: 0.72,
-                    opacity: 0.38,
+                    opacity: upcomingOpacity,
                     line: _toSlotData.upcomingLine,
                     isCenterHero: false,
                     showDots: false,
@@ -753,7 +753,7 @@ class _InlineLyricsReelState extends State<_InlineLyricsReel>
                   _buildLineItem(
                     centerY: 18.0 + dy,
                     scale: 0.72,
-                    opacity: (1.0 - t) * 0.24,
+                    opacity: (1.0 - t) * previousOpacity,
                     line: from.prevLine,
                     isCenterHero: false,
                     showDots: false,
@@ -766,7 +766,7 @@ class _InlineLyricsReelState extends State<_InlineLyricsReel>
                 _buildLineItem(
                   centerY: 54.0 + dy,
                   scale: 1.0 - (0.28 * t),
-                  opacity: 1.0 - (0.76 * t),
+                  opacity: 1.0 - ((1 - previousOpacity) * t),
                   line: from.activeLine,
                   isCenterHero: false,
                   showDots: from.phase != _ReelPhase.singing,
@@ -779,7 +779,7 @@ class _InlineLyricsReelState extends State<_InlineLyricsReel>
                 _buildLineItem(
                   centerY: 90.0 + dy,
                   scale: 0.72 + (0.28 * t),
-                  opacity: 0.38 + (0.62 * t),
+                  opacity: upcomingOpacity + ((1 - upcomingOpacity) * t),
                   line: to.activeLine ?? from.upcomingLine,
                   isCenterHero: to.phase == _ReelPhase.singing,
                   showDots: to.phase != _ReelPhase.singing,
@@ -793,7 +793,7 @@ class _InlineLyricsReelState extends State<_InlineLyricsReel>
                   _buildLineItem(
                     centerY: 126.0 + dy,
                     scale: 0.72,
-                    opacity: t * 0.38,
+                    opacity: t * upcomingOpacity,
                     line: to.upcomingLine,
                     isCenterHero: false,
                     showDots: false,
@@ -813,7 +813,7 @@ class _InlineLyricsReelState extends State<_InlineLyricsReel>
                   _buildLineItem(
                     centerY: -18.0 + dy,
                     scale: 0.72,
-                    opacity: t * 0.24,
+                    opacity: t * previousOpacity,
                     line: to.prevLine,
                     isCenterHero: false,
                     showDots: false,
@@ -826,7 +826,7 @@ class _InlineLyricsReelState extends State<_InlineLyricsReel>
                 _buildLineItem(
                   centerY: 18.0 + dy,
                   scale: 0.72 + (0.28 * t),
-                  opacity: 0.24 + (0.76 * t),
+                  opacity: previousOpacity + ((1 - previousOpacity) * t),
                   line: to.activeLine ?? from.prevLine,
                   isCenterHero: to.phase == _ReelPhase.singing,
                   showDots: to.phase != _ReelPhase.singing,
@@ -839,7 +839,7 @@ class _InlineLyricsReelState extends State<_InlineLyricsReel>
                 _buildLineItem(
                   centerY: 54.0 + dy,
                   scale: 1.0 - (0.28 * t),
-                  opacity: 1.0 - (0.62 * t),
+                  opacity: 1.0 - ((1 - upcomingOpacity) * t),
                   line: from.activeLine,
                   isCenterHero: false,
                   showDots: from.phase != _ReelPhase.singing,
@@ -853,7 +853,7 @@ class _InlineLyricsReelState extends State<_InlineLyricsReel>
                   _buildLineItem(
                     centerY: 90.0 + dy,
                     scale: 0.72,
-                    opacity: (1.0 - t) * 0.38,
+                    opacity: (1.0 - t) * upcomingOpacity,
                     line: from.upcomingLine,
                     isCenterHero: false,
                     showDots: false,

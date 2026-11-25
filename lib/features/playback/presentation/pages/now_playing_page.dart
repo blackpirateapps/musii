@@ -14,6 +14,7 @@ import 'package:flutter/material.dart'
         RoundSliderThumbShape,
         RoundSliderOverlayShape,
         RoundedRectSliderTrackShape;
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/bootstrap/providers.dart';
@@ -154,6 +155,12 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
           offset: Offset(0, _dragOffset),
           child: Stack(
             children: [
+              const Positioned.fill(
+                child: AnnotatedRegion<SystemUiOverlayStyle>(
+                  value: SystemUiOverlayStyle.light,
+                  child: SizedBox.expand(),
+                ),
+              ),
               // 1. Blurred Backdrop from current artwork (isolated from repaints)
               RepaintBoundary(
                 child: Stack(
@@ -176,7 +183,7 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
                               end: Alignment.bottomCenter,
                               colors: [
                                 Color(0x40000000),
-                                Color(0x80000000),
+                                Color(0x99000000),
                                 Color(0xB3000000),
                               ],
                             ),

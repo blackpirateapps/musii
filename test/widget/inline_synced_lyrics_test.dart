@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:drift/native.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:musii/app/bootstrap/providers.dart';
@@ -918,6 +919,16 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+
+      final lyric = tester.widget<WordSyncedLyricText>(
+        find.byType(WordSyncedLyricText),
+      );
+      expect(lyric.isDark, isTrue);
+      expect(lyric.style.color, CupertinoColors.white);
+      final overlay = tester.widget<AnnotatedRegion<SystemUiOverlayStyle>>(
+        find.byType(AnnotatedRegion<SystemUiOverlayStyle>),
+      );
+      expect(overlay.value.statusBarIconBrightness, Brightness.light);
 
       expect(findCurrentLyricSemantics('Stay with me'), findsOneWidget);
       expect(find.text('Stay'), findsOneWidget);

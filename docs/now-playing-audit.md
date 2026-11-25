@@ -11,6 +11,7 @@ Audited commit `920feaf098d6e2fd79fd1c29aa324468ebe9b124` on 2026-11-26. The Red
 | 3. Seek thumb rebounds | The scrubber displays the requested position until an audio snapshot acknowledges it. Track changes, errors, and acknowledgement timeout recover to the audio clock. |
 | 4. Lyrics title hides the close button | The title ellipsizes inside the remaining header width while the close button keeps its touch target. |
 | 5. Controls clipped on short screens | Now Playing scrolls when content exceeds the safe area, including landscape and large text. The header truncates to the available width. |
+| 6. Dark inline lyrics and status icons | The reel and status icons use light foregrounds on the dark artwork surface in both app themes. Neighboring lyric rows have higher opacity. |
 
 ## Android stress runs
 
