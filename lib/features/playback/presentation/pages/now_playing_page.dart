@@ -151,6 +151,7 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
         onVerticalDragStart: _onVerticalDragStart,
         onVerticalDragUpdate: _onVerticalDragUpdate,
         onVerticalDragEnd: _onVerticalDragEnd,
+        onVerticalDragCancel: _animateBack,
         child: Transform.translate(
           offset: Offset(0, _dragOffset),
           child: Stack(

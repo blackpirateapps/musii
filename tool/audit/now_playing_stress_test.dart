@@ -470,13 +470,9 @@ void main() {
     await tester.pump();
     final pulledY = tester.getCenter(title).dy;
     await gesture.cancel();
-    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pumpAndSettle();
     expect(pulledY, greaterThan(startY));
-    expect(tester.getCenter(title).dy, pulledY);
-    debugPrint(
-      'cancelled pull: start=$startY pulled=$pulledY '
-      'after=${tester.getCenter(title).dy}',
-    );
+    expect(tester.getCenter(title).dy, startY);
   });
 
   testWidgets(

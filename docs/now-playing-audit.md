@@ -13,6 +13,7 @@ Audited commit `920feaf098d6e2fd79fd1c29aa324468ebe9b124` on 2026-11-26. The Red
 | 5. Controls clipped on short screens | Now Playing scrolls when content exceeds the safe area, including landscape and large text. The header truncates to the available width. |
 | 6. Dark inline lyrics and status icons | The reel and status icons use light foregrounds on the dark artwork surface in both app themes. Neighboring lyric rows have higher opacity. |
 | 7. Word sweep freezes or drifts | Active lyric rows render the audio clock directly while paused or buffering and extrapolate between samples during playback. |
+| 8. Cancelled pull leaves Now Playing offset | Pointer cancellation runs the same return animation as releasing a short pull. |
 
 ## Android stress runs
 
