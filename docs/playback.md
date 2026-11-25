@@ -117,3 +117,5 @@ The playback queue is maintained inside `MusiiAudioHandler` with index synchroni
 ## Now Playing seeking
 
 The scrubber displays the release position while a seek is in flight. A matching audio position confirms the seek immediately. If the request fails or has no matching position within two seconds, the displayed position returns to the current audio clock. Changing tracks resets the scrubber.
+
+Now Playing fills the safe area on tall phones and scrolls when controls need more vertical space. A compact height hides the inline reel, while the full lyrics panel remains available from the lyrics button.

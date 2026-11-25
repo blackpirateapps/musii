@@ -10,6 +10,7 @@ Audited commit `920feaf098d6e2fd79fd1c29aa324468ebe9b124` on 2026-11-26. The Red
 | 2. Active lyric can remain off-screen | The timed viewport anchors directly at a distant row and aligns against its measured layout. Rapid updates coalesce around the latest active row. |
 | 3. Seek thumb rebounds | The scrubber displays the requested position until an audio snapshot acknowledges it. Track changes, errors, and acknowledgement timeout recover to the audio clock. |
 | 4. Lyrics title hides the close button | The title ellipsizes inside the remaining header width while the close button keeps its touch target. |
+| 5. Controls clipped on short screens | Now Playing scrolls when content exceeds the safe area, including landscape and large text. The header truncates to the available width. |
 
 ## Android stress runs
 

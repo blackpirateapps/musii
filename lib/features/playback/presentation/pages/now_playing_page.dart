@@ -193,13 +193,13 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
                 child: LayoutBuilder(
                   builder: (context, constraints) {
                     return SingleChildScrollView(
-                      physics: const NeverScrollableScrollPhysics(),
+                      physics: const ClampingScrollPhysics(),
                       child: ConstrainedBox(
                         constraints: BoxConstraints(
                           minHeight: constraints.maxHeight,
-                          maxHeight: constraints.maxHeight,
                         ),
                         child: Column(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             // Top Bar: Down Chevron on Left, "Now Playing" Title Centered, Queue Button on Right
                             Padding(
@@ -226,13 +226,18 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
                                   ),
 
                                   // Center: "Now Playing" Title
-                                  const Text(
-                                    'Now Playing',
-                                    style: TextStyle(
-                                      fontSize: 17,
-                                      fontWeight: FontWeight.w600,
-                                      letterSpacing: -0.4,
-                                      color: CupertinoColors.white,
+                                  const Expanded(
+                                    child: Text(
+                                      'Now Playing',
+                                      textAlign: TextAlign.center,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 17,
+                                        fontWeight: FontWeight.w600,
+                                        letterSpacing: -0.4,
+                                        color: CupertinoColors.white,
+                                      ),
                                     ),
                                   ),
 
@@ -251,447 +256,468 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
                               ),
                             ),
 
-                            const Spacer(flex: 1),
-
                             // Floating Artwork with Left/Right Swipe Gestures
-                            GestureDetector(
-                              onHorizontalDragEnd: (details) {
-                                if (details.primaryVelocity != null) {
-                                  if (details.primaryVelocity! < -200) {
-                                    // Swipe left -> Next track
-                                    ref
-                                        .read(playbackRepositoryProvider)
-                                        .skipToNext();
-                                  } else if (details.primaryVelocity! > 200) {
-                                    // Swipe right -> Previous track
-                                    ref
-                                        .read(playbackRepositoryProvider)
-                                        .skipToPrevious();
+                            Padding(
+                              padding: EdgeInsets.symmetric(
+                                vertical: isCompactScreen ? 0 : AppSpacing.sm,
+                              ),
+                              child: GestureDetector(
+                                onHorizontalDragEnd: (details) {
+                                  if (details.primaryVelocity != null) {
+                                    if (details.primaryVelocity! < -200) {
+                                      // Swipe left -> Next track
+                                      ref
+                                          .read(playbackRepositoryProvider)
+                                          .skipToNext();
+                                    } else if (details.primaryVelocity! > 200) {
+                                      // Swipe right -> Previous track
+                                      ref
+                                          .read(playbackRepositoryProvider)
+                                          .skipToPrevious();
+                                    }
                                   }
-                                }
-                              },
-                              child: Hero(
-                                tag: 'current_artwork_${track?.id ?? 'none'}',
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(22),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: CupertinoColors.black
-                                            .withOpacity(0.40),
-                                        blurRadius: 36,
-                                        offset: const Offset(0, 18),
-                                      ),
-                                    ],
-                                  ),
-                                  child: AlbumArtwork(
-                                    artworkPath: track?.artworkPath,
-                                    title: track?.title,
-                                    artist: track?.artistName,
-                                    size: artworkSize,
-                                    borderRadius: 22,
+                                },
+                                child: Hero(
+                                  tag: 'current_artwork_${track?.id ?? 'none'}',
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(22),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: CupertinoColors.black
+                                              .withOpacity(0.40),
+                                          blurRadius: 36,
+                                          offset: const Offset(0, 18),
+                                        ),
+                                      ],
+                                    ),
+                                    child: AlbumArtwork(
+                                      artworkPath: track?.artworkPath,
+                                      title: track?.title,
+                                      artist: track?.artistName,
+                                      size: artworkSize,
+                                      borderRadius: 22,
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
-
-                            const Spacer(flex: 1),
-
-                            // Track Metadata Row: Left-aligned Text + Circular More Button on Right
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: AppSpacing.xl,
-                              ),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  // Left Text Block
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Text(
-                                          track?.title ?? 'No Track Playing',
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(
-                                            fontSize: 22,
-                                            fontWeight: FontWeight.w700,
-                                            letterSpacing: -0.4,
-                                            color: CupertinoColors.white,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 3),
-                                        Text(
-                                          track?.artistName ?? 'Unknown Artist',
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w400,
-                                            color: CupertinoColors.white
-                                                .withOpacity(0.85),
-                                          ),
-                                        ),
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          track?.albumName ?? 'Unknown Album',
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.w400,
-                                            color: CupertinoColors.white
-                                                .withOpacity(0.55),
-                                          ),
-                                        ),
-                                        if (track != null) ...[
-                                          const SizedBox(height: 8),
-                                          Wrap(
-                                            crossAxisAlignment:
-                                                WrapCrossAlignment.center,
-                                            spacing: 8,
-                                            runSpacing: 4,
-                                            children: [
-                                              TechnicalBadge(
-                                                track: track,
-                                                isDarkBackground: true,
-                                                onTap: () => showAudioInfoSheet(
-                                                  context,
-                                                  track,
-                                                ),
-                                              ),
-                                              if (lastScrobbledTrack?.id ==
-                                                  track.id)
-                                                Container(
-                                                  padding:
-                                                      const EdgeInsets.symmetric(
-                                                        horizontal: 8,
-                                                        vertical: 3,
-                                                      ),
-                                                  decoration: BoxDecoration(
-                                                    color: CupertinoColors
-                                                        .activeGreen
-                                                        .withOpacity(0.2),
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          999,
-                                                        ),
-                                                    border: Border.all(
-                                                      color: CupertinoColors
-                                                          .activeGreen
-                                                          .withOpacity(0.5),
-                                                      width: 0.5,
-                                                    ),
-                                                  ),
-                                                  child: const Row(
-                                                    mainAxisSize:
-                                                        MainAxisSize.min,
-                                                    children: [
-                                                      Icon(
-                                                        CupertinoIcons
-                                                            .checkmark_alt,
-                                                        size: 11,
-                                                        color: CupertinoColors
-                                                            .activeGreen,
-                                                      ),
-                                                      SizedBox(width: 4),
-                                                      Text(
-                                                        'Scrobbled',
-                                                        style: TextStyle(
-                                                          fontSize: 11,
-                                                          fontWeight:
-                                                              FontWeight.w600,
-                                                          color: CupertinoColors
-                                                              .activeGreen,
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ),
-                                            ],
-                                          ),
-                                        ],
-                                      ],
-                                    ),
+                            Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // Track Metadata Row: Left-aligned Text + Circular More Button on Right
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: AppSpacing.xl,
                                   ),
-
-                                  const SizedBox(width: AppSpacing.md),
-
-                                  // Visible More Button (...)
-                                  CupertinoButton(
-                                    padding: EdgeInsets.zero,
-                                    minSize: 0,
-                                    onPressed: () {
-                                      if (track != null) {
-                                        showTrackActionSheet(
-                                          context: context,
-                                          track: track,
-                                          ref: ref,
-                                          trackContext:
-                                              TrackActionContext.nowPlaying,
-                                        );
-                                      }
-                                    },
-                                    child: Container(
-                                      width: 38,
-                                      height: 38,
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        color: CupertinoColors.systemGrey
-                                            .withOpacity(0.32),
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.center,
+                                    children: [
+                                      // Left Text Block
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Text(
+                                              track?.title ??
+                                                  'No Track Playing',
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: const TextStyle(
+                                                fontSize: 22,
+                                                fontWeight: FontWeight.w700,
+                                                letterSpacing: -0.4,
+                                                color: CupertinoColors.white,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 3),
+                                            Text(
+                                              track?.artistName ??
+                                                  'Unknown Artist',
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w400,
+                                                color: CupertinoColors.white
+                                                    .withOpacity(0.85),
+                                              ),
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              track?.albumName ??
+                                                  'Unknown Album',
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w400,
+                                                color: CupertinoColors.white
+                                                    .withOpacity(0.55),
+                                              ),
+                                            ),
+                                            if (track != null) ...[
+                                              const SizedBox(height: 8),
+                                              Wrap(
+                                                crossAxisAlignment:
+                                                    WrapCrossAlignment.center,
+                                                spacing: 8,
+                                                runSpacing: 4,
+                                                children: [
+                                                  TechnicalBadge(
+                                                    track: track,
+                                                    isDarkBackground: true,
+                                                    onTap: () =>
+                                                        showAudioInfoSheet(
+                                                          context,
+                                                          track,
+                                                        ),
+                                                  ),
+                                                  if (lastScrobbledTrack?.id ==
+                                                      track.id)
+                                                    Container(
+                                                      padding:
+                                                          const EdgeInsets.symmetric(
+                                                            horizontal: 8,
+                                                            vertical: 3,
+                                                          ),
+                                                      decoration: BoxDecoration(
+                                                        color: CupertinoColors
+                                                            .activeGreen
+                                                            .withOpacity(0.2),
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              999,
+                                                            ),
+                                                        border: Border.all(
+                                                          color: CupertinoColors
+                                                              .activeGreen
+                                                              .withOpacity(0.5),
+                                                          width: 0.5,
+                                                        ),
+                                                      ),
+                                                      child: const Row(
+                                                        mainAxisSize:
+                                                            MainAxisSize.min,
+                                                        children: [
+                                                          Icon(
+                                                            CupertinoIcons
+                                                                .checkmark_alt,
+                                                            size: 11,
+                                                            color:
+                                                                CupertinoColors
+                                                                    .activeGreen,
+                                                          ),
+                                                          SizedBox(width: 4),
+                                                          Text(
+                                                            'Scrobbled',
+                                                            style: TextStyle(
+                                                              fontSize: 11,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w600,
+                                                              color: CupertinoColors
+                                                                  .activeGreen,
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                ],
+                                              ),
+                                            ],
+                                          ],
+                                        ),
                                       ),
-                                      child: const Center(
+
+                                      const SizedBox(width: AppSpacing.md),
+
+                                      // Visible More Button (...)
+                                      CupertinoButton(
+                                        padding: EdgeInsets.zero,
+                                        minSize: 0,
+                                        onPressed: () {
+                                          if (track != null) {
+                                            showTrackActionSheet(
+                                              context: context,
+                                              track: track,
+                                              ref: ref,
+                                              trackContext:
+                                                  TrackActionContext.nowPlaying,
+                                            );
+                                          }
+                                        },
+                                        child: Container(
+                                          width: 38,
+                                          height: 38,
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            color: CupertinoColors.systemGrey
+                                                .withOpacity(0.32),
+                                          ),
+                                          child: const Center(
+                                            child: Icon(
+                                              CupertinoIcons.ellipsis,
+                                              size: 20,
+                                              color: CupertinoColors.white,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+
+                                const SizedBox(height: AppSpacing.sm),
+
+                                // Inline Synced Lyrics (between metadata and scrubber)
+                                NowPlayingInlineLyrics(
+                                  track: track,
+                                  isCompactScreen: isCompactScreen,
+                                ),
+
+                                const SizedBox(height: AppSpacing.sm),
+
+                                // Apple-Style Scrubber (isolated — only scrubber rebuilds on position ticks)
+                                _NowPlayingScrubber(key: ValueKey(track?.id)),
+
+                                const SizedBox(height: AppSpacing.md),
+
+                                // Primary Playback Controls Row (Shuffle, Prev, Play/Pause, Next, Repeat)
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: AppSpacing.xl,
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceEvenly,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.center,
+                                    children: [
+                                      // Shuffle
+                                      CupertinoButton(
+                                        padding: EdgeInsets.zero,
+                                        onPressed: () => ref
+                                            .read(playbackRepositoryProvider)
+                                            .toggleShuffle(),
                                         child: Icon(
-                                          CupertinoIcons.ellipsis,
-                                          size: 20,
+                                          CupertinoIcons.shuffle,
+                                          size: 22,
+                                          color: shuffleMode
+                                              ? CupertinoColors.systemPink
+                                              : CupertinoColors.white
+                                                    .withOpacity(0.70),
+                                        ),
+                                      ),
+
+                                      // Previous
+                                      CupertinoButton(
+                                        padding: EdgeInsets.zero,
+                                        onPressed: () => ref
+                                            .read(playbackRepositoryProvider)
+                                            .skipToPrevious(),
+                                        child: const Icon(
+                                          CupertinoIcons.backward_end_fill,
+                                          size: 34,
                                           color: CupertinoColors.white,
                                         ),
                                       ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
 
-                            const SizedBox(height: AppSpacing.sm),
+                                      // Play/Pause (Large Circular Translucent Button)
+                                      CupertinoButton(
+                                        padding: EdgeInsets.zero,
+                                        onPressed: () {
+                                          if (isPlaying) {
+                                            ref
+                                                .read(
+                                                  playbackRepositoryProvider,
+                                                )
+                                                .pause();
+                                          } else if (track != null) {
+                                            ref
+                                                .read(
+                                                  playbackRepositoryProvider,
+                                                )
+                                                .resume();
+                                          }
+                                        },
+                                        child: Container(
+                                          width: 74,
+                                          height: 74,
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            color: CupertinoColors.white
+                                                .withOpacity(0.24),
+                                          ),
+                                          child: Center(
+                                            child: isBuffering
+                                                ? const CupertinoActivityIndicator(
+                                                    color:
+                                                        CupertinoColors.white,
+                                                  )
+                                                : Icon(
+                                                    isPlaying
+                                                        ? CupertinoIcons
+                                                              .pause_fill
+                                                        : CupertinoIcons
+                                                              .play_fill,
+                                                    size: 36,
+                                                    color:
+                                                        CupertinoColors.white,
+                                                  ),
+                                          ),
+                                        ),
+                                      ),
 
-                            // Inline Synced Lyrics (between metadata and scrubber)
-                            NowPlayingInlineLyrics(
-                              track: track,
-                              isCompactScreen: isCompactScreen,
-                            ),
-
-                            const SizedBox(height: AppSpacing.sm),
-
-                            // Apple-Style Scrubber (isolated — only scrubber rebuilds on position ticks)
-                            _NowPlayingScrubber(key: ValueKey(track?.id)),
-
-                            const SizedBox(height: AppSpacing.md),
-
-                            // Primary Playback Controls Row (Shuffle, Prev, Play/Pause, Next, Repeat)
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: AppSpacing.xl,
-                              ),
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceEvenly,
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  // Shuffle
-                                  CupertinoButton(
-                                    padding: EdgeInsets.zero,
-                                    onPressed: () => ref
-                                        .read(playbackRepositoryProvider)
-                                        .toggleShuffle(),
-                                    child: Icon(
-                                      CupertinoIcons.shuffle,
-                                      size: 22,
-                                      color: shuffleMode
-                                          ? CupertinoColors.systemPink
-                                          : CupertinoColors.white.withOpacity(
-                                              0.70,
-                                            ),
-                                    ),
-                                  ),
-
-                                  // Previous
-                                  CupertinoButton(
-                                    padding: EdgeInsets.zero,
-                                    onPressed: () => ref
-                                        .read(playbackRepositoryProvider)
-                                        .skipToPrevious(),
-                                    child: const Icon(
-                                      CupertinoIcons.backward_end_fill,
-                                      size: 34,
-                                      color: CupertinoColors.white,
-                                    ),
-                                  ),
-
-                                  // Play/Pause (Large Circular Translucent Button)
-                                  CupertinoButton(
-                                    padding: EdgeInsets.zero,
-                                    onPressed: () {
-                                      if (isPlaying) {
-                                        ref
+                                      // Next
+                                      CupertinoButton(
+                                        padding: EdgeInsets.zero,
+                                        onPressed: () => ref
                                             .read(playbackRepositoryProvider)
-                                            .pause();
-                                      } else if (track != null) {
-                                        ref
+                                            .skipToNext(),
+                                        child: const Icon(
+                                          CupertinoIcons.forward_end_fill,
+                                          size: 34,
+                                          color: CupertinoColors.white,
+                                        ),
+                                      ),
+
+                                      // Repeat
+                                      CupertinoButton(
+                                        padding: EdgeInsets.zero,
+                                        onPressed: () => ref
                                             .read(playbackRepositoryProvider)
-                                            .resume();
-                                      }
-                                    },
-                                    child: Container(
-                                      width: 74,
-                                      height: 74,
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        color: CupertinoColors.white
-                                            .withOpacity(0.24),
+                                            .cycleRepeatMode(),
+                                        child: Icon(
+                                          repeatMode == AudioRepeatMode.one
+                                              ? CupertinoIcons.repeat_1
+                                              : CupertinoIcons.repeat,
+                                          size: 22,
+                                          color:
+                                              repeatMode != AudioRepeatMode.off
+                                              ? CupertinoColors.systemPink
+                                              : CupertinoColors.white
+                                                    .withOpacity(0.70),
+                                        ),
                                       ),
-                                      child: Center(
-                                        child: isBuffering
-                                            ? const CupertinoActivityIndicator(
-                                                color: CupertinoColors.white,
-                                              )
-                                            : Icon(
-                                                isPlaying
-                                                    ? CupertinoIcons.pause_fill
-                                                    : CupertinoIcons.play_fill,
-                                                size: 36,
-                                                color: CupertinoColors.white,
-                                              ),
-                                      ),
-                                    ),
+                                    ],
                                   ),
+                                ),
 
-                                  // Next
-                                  CupertinoButton(
-                                    padding: EdgeInsets.zero,
-                                    onPressed: () => ref
-                                        .read(playbackRepositoryProvider)
-                                        .skipToNext(),
-                                    child: const Icon(
-                                      CupertinoIcons.forward_end_fill,
-                                      size: 34,
-                                      color: CupertinoColors.white,
-                                    ),
+                                const SizedBox(height: AppSpacing.xl),
+
+                                // Bottom Secondary Controls (Favorite, Lyrics, Queue)
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: AppSpacing.xxl,
                                   ),
-
-                                  // Repeat
-                                  CupertinoButton(
-                                    padding: EdgeInsets.zero,
-                                    onPressed: () => ref
-                                        .read(playbackRepositoryProvider)
-                                        .cycleRepeatMode(),
-                                    child: Icon(
-                                      repeatMode == AudioRepeatMode.one
-                                          ? CupertinoIcons.repeat_1
-                                          : CupertinoIcons.repeat,
-                                      size: 22,
-                                      color: repeatMode != AudioRepeatMode.off
-                                          ? CupertinoColors.systemPink
-                                          : CupertinoColors.white.withOpacity(
-                                              0.70,
+                                  child: Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceEvenly,
+                                    children: [
+                                      // Favorite
+                                      CupertinoButton(
+                                        padding: EdgeInsets.zero,
+                                        onPressed: () {
+                                          if (track != null) {
+                                            ref
+                                                .read(
+                                                  favoriteRepositoryProvider,
+                                                )
+                                                .toggleFavorite(track.id);
+                                          }
+                                        },
+                                        child: Container(
+                                          width: 48,
+                                          height: 48,
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            color: CupertinoColors.white
+                                                .withOpacity(0.08),
+                                            border: Border.all(
+                                              color: CupertinoColors.white
+                                                  .withOpacity(0.25),
+                                              width: 1.0,
                                             ),
-                                    ),
+                                          ),
+                                          child: Icon(
+                                            isFav
+                                                ? CupertinoIcons.heart_fill
+                                                : CupertinoIcons.heart,
+                                            size: 24,
+                                            color: isFav
+                                                ? CupertinoColors.systemPink
+                                                : CupertinoColors.white,
+                                          ),
+                                        ),
+                                      ),
+
+                                      // Lyrics
+                                      CupertinoButton(
+                                        padding: EdgeInsets.zero,
+                                        onPressed: () {
+                                          if (track != null) {
+                                            showLyricsSheet(
+                                              context,
+                                              track,
+                                              followPlayback: true,
+                                            );
+                                          }
+                                        },
+                                        child: Container(
+                                          width: 48,
+                                          height: 48,
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            color: CupertinoColors.white
+                                                .withOpacity(0.08),
+                                            border: Border.all(
+                                              color: CupertinoColors.white
+                                                  .withOpacity(0.25),
+                                              width: 1.0,
+                                            ),
+                                          ),
+                                          child: const Icon(
+                                            CupertinoIcons.quote_bubble,
+                                            size: 22,
+                                            color: CupertinoColors.white,
+                                          ),
+                                        ),
+                                      ),
+
+                                      // Queue
+                                      CupertinoButton(
+                                        padding: EdgeInsets.zero,
+                                        onPressed: () =>
+                                            showQueueSheet(context),
+                                        child: Container(
+                                          width: 48,
+                                          height: 48,
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            color: CupertinoColors.white
+                                                .withOpacity(0.08),
+                                            border: Border.all(
+                                              color: CupertinoColors.white
+                                                  .withOpacity(0.25),
+                                              width: 1.0,
+                                            ),
+                                          ),
+                                          child: const Icon(
+                                            CupertinoIcons.text_badge_plus,
+                                            size: 22,
+                                            color: CupertinoColors.white,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
-
-                            const SizedBox(height: AppSpacing.xl),
-
-                            // Bottom Secondary Controls (Favorite, Lyrics, Queue)
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: AppSpacing.xxl,
-                              ),
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceEvenly,
-                                children: [
-                                  // Favorite
-                                  CupertinoButton(
-                                    padding: EdgeInsets.zero,
-                                    onPressed: () {
-                                      if (track != null) {
-                                        ref
-                                            .read(favoriteRepositoryProvider)
-                                            .toggleFavorite(track.id);
-                                      }
-                                    },
-                                    child: Container(
-                                      width: 48,
-                                      height: 48,
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        color: CupertinoColors.white
-                                            .withOpacity(0.08),
-                                        border: Border.all(
-                                          color: CupertinoColors.white
-                                              .withOpacity(0.25),
-                                          width: 1.0,
-                                        ),
-                                      ),
-                                      child: Icon(
-                                        isFav
-                                            ? CupertinoIcons.heart_fill
-                                            : CupertinoIcons.heart,
-                                        size: 24,
-                                        color: isFav
-                                            ? CupertinoColors.systemPink
-                                            : CupertinoColors.white,
-                                      ),
-                                    ),
-                                  ),
-
-                                  // Lyrics
-                                  CupertinoButton(
-                                    padding: EdgeInsets.zero,
-                                    onPressed: () {
-                                      if (track != null) {
-                                        showLyricsSheet(
-                                          context,
-                                          track,
-                                          followPlayback: true,
-                                        );
-                                      }
-                                    },
-                                    child: Container(
-                                      width: 48,
-                                      height: 48,
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        color: CupertinoColors.white
-                                            .withOpacity(0.08),
-                                        border: Border.all(
-                                          color: CupertinoColors.white
-                                              .withOpacity(0.25),
-                                          width: 1.0,
-                                        ),
-                                      ),
-                                      child: const Icon(
-                                        CupertinoIcons.quote_bubble,
-                                        size: 22,
-                                        color: CupertinoColors.white,
-                                      ),
-                                    ),
-                                  ),
-
-                                  // Queue
-                                  CupertinoButton(
-                                    padding: EdgeInsets.zero,
-                                    onPressed: () => showQueueSheet(context),
-                                    child: Container(
-                                      width: 48,
-                                      height: 48,
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        color: CupertinoColors.white
-                                            .withOpacity(0.08),
-                                        border: Border.all(
-                                          color: CupertinoColors.white
-                                              .withOpacity(0.25),
-                                          width: 1.0,
-                                        ),
-                                      ),
-                                      child: const Icon(
-                                        CupertinoIcons.text_badge_plus,
-                                        size: 22,
-                                        color: CupertinoColors.white,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-
-                            const Spacer(flex: 1),
 
                             // Home Indicator Bar
                             Center(

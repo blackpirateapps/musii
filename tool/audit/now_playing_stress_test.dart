@@ -253,31 +253,21 @@ void main() {
   testWidgets('Now Playing at 360 x 640 with large text', (tester) async {
     final a = _track('a');
     final fixture = _Fixture(tester);
-    final overflows = <String>[];
-    final previousHandler = FlutterError.onError;
-    FlutterError.onError = (details) {
-      if (details.exceptionAsString().contains('RenderFlex overflowed')) {
-        overflows.add(details.exceptionAsString());
-      } else {
-        previousHandler?.call(details);
-      }
-    };
-    try {
-      await fixture.mount(
-        a,
-        lyrics: {a.id: _lyrics(a, _lines(4))},
-        size: const Size(360, 640),
-        textScale: 2,
-      );
-    } finally {
-      FlutterError.onError = previousHandler;
-    }
-    expect(overflows, isNotEmpty);
-    expect(
-      find.byIcon(CupertinoIcons.quote_bubble).hitTestable(),
-      findsNothing,
+    await fixture.mount(
+      a,
+      lyrics: {a.id: _lyrics(a, _lines(4))},
+      size: const Size(360, 640),
+      textScale: 2,
     );
-    debugPrint('short screen: $overflows');
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    final lyricsButton = find.byIcon(CupertinoIcons.quote_bubble);
+    await tester.drag(
+      find.byType(SingleChildScrollView),
+      const Offset(0, -350),
+    );
+    await tester.pumpAndSettle();
+    expect(lyricsButton.hitTestable(), findsOneWidget);
   });
 
   testWidgets('Now Playing at 851 x 393 in landscape', (tester) async {
@@ -288,13 +278,14 @@ void main() {
       lyrics: {a.id: _lyrics(a, _lines(4))},
       size: const Size(851, 393),
     );
-    final overflow = tester.takeException();
-    expect(overflow.toString(), contains('RenderFlex overflowed'));
-    expect(
-      find.byIcon(CupertinoIcons.quote_bubble).hitTestable(),
-      findsNothing,
+    expect(tester.takeException(), isNull);
+    final lyricsButton = find.byIcon(CupertinoIcons.quote_bubble);
+    await tester.drag(
+      find.byType(SingleChildScrollView),
+      const Offset(0, -350),
     );
-    debugPrint('landscape: $overflow');
+    await tester.pumpAndSettle();
+    expect(lyricsButton.hitTestable(), findsOneWidget);
   });
 
   testWidgets('paused seek and sub-300 ms word highlight corrections', (
