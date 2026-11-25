@@ -348,7 +348,7 @@ v1:<00:20.282>Searching <00:20.554>is <00:20.802>so <00:21.119>wrong <00:21.748>
       expect(find.text('Current line'), findsNothing);
 
       // Perform a drag gesture on the ListView to trigger user manual scroll
-      await tester.drag(find.byType(ListView), const Offset(0, -200));
+      await tester.drag(find.byType(CustomScrollView), const Offset(0, -200));
       await tester.pumpAndSettle();
 
       // "Current line" floating button should now be visible

@@ -193,18 +193,16 @@ void main() {
       child: LyricsSheet(track: a),
       position: 180000,
     );
-    final scroll = tester.widget<ListView>(find.byType(ListView)).controller!;
-    final offsets = <int>[];
-    for (var frame = 0; frame < 120; frame++) {
-      await tester.pump(const Duration(milliseconds: 16));
-      offsets.add(scroll.offset.round());
-    }
-    expect(_activeSheetLine(), findsNothing);
-    expect(offsets.toSet(), hasLength(1));
-    debugPrint(
-      'far resume: active=${_activeSheetLine().evaluate().length}, '
-      'offsets=${offsets.toSet().take(12).toList()}, '
-      'max=${scroll.position.maxScrollExtent.round()}',
+    await tester.pumpAndSettle();
+    final view = find.byType(CustomScrollView);
+    final active = _activeSheetLine();
+    expect(tester.widget<LyricLineWidget>(active).line.sequence, 180);
+    expect(
+      tester.getCenter(active).dy,
+      closeTo(
+        tester.getTopLeft(view).dy + tester.getSize(view).height * 0.45,
+        1,
+      ),
     );
   });
 
@@ -358,11 +356,10 @@ void main() {
       }
     }
     await tester.pump(const Duration(seconds: 2));
-    expect(activeMatches, lessThan(200));
-    debugPrint(
-      'dense lyric feed: $activeMatches/200 active rows mounted, '
-      'after two seconds: ${_activeSheetLine().evaluate().length}',
-    );
+    expect(activeMatches, greaterThanOrEqualTo(190));
+    final active = _activeSheetLine();
+    expect(tester.widget<LyricLineWidget>(active).line.sequence, 200);
+    expect(active.hitTestable(), findsOneWidget);
   });
 
   testWidgets('lyric clock runs through a stalled buffering snapshot', (

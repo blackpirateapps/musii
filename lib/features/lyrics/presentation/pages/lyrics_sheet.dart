@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:ui';
 
@@ -45,13 +46,17 @@ class LyricsSheet extends ConsumerStatefulWidget {
 }
 
 class _LyricsSheetState extends ConsumerState<LyricsSheet> {
+  static const _followDuration = Duration(milliseconds: 300);
   final ScrollController _scrollController = ScrollController();
   final GlobalKey _viewportKey = GlobalKey();
   final Map<int, GlobalKey> _lineKeys = {};
 
   bool _userScrolledManually = false;
   int _activeIndex = -1;
-  bool _hasPerformedInitialScroll = false;
+  int _anchorIndex = 0;
+  List<LyricLine>? _positionedLines;
+  bool _alignmentScheduled = false;
+  bool _animateAlignment = false;
 
   @override
   void dispose() {
@@ -64,9 +69,10 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.track.id != widget.track.id) {
       _activeIndex = -1;
-      _hasPerformedInitialScroll = false;
+      _positionedLines = null;
       _userScrolledManually = false;
       _lineKeys.clear();
+      _anchorIndex = 0;
     }
   }
 
@@ -74,87 +80,149 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet> {
     return _lineKeys.putIfAbsent(index, () => GlobalKey());
   }
 
-  void _scrollToActiveLine(int index, {bool animate = true}) {
+  void _scheduleAlignment({bool animate = true}) {
+    _animateAlignment = animate;
+    if (_alignmentScheduled) return;
+    _alignmentScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _alignmentScheduled = false;
+      if (mounted) _alignActiveLine(animate: _animateAlignment);
+    });
+  }
+
+  void _alignActiveLine({required bool animate}) {
+    final index = _activeIndex;
     if (_userScrolledManually || !_scrollController.hasClients || index < 0) {
       return;
     }
 
-    final itemKey = _lineKeys[index];
-    final itemContext = itemKey?.currentContext;
-    final viewportContext = _viewportKey.currentContext;
-
-    if (itemContext != null && viewportContext != null) {
-      final itemBox = itemContext.findRenderObject() as RenderBox?;
-      final viewportBox = viewportContext.findRenderObject() as RenderBox?;
-
-      if (itemBox != null &&
-          viewportBox != null &&
-          itemBox.hasSize &&
-          viewportBox.hasSize) {
-        // Calculate item's relative position inside the lyrics viewport
-        final itemTopInViewport = itemBox
-            .localToGlobal(Offset.zero, ancestor: viewportBox)
-            .dy;
-        final itemHeight = itemBox.size.height;
-        final itemCenterInViewport = itemTopInViewport + (itemHeight / 2);
-
-        // Focal region at ~45% of the visible lyrics viewport height
-        final focalY = viewportBox.size.height * 0.45;
-        final delta = itemCenterInViewport - focalY;
-
-        final currentOffset = _scrollController.offset;
-        final targetOffset = (currentOffset + delta).clamp(
-          0.0,
-          _scrollController.position.maxScrollExtent,
-        );
-
-        if (animate) {
-          _scrollController.animateTo(
-            targetOffset,
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOutCubic,
-          );
-        } else {
-          _scrollController.jumpTo(targetOffset);
-        }
-        return;
-      }
-    }
-
-    // Fallback if item is not yet laid out in viewport
-    if (_scrollController.hasClients &&
-        _scrollController.position.hasContentDimensions) {
-      const estimatedItemHeight = 48.0;
-      final viewportHeight = viewportContext != null
-          ? (viewportContext.findRenderObject() as RenderBox?)?.size.height ??
-                400.0
-          : 400.0;
-      final topPadding = viewportHeight * 0.40;
-      final focalY = viewportHeight * 0.45;
-      final estimatedOffset =
-          (topPadding +
-                  (index * estimatedItemHeight) -
-                  focalY +
-                  (estimatedItemHeight / 2))
-              .clamp(0.0, _scrollController.position.maxScrollExtent);
-
-      if (animate) {
-        _scrollController.animateTo(
-          estimatedOffset,
-          duration: const Duration(milliseconds: 350),
-          curve: Curves.easeOutCubic,
-        );
-      } else {
-        _scrollController.jumpTo(estimatedOffset);
-      }
-
-      // Fine-tune precise pixel alignment once rendered
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && !_userScrolledManually) {
-          _scrollToActiveLine(index, animate: false);
-        }
+    final row = _lineKeys[index]?.currentContext?.findRenderObject();
+    final viewport = _viewportKey.currentContext?.findRenderObject();
+    if (row is! RenderBox || !row.hasSize) {
+      if (index == _anchorIndex) return;
+      // Anchor the viewport on the requested row so its height is laid out
+      // even when preceding rows have variable height.
+      _scrollController.jumpTo(0);
+      setState(() {
+        _anchorIndex = index;
+        _lineKeys.clear();
       });
+      _scheduleAlignment(animate: false);
+      return;
     }
+    if (viewport is! RenderBox || !viewport.hasSize) return;
+
+    final position = _scrollController.position;
+    final rowTop = row.localToGlobal(Offset.zero, ancestor: viewport).dy;
+    final target =
+        (position.pixels +
+                rowTop +
+                row.size.height / 2 -
+                viewport.size.height * 0.45)
+            .clamp(position.minScrollExtent, position.maxScrollExtent);
+    if ((position.pixels - target).abs() < 0.5) return;
+    if (animate) {
+      unawaited(
+        _scrollController.animateTo(
+          target,
+          duration: _followDuration,
+          curve: Curves.easeOutCubic,
+        ),
+      );
+    } else {
+      _scrollController.jumpTo(target);
+    }
+  }
+
+  void _seekToLine(int index, LyricLine line) {
+    if (ref.read(playerStateProvider).value?.currentTrack?.id !=
+        widget.track.id) {
+      return;
+    }
+    unawaited(
+      ref
+          .read(playbackRepositoryProvider)
+          .seek(Duration(milliseconds: line.timestampMs)),
+    );
+    setState(() {
+      _userScrolledManually = false;
+      _activeIndex = index;
+    });
+    _scheduleAlignment();
+  }
+
+  Widget _buildTimedLyrics(
+    List<LyricLine> lines, {
+    required bool isDark,
+    required bool isCurrentTrack,
+  }) {
+    final anchor = _anchorIndex.clamp(0, lines.length - 1);
+    final centerKey = ValueKey(('lyrics-after', anchor));
+    const horizontalPadding = EdgeInsets.symmetric(horizontal: AppSpacing.xl);
+
+    Widget row(int index) {
+      final line = lines[index];
+      return LyricLineWidget(
+        key: _getKeyForIndex(index),
+        line: line,
+        isActive: index == _activeIndex,
+        isDark: isDark,
+        nextLineTimestampMs: index + 1 < lines.length
+            ? lines[index + 1].timestampMs
+            : null,
+        onTap: isCurrentTrack ? () => _seekToLine(index, line) : null,
+      );
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) =>
+          NotificationListener<ScrollNotification>(
+            onNotification: (notification) {
+              if (notification is UserScrollNotification &&
+                  notification.direction != ScrollDirection.idle &&
+                  !_userScrolledManually) {
+                setState(() => _userScrolledManually = true);
+              }
+              return false;
+            },
+            child: CustomScrollView(
+              key: _viewportKey,
+              controller: _scrollController,
+              center: centerKey,
+              anchor: 0.45,
+              physics: const BouncingScrollPhysics(
+                parent: AlwaysScrollableScrollPhysics(),
+              ),
+              semanticChildCount: lines.length,
+              slivers: [
+                SliverPadding(
+                  key: ValueKey(('lyrics-before', anchor)),
+                  padding: horizontalPadding,
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) => row(anchor - 1 - index),
+                      childCount: anchor,
+                      semanticIndexCallback: (widget, index) =>
+                          anchor - 1 - index,
+                    ),
+                  ),
+                ),
+                SliverPadding(
+                  key: centerKey,
+                  padding: horizontalPadding,
+                  sliver: SliverList.builder(
+                    itemCount: lines.length - anchor,
+                    semanticIndexOffset: anchor,
+                    itemBuilder: (context, index) => row(anchor + index),
+                  ),
+                ),
+                SliverToBoxAdapter(
+                  child: SizedBox(height: constraints.maxHeight * 0.55),
+                ),
+              ],
+            ),
+          ),
+    );
   }
 
   @override
@@ -171,59 +239,37 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet> {
 
     if (!isCurrentTrack) {
       _activeIndex = -1;
-      _hasPerformedInitialScroll = false;
+      _positionedLines = null;
     }
 
-    // Listen to playback position changes and update active line
     ref.listen<Duration>(playbackPositionProvider, (prev, next) {
-      final currentPos = next;
-      final currentLines = lyrics?.lines ?? const [];
       if (ref.read(playerStateProvider).value?.currentTrack?.id != track.id ||
-          lyrics?.isSynchronized != true ||
-          currentLines.isEmpty) {
+          lyrics?.isSynchronized != true) {
         return;
       }
-
-      final newActiveIndex = TrackLyrics.calculateActiveIndex(
-        currentLines,
-        currentPos,
-      );
-
-      if (newActiveIndex != _activeIndex) {
-        setState(() {
-          _activeIndex = newActiveIndex;
-        });
-        if (!_userScrolledManually && newActiveIndex >= 0) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted && !_userScrolledManually) {
-              _scrollToActiveLine(newActiveIndex, animate: true);
-            }
-          });
+      final newIndex = lyrics!.findActiveIndex(next);
+      final previousIndex = _activeIndex;
+      if (newIndex != previousIndex) {
+        setState(() => _activeIndex = newIndex);
+        if (!_userScrolledManually && newIndex >= 0) {
+          final isAdjacentPlayback =
+              previousIndex >= 0 &&
+              newIndex == previousIndex + 1 &&
+              (lyrics.lines[newIndex].timestampMs -
+                      lyrics.lines[previousIndex].timestampMs) >=
+                  _followDuration.inMilliseconds;
+          _scheduleAlignment(animate: isAdjacentPlayback);
         }
       }
     });
 
-    // Initial positioning when lyrics data first becomes available
     if (isCurrentTrack &&
-        lyrics != null &&
-        lyrics.isSynchronized &&
-        lyrics.lines.isNotEmpty) {
-      final currentPos = ref.read(playbackPositionProvider);
-      final currentActive = TrackLyrics.calculateActiveIndex(
-        lyrics.lines,
-        currentPos,
-      );
-      if (_activeIndex == -1 && currentActive != -1) {
-        _activeIndex = currentActive;
-      }
-
-      if (!_hasPerformedInitialScroll) {
-        _hasPerformedInitialScroll = true;
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted && !_userScrolledManually && _activeIndex >= 0) {
-            _scrollToActiveLine(_activeIndex, animate: false);
-          }
-        });
+        lyrics?.isSynchronized == true &&
+        !identical(_positionedLines, lyrics!.lines)) {
+      _positionedLines = lyrics.lines;
+      _activeIndex = lyrics.findActiveIndex(ref.read(playbackPositionProvider));
+      if (!_userScrolledManually && _activeIndex >= 0) {
+        _scheduleAlignment(animate: false);
       }
     }
 
@@ -426,91 +472,10 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet> {
                         );
                       }
 
-                      // Synchronized Lyrics Display with 45% focal alignment
-                      return LayoutBuilder(
-                        builder: (context, constraints) {
-                          final viewportHeight = constraints.maxHeight;
-                          final topPadding = viewportHeight * 0.40;
-                          final bottomPadding = viewportHeight * 0.55;
-
-                          return NotificationListener<ScrollNotification>(
-                            onNotification: (notification) {
-                              if (notification is UserScrollNotification &&
-                                  notification.direction !=
-                                      ScrollDirection.idle) {
-                                if (!_userScrolledManually) {
-                                  setState(() {
-                                    _userScrolledManually = true;
-                                  });
-                                }
-                              }
-                              return false;
-                            },
-                            child: ListView.builder(
-                              key: _viewportKey,
-                              controller: _scrollController,
-                              physics: const BouncingScrollPhysics(
-                                parent: AlwaysScrollableScrollPhysics(),
-                              ),
-                              padding: EdgeInsets.only(
-                                left: AppSpacing.xl,
-                                right: AppSpacing.xl,
-                                top: topPadding,
-                                bottom: bottomPadding,
-                              ),
-                              itemCount: data.lines.length,
-                              itemBuilder: (ctx, i) {
-                                final line = data.lines[i];
-                                final isActive = (i == _activeIndex);
-                                final nextLineTimestampMs =
-                                    (i + 1 < data.lines.length)
-                                    ? data.lines[i + 1].timestampMs
-                                    : null;
-
-                                return LyricLineWidget(
-                                  key: _getKeyForIndex(i),
-                                  line: line,
-                                  isActive: isActive,
-                                  isDark: isDark,
-                                  nextLineTimestampMs: nextLineTimestampMs,
-                                  onTap: !isCurrentTrack
-                                      ? null
-                                      : () {
-                                          if (ref
-                                                  .read(playerStateProvider)
-                                                  .value
-                                                  ?.currentTrack
-                                                  ?.id !=
-                                              track.id) {
-                                            return;
-                                          }
-                                          ref
-                                              .read(playbackRepositoryProvider)
-                                              .seek(
-                                                Duration(
-                                                  milliseconds:
-                                                      line.timestampMs,
-                                                ),
-                                              );
-                                          setState(() {
-                                            _userScrolledManually = false;
-                                            _activeIndex = i;
-                                          });
-                                          WidgetsBinding.instance
-                                              .addPostFrameCallback((_) {
-                                                if (mounted) {
-                                                  _scrollToActiveLine(
-                                                    i,
-                                                    animate: true,
-                                                  );
-                                                }
-                                              });
-                                        },
-                                );
-                              },
-                            ),
-                          );
-                        },
+                      return _buildTimedLyrics(
+                        data.lines,
+                        isDark: isDark,
+                        isCurrentTrack: isCurrentTrack,
                       );
                     },
                   ),
@@ -543,7 +508,7 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet> {
                       _userScrolledManually = false;
                     });
                     if (_activeIndex >= 0) {
-                      _scrollToActiveLine(_activeIndex, animate: true);
+                      _scheduleAlignment();
                     }
                   },
                   child: Container(

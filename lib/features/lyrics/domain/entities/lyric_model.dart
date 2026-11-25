@@ -154,17 +154,18 @@ class TrackLyrics {
     List<LyricLine> lines,
     Duration currentPosition,
   ) {
-    if (lines.isEmpty) return -1;
-    final curMs = currentPosition.inMilliseconds;
-    int activeIndex = -1;
-    for (int i = 0; i < lines.length; i++) {
-      if (lines[i].timestampMs <= curMs) {
-        activeIndex = i;
+    final positionMs = currentPosition.inMilliseconds;
+    var lower = 0;
+    var upper = lines.length;
+    while (lower < upper) {
+      final middle = lower + (upper - lower) ~/ 2;
+      if (lines[middle].timestampMs <= positionMs) {
+        lower = middle + 1;
       } else {
-        break;
+        upper = middle;
       }
     }
-    return activeIndex;
+    return lower - 1;
   }
 
   @override

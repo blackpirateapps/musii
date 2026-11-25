@@ -7,6 +7,7 @@ Audited commit `920feaf098d6e2fd79fd1c29aa324468ebe9b124` on 2026-11-26. The Red
 | Finding | Change |
 | --- | --- |
 | 1. Stale track in the lyrics panel | The Now Playing panel follows the current track and resets its lyric view on track change. Library previews stay on the selected track and only enable timed playback controls when that track is playing. |
+| 2. Active lyric can remain off-screen | The timed viewport anchors directly at a distant row and aligns against its measured layout. Rapid updates coalesce around the latest active row. |
 
 ## Android stress runs
 
