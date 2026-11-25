@@ -1,6 +1,4 @@
 import 'dart:async';
-import 'dart:io';
-import 'dart:ui';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/rendering.dart';
@@ -9,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/bootstrap/providers.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../library/domain/entities/music_entities.dart';
+import '../../../library/presentation/widgets/artwork_backdrop.dart';
 import '../../domain/entities/lyric_model.dart';
 import '../widgets/lyric_line_widget.dart';
 
@@ -285,29 +284,14 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet> {
       ),
       child: Stack(
         children: [
-          // 1. Blurred Backdrop from artwork if available
-          if (track.artworkPath != null)
-            Positioned.fill(
-              child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(AppRadii.sheet),
-                ),
-                child: Image.file(
-                  File(track.artworkPath!),
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, _, _) => const SizedBox.shrink(),
-                ),
-              ),
-            ),
-
           Positioned.fill(
             child: ClipRRect(
               borderRadius: const BorderRadius.vertical(
                 top: Radius.circular(AppRadii.sheet),
               ),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 50, sigmaY: 50),
-                child: Container(
+              child: ArtworkBackdrop(
+                artworkPath: track.artworkPath,
+                overlay: BoxDecoration(
                   color: isDark
                       ? CupertinoColors.black.withOpacity(0.75)
                       : CupertinoColors.white.withOpacity(0.85),

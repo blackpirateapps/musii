@@ -83,7 +83,7 @@ Located in `lib/features/library/presentation/pages/home_page.dart` and `lib/fea
 Located in `lib/features/playback/presentation/pages/now_playing_page.dart`:
 - **Cupertino Top Bar**: Features a centered "Now Playing" title, left dismiss chevron (`chevron_down`), and right top queue access button (`text_badge_plus`), perfectly matching the Now Playing visual authority screenshot.
 - **Vertical gestures** dismiss Now Playing or open the queue when the content fits. Pulling down updates a transform through one controller listener. On compact screens, vertical scrolling keeps the controls reachable.
-- **Vibrant Blurred Artwork Aesthetic**: Real-time blurred album artwork backdrop with a lighter translucent gradient overlay (`0x40`/`0x80`/`0xB3` opacity) so album art colors bleed through vividly.
+- **Artwork backdrop** uses a shared 256-pixel decode for the player and lyrics panel and filters the image layer. The foreground cover keeps its own decode size.
 - **Proportional Artwork Presentation**: Floating artwork sized responsively (`min(width * 0.64, height * 0.33)`) with rounded corners (22px) and subtle drop shadow.
 - **Left-Aligned Track Metadata**: Song title, artist name, and album name with Cupertino typography and ellipsis truncation.
 - **Technical Pill Badge**: Displays exact audio format and bitrate (e.g., `FLAC · 706 kbps`, `MP3 · 320 kbps`) in a translucent rounded pill container with adaptive background contrast (`isDarkBackground`).

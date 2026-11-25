@@ -1,7 +1,5 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:math';
-import 'dart:ui';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart'
@@ -21,6 +19,7 @@ import '../../../../app/bootstrap/providers.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/logging/app_logger.dart';
 import '../../../library/presentation/widgets/album_artwork.dart';
+import '../../../library/presentation/widgets/artwork_backdrop.dart';
 import '../../../library/presentation/widgets/audio_info_sheet.dart';
 import '../../../library/presentation/widgets/technical_badge.dart';
 import '../../../library/presentation/widgets/track_overflow_sheet.dart';
@@ -128,6 +127,7 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
     // Sized responsively to usable screen width and height
     final artworkSize = min(screenWidth * 0.64, screenHeight * 0.33);
     final isCompactScreen = screenHeight < 620;
+    final isCurrentRoute = ModalRoute.isCurrentOf(context) ?? true;
 
     final isFavAsync = track != null
         ? ref.watch(isTrackFavoriteProvider(track.id))
@@ -155,37 +155,20 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
                   child: SizedBox.expand(),
                 ),
               ),
-              // 1. Blurred Backdrop from current artwork (isolated from repaints)
-              RepaintBoundary(
-                child: Stack(
-                  children: [
-                    if (track?.artworkPath != null)
-                      Positioned.fill(
-                        child: Image.file(
-                          File(track!.artworkPath!),
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) => const SizedBox.shrink(),
-                        ),
-                      ),
-                    Positioned.fill(
-                      child: BackdropFilter(
-                        filter: ImageFilter.blur(sigmaX: 55, sigmaY: 55),
-                        child: Container(
-                          decoration: const BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                Color(0x40000000),
-                                Color(0x99000000),
-                                Color(0xB3000000),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
+              Positioned.fill(
+                child: ArtworkBackdrop(
+                  artworkPath: track?.artworkPath,
+                  overlay: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Color(0x40000000),
+                        Color(0x99000000),
+                        Color(0xB3000000),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
 
@@ -475,15 +458,23 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
                                 const SizedBox(height: AppSpacing.sm),
 
                                 // Inline Synced Lyrics (between metadata and scrubber)
-                                NowPlayingInlineLyrics(
-                                  track: track,
-                                  isCompactScreen: isCompactScreen,
+                                TickerMode(
+                                  enabled: isCurrentRoute,
+                                  child: NowPlayingInlineLyrics(
+                                    track: track,
+                                    isCompactScreen: isCompactScreen,
+                                  ),
                                 ),
 
                                 const SizedBox(height: AppSpacing.sm),
 
                                 // Apple-Style Scrubber (isolated — only scrubber rebuilds on position ticks)
-                                _NowPlayingScrubber(key: ValueKey(track?.id)),
+                                TickerMode(
+                                  enabled: isCurrentRoute,
+                                  child: _NowPlayingScrubber(
+                                    key: ValueKey(track?.id),
+                                  ),
+                                ),
 
                                 const SizedBox(height: AppSpacing.md),
 

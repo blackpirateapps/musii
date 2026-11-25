@@ -8,6 +8,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:musii/app/bootstrap/providers.dart';
 import 'package:musii/features/last_fm/presentation/providers/last_fm_providers.dart';
 import 'package:musii/features/library/domain/entities/music_entities.dart';
+import 'package:musii/features/library/presentation/widgets/artwork_backdrop.dart';
 import 'package:musii/features/lyrics/domain/entities/lyric_model.dart';
 import 'package:musii/features/lyrics/presentation/pages/lyrics_sheet.dart';
 import 'package:musii/features/lyrics/presentation/widgets/lyric_line_widget.dart';
@@ -463,6 +464,31 @@ void main() {
     expect(find.textContaining('Tap Play to retry.'), findsOneWidget);
     await tester.tap(find.byIcon(CupertinoIcons.play_fill));
     verify(() => fixture.repository.resume()).called(1);
+  });
+
+  testWidgets('the lyrics panel isolates and caps artwork decoding', (
+    tester,
+  ) async {
+    final a = _track('a').copyWith(artworkPath: '/musii-audit-artwork.png');
+    final fixture = _Fixture(tester);
+    await fixture.mount(a, lyrics: {a.id: _lyrics(a, _lines(30))});
+    final playerSlider = find.byType(Slider);
+    expect(TickerMode.of(tester.element(playerSlider)), isTrue);
+    await tester.tap(find.byIcon(CupertinoIcons.quote_bubble));
+    await tester.pumpAndSettle();
+    expect(TickerMode.of(tester.element(playerSlider)), isFalse);
+    expect(find.byType(BackdropFilter), findsNothing);
+    final backdrops = find.byType(ArtworkBackdrop);
+    expect(backdrops, findsNWidgets(2));
+    for (var index = 0; index < 2; index++) {
+      final image = tester.widget<Image>(
+        find.descendant(of: backdrops.at(index), matching: find.byType(Image)),
+      );
+      final provider = image.image as ResizeImage;
+      expect(provider.width, 256);
+      expect(provider.height, 256);
+      expect(provider.policy, ResizeImagePolicy.fit);
+    }
   });
 
   testWidgets('twenty-five sequential lyrics panel opens and closes', (

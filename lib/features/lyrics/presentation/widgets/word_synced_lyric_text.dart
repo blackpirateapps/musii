@@ -24,6 +24,11 @@ class WordSyncedLyricText extends StatelessWidget {
     this.enableSimulatedLineSweep = true,
   });
 
+  static int simulatedSweepDurationMs(int startMs, int? nextLineMs) {
+    final delta = (nextLineMs ?? startMs + 3500) - startMs;
+    return delta > 0 ? delta.clamp(1200, 4500) : 3500;
+  }
+
   @override
   Widget build(BuildContext context) {
     final activeColor = isDark ? CupertinoColors.white : CupertinoColors.black;
@@ -52,11 +57,10 @@ class WordSyncedLyricText extends StatelessWidget {
       // Simulated line-wide progressive sweep across the line duration
       final curMs = position.inMilliseconds;
       final startMs = line.timestampMs;
-      final nextMs = nextLineTimestampMs ?? (startMs + 3500);
-      final rawDuration = nextMs - startMs;
-      final lineDuration = rawDuration > 0
-          ? rawDuration.clamp(1200, 4500)
-          : 3500;
+      final lineDuration = simulatedSweepDurationMs(
+        startMs,
+        nextLineTimestampMs,
+      );
       final progress = curMs <= startMs
           ? 0.0
           : ((curMs - startMs) / lineDuration).clamp(0.0, 1.0);

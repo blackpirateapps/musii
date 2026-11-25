@@ -50,10 +50,33 @@ class _LyricLineWidgetState extends ConsumerState<LyricLineWidget>
   Duration? _positionAtAnchor;
   Duration _elapsed = Duration.zero;
   bool _advancing = false;
+  int? _sweepEndMs;
+  Duration _tickLimit = _maxExtrapolation;
+
+  int get _sweepEnd => _sweepEndMs ??= widget.line.hasWords
+      ? widget.line.words.fold<int>(
+          widget.line.timestampMs,
+          (end, word) => word.endMs > end ? word.endMs : end,
+        )
+      : widget.line.timestampMs +
+            WordSyncedLyricText.simulatedSweepDurationMs(
+              widget.line.timestampMs,
+              widget.nextLineTimestampMs,
+            );
+
+  @override
+  void didUpdateWidget(LyricLineWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.line != widget.line ||
+        oldWidget.nextLineTimestampMs != widget.nextLineTimestampMs) {
+      _sweepEndMs = null;
+      _positionAtAnchor = null;
+    }
+  }
 
   void _tick(Duration elapsed) {
-    if (elapsed >= _maxExtrapolation) {
-      elapsed = _maxExtrapolation;
+    if (elapsed >= _tickLimit) {
+      elapsed = _tickLimit;
       _clock?.stop();
     }
     if (_elapsed != elapsed) setState(() => _elapsed = elapsed);
@@ -72,18 +95,28 @@ class _LyricLineWidgetState extends ConsumerState<LyricLineWidget>
 
     final Duration position =
         widget.position ?? ref.watch(playbackPositionProvider);
-    final advancing = ref.watch(
-      playerStateProvider.select((state) {
-        final playback = state.value;
-        return playback != null && playback.isPlaying && !playback.isBuffering;
-      }),
-    );
+    final remaining = Duration(milliseconds: _sweepEnd) - position;
+    final advancing =
+        remaining > Duration.zero &&
+        ref.watch(
+          playerStateProvider.select((state) {
+            final playback = state.value;
+            return playback != null &&
+                playback.isPlaying &&
+                !playback.isBuffering;
+          }),
+        );
     if (_positionAtAnchor != position || _advancing != advancing) {
       _clock?.stop();
       _positionAtAnchor = position;
       _advancing = advancing;
       _elapsed = Duration.zero;
-      if (advancing) (_clock ??= createTicker(_tick)).start();
+      if (advancing) {
+        _tickLimit = remaining < _maxExtrapolation
+            ? remaining
+            : _maxExtrapolation;
+        (_clock ??= createTicker(_tick)).start();
+      }
     }
     return position + _elapsed;
   }
