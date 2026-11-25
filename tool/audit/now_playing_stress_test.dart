@@ -411,6 +411,36 @@ void main() {
     expect(fixture.seeks.single.inSeconds, greaterThan(285));
   });
 
+  testWidgets('the lyrics handle follows the drag and dismisses the panel', (
+    tester,
+  ) async {
+    final a = _track('a');
+    final fixture = _Fixture(tester);
+    await fixture.mount(a, lyrics: {a.id: _lyrics(a, _lines(30))});
+    await tester.tap(find.byIcon(CupertinoIcons.quote_bubble));
+    await tester.pumpAndSettle();
+
+    final handle = find.byKey(const ValueKey('lyrics-drag-handle'));
+    final rest = tester.getCenter(handle);
+    final gesture = await tester.startGesture(rest);
+    await gesture.moveBy(const Offset(0, 22));
+    await gesture.moveBy(const Offset(0, 50));
+    await tester.pump();
+    expect(tester.getCenter(handle).dy, greaterThan(rest.dy));
+    await gesture.cancel();
+    await tester.pumpAndSettle();
+    expect(tester.getCenter(handle), rest);
+
+    await tester.timedDrag(
+      handle,
+      const Offset(0, 170),
+      const Duration(milliseconds: 500),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(LyricsSheet), findsNothing);
+    expect(find.byType(NowPlayingPage), findsOneWidget);
+  });
+
   testWidgets('twenty-five sequential lyrics panel opens and closes', (
     tester,
   ) async {

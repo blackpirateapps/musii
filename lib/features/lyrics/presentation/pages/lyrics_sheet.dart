@@ -48,6 +48,7 @@ class LyricsSheet extends ConsumerStatefulWidget {
 class _LyricsSheetState extends ConsumerState<LyricsSheet> {
   static const _followDuration = Duration(milliseconds: 300);
   final ScrollController _scrollController = ScrollController();
+  final _dragDistance = ValueNotifier(0.0);
   final GlobalKey _viewportKey = GlobalKey();
   final Map<int, GlobalKey> _lineKeys = {};
 
@@ -61,6 +62,7 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet> {
   @override
   void dispose() {
     _scrollController.dispose();
+    _dragDistance.dispose();
     super.dispose();
   }
 
@@ -273,7 +275,7 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet> {
       }
     }
 
-    return Container(
+    final sheet = Container(
       height: MediaQuery.of(context).size.height * 0.88,
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF141416) : const Color(0xFFF7F7F8),
@@ -319,15 +321,39 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet> {
             top: false,
             child: Column(
               children: [
-                // Drag handle
-                Center(
-                  child: Container(
-                    margin: const EdgeInsets.only(top: 10, bottom: 8),
-                    width: 38,
-                    height: 5,
-                    decoration: BoxDecoration(
-                      color: CupertinoColors.systemGrey.withOpacity(0.4),
-                      borderRadius: BorderRadius.circular(2.5),
+                GestureDetector(
+                  key: const ValueKey('lyrics-drag-handle'),
+                  behavior: HitTestBehavior.opaque,
+                  onVerticalDragUpdate: (details) {
+                    _dragDistance.value =
+                        (_dragDistance.value + details.delta.dy).clamp(
+                          0,
+                          double.infinity,
+                        );
+                  },
+                  onVerticalDragCancel: () => _dragDistance.value = 0,
+                  onVerticalDragEnd: (details) {
+                    if ((_dragDistance.value >= 96 ||
+                            (details.primaryVelocity ?? 0) > 350) &&
+                        ModalRoute.of(context)?.isCurrent == true &&
+                        Navigator.of(context).canPop()) {
+                      Navigator.of(context).pop();
+                    } else {
+                      _dragDistance.value = 0;
+                    }
+                  },
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 36,
+                    child: Center(
+                      child: Container(
+                        width: 38,
+                        height: 5,
+                        decoration: BoxDecoration(
+                          color: CupertinoColors.systemGrey.withOpacity(0.4),
+                          borderRadius: BorderRadius.circular(2.5),
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -557,6 +583,12 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet> {
             ),
         ],
       ),
+    );
+    return ValueListenableBuilder<double>(
+      valueListenable: _dragDistance,
+      child: sheet,
+      builder: (context, offset, child) =>
+          Transform.translate(offset: Offset(0, offset), child: child),
     );
   }
 }

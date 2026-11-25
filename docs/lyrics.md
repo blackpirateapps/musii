@@ -42,7 +42,7 @@ Schema version 2 introduced two dedicated tables in `lib/core/database/tables.da
 
 ## 5. UI Presentation (`LyricsSheet`)
 - The Now Playing lyrics popup follows the current track as the queue advances. Library track menus open a preview of the selected track, with synchronization and seeking available while that track is current.
-- Displays track title and artist header with dismiss handle.
+- Displays the track title and offers an explicit close button and a draggable dismissal handle.
 - The synchronized list follows the active line near 45% of the viewport. Its lazy slivers anchor directly at off-screen rows, including wrapped lyrics after a distant seek.
 - Tap-to-seek: Tapping any lyric line immediately seeks playback to that line's timestamp.
 - User scroll detection: If the user scrolls away, auto-scroll pauses and a floating "Return to current line" button appears.
