@@ -22,7 +22,7 @@ Audited commit `920feaf098d6e2fd79fd1c29aa324468ebe9b124` on 2026-11-26. The Red
 | Artwork and lyric rendering work | Both screens reuse a bounded artwork decode and blur only the artwork input. The covered player mutes its foreground tickers. A completed sweep stops producing animation ticks until needed again. |
 | Accessible controls and motion | Icon-only actions expose meaningful labels. Timed lyrics keep position tracking with immediate scrolling and styling when reduced motion is enabled. The inline reel skips animated resize in this mode. |
 
-## Android stress runs
+## Android performance baseline
 
 The phone ran Android 16 (API 36), with a nominal 60 Hz display mode and a 1080 × 2340 physical viewport. The installed release APK, version 1.0.0+1, matched the CI artifact byte for byte. Runs used the same artwork-backed FLAC track with synchronized lyrics as the report screenshot, with the app in its Light theme. [CI build for the audited commit](https://github.com/blackpirateapps/musii/actions/runs/45668797015)
 
@@ -39,7 +39,7 @@ Each capture sampled roughly 9.2–9.6 seconds. The stress inputs sent 24 altern
 
 The samples use actual presentation timestamps from the Musii `SurfaceView` BLAST layer. The 25 ms threshold is halfway between one and two nominal refresh periods. Presentation gaps can include time when the app intentionally produced no new frame. The Perfetto FrameTimeline captures exposed compositor and system UI slices on this setup without app-layer attribution for the Flutter surface. The table measures presentation cadence on this device and song. Dart build times, GPU raster times, and touch-to-presentation latency remain unmeasured. [Perfetto FrameTimeline](https://perfetto.dev/docs/data-sources/frametimeline)
 
-## Confirmed findings
+## Reproduced at the audited commit
 
 ### High impact
 
@@ -67,7 +67,7 @@ The samples use actual presentation timestamps from the Musii `SurfaceView` BLAS
 
 11. **The lyrics panel's drag handle does not respond to a pull.** On Android, dragging down over the handle by about 607 physical pixels left the modal fully open. The handle is a decorative container with no gesture wiring. The visible down-drag affordance should dismiss the panel, or the dismissal control should communicate how the sheet closes. [Modal and handle][sheet-position] · [Handle widget][sheet-handle]
 
-## Code-review findings and performance leads
+## Code-review findings at the audited commit
 
 - **Playback load failure and cancellation feedback.** Initial loading publishes `isBuffering: true` and `isPlaying: false`, so pressing the spinner invokes resume. The handler returns while that track is in flight, leaving no cancellation through the center control. On download or decoder failure it logs the error and clears the spinner without publishing a reason to the screen. Reproduce with an uncached track on a stalled or failing connection. The live runs used a playable track. [Loading snapshot][load-state] · [Failure handling and resume][load-error] · [Center playback control][now-play-button]
 - **The dismiss animation adds a new listener on each snap-back.** Short repeated pulls add listeners to the same animation controller without removing the old ones. Those callbacks all read the current animation and request state updates during later snap-backs. No per-frame listener count was collected on Android. [Dismiss controller][now-drag]
@@ -76,15 +76,15 @@ The samples use actual presentation timestamps from the Musii `SurfaceView` BLAS
 
 ## Reproducing the audit
 
-Run the repository baseline and the separate audit probes. The probes preserve the audit scenarios and include a 25-cycle modal lifecycle control. Each remediated scenario checks the corrected behavior. The remaining scenarios still characterize the audited baseline.
+The audit scenarios now run as regression tests in the default Flutter suite. They exercise track changes, long timed lyrics, delayed seeks, large text, repeated gestures, and the modal lifecycle.
 
 ```sh
 flutter analyze --no-pub
 flutter test --no-pub --reporter expanded
-flutter test --no-pub tool/audit/now_playing_stress_test.dart --reporter expanded
+flutter test --no-pub test/widget/now_playing_stress_test.dart --reporter expanded
 ```
 
-Static analysis reported no issues, all 310 repository tests passed, and the 13 targeted probes passed. The widget fixtures drive the real player page and lyrics panel through scripted playback snapshots. The phone runs exercise the installed release separately. [Audit probes](../tool/audit/now_playing_stress_test.dart)
+At the audited commit, static analysis reported no issues and the 310 repository tests and 13 audit probes passed. The regression suite drives the real player page and lyrics panel through scripted playback snapshots. A post-fix release-device frame capture is still pending. [Regression tests](../test/widget/now_playing_stress_test.dart)
 
 To repeat the presentation measurement, find the Musii `SurfaceView…(BLAST)#…` layer in `adb shell dumpsys SurfaceFlinger --list`. Save the newest valid presentation timestamp from the second column of `dumpsys SurfaceFlinger --latency "<layer>"` immediately before each workload. Poll that same layer roughly every 400 ms during the run so the rolling buffer retains coverage. Discard zero, the pending timestamp sentinel `9223372036854775807`, and timestamps at or before the initial sample. Deduplicate, sort, and subtract consecutive timestamps. Run each playing condition twice with the same song, seek region, and theme. Keep manual scroll and automatic following as distinct workloads. Low-end devices, other refresh modes, live download failures, and long-session heap or thermal behavior remain unverified.
 
