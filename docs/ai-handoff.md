@@ -143,6 +143,8 @@ Located in `lib/features/lyrics/`:
   - **Manual Scroll Recovery & Tap-to-Seek**: User drag notifications pause auto-scroll and animate in the floating "Current line" button. Tapping "Current line" or tapping any lyric line seeks playback, snaps to the 45% focal position, and restores auto-following.
 
 ### 5. Google Drive Integration & Incremental Sync Engine (Optimized & Crash-Safe)
+See the [Google Drive sync audit](google-drive-sync-audit.md) for reproduced failures and recovery edge cases in the implementation described below.
+
 Located in `lib/features/google_drive/` and `lib/features/library/`:
 - **Persistent Discovery & Smart Zero-Rescan Resume**:
   - Streamed discovery records discovered files directly into the `DiscoveredFiles` table in SQLite (`@DataClassName('DiscoveredFileRow')`).
