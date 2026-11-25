@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 import 'dart:ui';
@@ -17,6 +18,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/bootstrap/providers.dart';
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/logging/app_logger.dart';
 import '../../../library/presentation/widgets/album_artwork.dart';
 import '../../../library/presentation/widgets/audio_info_sheet.dart';
 import '../../../library/presentation/widgets/technical_badge.dart';
@@ -465,7 +467,7 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
                             const SizedBox(height: AppSpacing.sm),
 
                             // Apple-Style Scrubber (isolated — only scrubber rebuilds on position ticks)
-                            const _NowPlayingScrubber(),
+                            _NowPlayingScrubber(key: ValueKey(track?.id)),
 
                             const SizedBox(height: AppSpacing.md),
 
@@ -724,7 +726,7 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
 /// Uses AnimationController to lerp smoothly between ~200ms position ticks
 /// for a premium 60fps scrubber feel.
 class _NowPlayingScrubber extends ConsumerStatefulWidget {
-  const _NowPlayingScrubber();
+  const _NowPlayingScrubber({super.key});
 
   @override
   ConsumerState<_NowPlayingScrubber> createState() =>
@@ -733,8 +735,15 @@ class _NowPlayingScrubber extends ConsumerStatefulWidget {
 
 class _NowPlayingScrubberState extends ConsumerState<_NowPlayingScrubber>
     with SingleTickerProviderStateMixin {
+  static const _seekToleranceMs = 200;
+  static const _seekTimeout = Duration(seconds: 2);
+
   bool _isScrubbing = false;
   double _scrubValue = 0.0;
+  double? _pendingSeekMs;
+  double? _lastPositionMs;
+  Timer? _seekTimer;
+  int _seekRequest = 0;
 
   late final AnimationController _lerpController;
   double _lerpStart = 0.0;
@@ -756,8 +765,89 @@ class _NowPlayingScrubberState extends ConsumerState<_NowPlayingScrubber>
 
   @override
   void dispose() {
+    _seekTimer?.cancel();
     _lerpController.dispose();
     super.dispose();
+  }
+
+  double get _interpolatedPosition =>
+      _lerpStart + (_lerpEnd - _lerpStart) * _lerpController.value;
+
+  void _snapTo(double positionMs) {
+    _lerpController.stop();
+    _lerpStart = positionMs;
+    _lerpEnd = positionMs;
+  }
+
+  void _updatePosition(double positionMs, {required bool isPlaying}) {
+    final previousMs = _lastPositionMs;
+    if (positionMs == previousMs) return;
+    _lastPositionMs = positionMs;
+
+    final pendingSeekMs = _pendingSeekMs;
+    if (pendingSeekMs != null) {
+      if ((positionMs - pendingSeekMs).abs() <= _seekToleranceMs) {
+        _seekTimer?.cancel();
+        _pendingSeekMs = null;
+        _snapTo(positionMs);
+      }
+      return;
+    }
+
+    if (_isScrubbing ||
+        !isPlaying ||
+        previousMs == null ||
+        positionMs < previousMs ||
+        positionMs - previousMs > 1000) {
+      _snapTo(positionMs);
+    } else {
+      _lerpStart = _interpolatedPosition;
+      _lerpEnd = positionMs;
+      _lerpController.forward(from: 0.0);
+    }
+  }
+
+  void _startScrubbing(double value) {
+    _seekRequest++;
+    _seekTimer?.cancel();
+    setState(() {
+      _pendingSeekMs = null;
+      _isScrubbing = true;
+      _scrubValue = value;
+    });
+  }
+
+  Future<void> _seek(double value) async {
+    final request = ++_seekRequest;
+    _seekTimer?.cancel();
+    setState(() {
+      _isScrubbing = false;
+      _pendingSeekMs = value;
+      _snapTo(value);
+    });
+    _seekTimer = Timer(_seekTimeout, () => _restorePosition(request));
+    try {
+      await ref
+          .read(playbackRepositoryProvider)
+          .seek(Duration(milliseconds: value.round()));
+    } catch (error, stackTrace) {
+      AppLogger.warning(
+        LogCategory.playback,
+        'Now Playing seek failed',
+        error,
+        stackTrace,
+      );
+      _restorePosition(request);
+    }
+  }
+
+  void _restorePosition(int request) {
+    if (!mounted || request != _seekRequest || _pendingSeekMs == null) return;
+    _seekTimer?.cancel();
+    setState(() {
+      _pendingSeekMs = null;
+      _snapTo(ref.read(playbackPositionProvider).inMilliseconds.toDouble());
+    });
   }
 
   String _formatDuration(Duration d) {
@@ -773,22 +863,20 @@ class _NowPlayingScrubberState extends ConsumerState<_NowPlayingScrubber>
     );
     final rawPosition = ref.watch(playbackPositionProvider);
 
-    // Smooth 60fps interpolation between position ticks
-    final posMs = rawPosition.inMilliseconds.toDouble();
-    if (posMs != _lerpEnd) {
-      _lerpStart = _lerpStart + (_lerpEnd - _lerpStart) * _lerpController.value;
-      _lerpEnd = posMs;
-      _lerpController.forward(from: 0.0);
-    }
+    final isPlaying = ref.watch(
+      playerStateProvider.select((s) => s.value?.isPlaying ?? false),
+    );
+    _updatePosition(
+      rawPosition.inMilliseconds.toDouble(),
+      isPlaying: isPlaying,
+    );
 
     final double maxMs = duration.inMilliseconds > 0
         ? duration.inMilliseconds.toDouble()
         : 1.0;
-    final double interpolatedPos =
-        _lerpStart + (_lerpEnd - _lerpStart) * _lerpController.value;
-    final double curMs = _isScrubbing
-        ? _scrubValue
-        : interpolatedPos.clamp(0.0, maxMs);
+    final curMs =
+        (_isScrubbing ? _scrubValue : _pendingSeekMs ?? _interpolatedPosition)
+            .clamp(0.0, maxMs);
 
     final remainingMs = (maxMs - curMs).toInt().clamp(0, 86400000);
     final remainingDuration = Duration(milliseconds: remainingMs);
@@ -818,20 +906,11 @@ class _NowPlayingScrubberState extends ConsumerState<_NowPlayingScrubber>
                 value: curMs,
                 min: 0.0,
                 max: maxMs,
-                onChangeStart: (_) {
-                  setState(() => _isScrubbing = true);
-                },
+                onChangeStart: _startScrubbing,
                 onChanged: (val) {
                   setState(() => _scrubValue = val);
                 },
-                onChangeEnd: (val) {
-                  _isScrubbing = false;
-                  _lerpStart = val;
-                  _lerpEnd = val;
-                  ref
-                      .read(playbackRepositoryProvider)
-                      .seek(Duration(milliseconds: val.toInt()));
-                },
+                onChangeEnd: (val) => unawaited(_seek(val)),
               ),
             ),
           ),

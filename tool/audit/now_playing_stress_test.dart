@@ -447,21 +447,18 @@ void main() {
       await fixture.position(30100);
       await tester.pump(const Duration(milliseconds: 220));
       final stale = _slider(tester);
-      expect(find.text('0:30'), findsOneWidget);
-      await fixture.position(fixture.seeks.single.inMilliseconds);
-      await tester.pump(const Duration(milliseconds: 48));
-      final acknowledged48 = _slider(tester);
-      await tester.pump(const Duration(milliseconds: 220));
-      expect(landed.round(), fixture.seeks.single.inMilliseconds);
-      expect(stale.round(), 30100);
-      expect(acknowledged48, lessThan(landed));
-      expect(_slider(tester).round(), fixture.seeks.single.inMilliseconds);
+      expect(stale, landed);
       expect(find.text('4:30'), findsOneWidget);
-      debugPrint(
-        'seek: request=${fixture.seeks.single.inMilliseconds}, '
-        'landed=${landed.round()}, stale=${stale.round()}, '
-        'acknowledged+48ms=${acknowledged48.round()}, final=${_slider(tester).round()}',
-      );
+      final target = fixture.seeks.single.inMilliseconds;
+      await fixture.position(target);
+      expect(_slider(tester), target);
+      expect(find.text('4:30'), findsOneWidget);
+
+      await tester.tapAt(Offset(bounds.left + 80, bounds.center.dy));
+      await tester.pump();
+      expect(_slider(tester).round(), fixture.seeks.last.inMilliseconds);
+      await tester.pump(const Duration(seconds: 2));
+      expect(_slider(tester), target);
     },
   );
 
