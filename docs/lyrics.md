@@ -49,3 +49,5 @@ Schema version 2 introduced two dedicated tables in `lib/core/database/tables.da
 - Supports plain lyrics mode and empty states when no lyrics are available.
 
 The karaoke sweep renders paused seeks directly from the audio position. It holds at the audio clock during buffering and extrapolates only while playback advances.
+
+Inline lyrics skip lyric subscriptions on compact screens or when the setting is disabled. The per-track stream is released when the inline reel and full lyrics view have both stopped watching it.

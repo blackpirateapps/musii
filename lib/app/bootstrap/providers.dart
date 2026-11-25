@@ -228,13 +228,11 @@ final lyricsRepositoryProvider = Provider<LyricsRepository>((ref) {
   return LyricsRepositoryImpl(database: db);
 });
 
-final trackLyricsProvider = StreamProvider.family<TrackLyrics?, String>((
-  ref,
-  trackId,
-) {
-  final repo = ref.watch(lyricsRepositoryProvider);
-  return repo.watchLyricsForTrack(trackId);
-});
+final trackLyricsProvider = StreamProvider.autoDispose
+    .family<TrackLyrics?, String>((ref, trackId) {
+      final repo = ref.watch(lyricsRepositoryProvider);
+      return repo.watchLyricsForTrack(trackId);
+    });
 
 final currentTrackLyricsProvider = StreamProvider<TrackLyrics?>((ref) {
   final trackId = ref.watch(

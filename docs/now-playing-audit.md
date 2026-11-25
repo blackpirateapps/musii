@@ -15,6 +15,7 @@ Audited commit `920feaf098d6e2fd79fd1c29aa324468ebe9b124` on 2026-11-26. The Red
 | 7. Word sweep freezes or drifts | Active lyric rows render the audio clock directly while paused or buffering and extrapolate between samples during playback. |
 | 8. Cancelled pull leaves Now Playing offset | Pointer cancellation runs the same return animation as releasing a short pull. |
 | 9. Unknown duration allows a 1 ms seek | The seek slider stays disabled and shows an unknown remainder until a duration is available. |
+| 10. Lyric streams retained across tracks | Inline lyrics subscribe only when visible. Per-track providers dispose after the last viewer leaves. |
 
 ## Android stress runs
 

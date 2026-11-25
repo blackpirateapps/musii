@@ -482,14 +482,16 @@ void main() {
     expect(tester.getCenter(title).dy, startY);
   });
 
-  testWidgets(
-    '64 track changes retain lyric subscriptions with inline lyrics off',
-    (tester) async {
+  for (final enabled in [false, true]) {
+    testWidgets('64 track changes with inline lyrics enabled=$enabled', (
+      tester,
+    ) async {
       final tracks = List.generate(64, (index) => _track('track-$index'));
       final fixture = _Fixture(tester);
       await fixture.mount(
         tracks.first,
         tracks: tracks,
+        inlineLyrics: enabled,
         lyrics: {
           for (final track in tracks) track.id: _lyrics(track, _lines(10)),
         },
@@ -499,10 +501,13 @@ void main() {
         await tester.pump();
       }
       await tester.pump(const Duration(milliseconds: 500));
-      debugPrint(
-        'track churn: started=${fixture.startedLyrics.length} '
-        'cancelled=${fixture.stoppedLyrics.length}',
-      );
-    },
-  );
+      expect(fixture.startedLyrics, hasLength(enabled ? 64 : 0));
+      expect(fixture.stoppedLyrics, hasLength(enabled ? 63 : 0));
+      if (enabled) {
+        expect(fixture.startedLyrics.difference(fixture.stoppedLyrics), {
+          tracks.last.id,
+        });
+      }
+    });
+  }
 }

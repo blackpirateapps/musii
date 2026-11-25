@@ -182,37 +182,7 @@ class _NowPlayingInlineLyricsState
   );
   Duration _currentPosition = Duration.zero;
 
-  @override
-  void initState() {
-    super.initState();
-    _initSlotData();
-  }
-
-  void _initSlotData() {
-    final track = widget.track;
-    if (track == null) return;
-    final lyrics = ref.read(trackLyricsProvider(track.id)).value;
-    if (lyrics != null &&
-        lyrics.isSynchronized &&
-        lyrics.lines.isNotEmpty &&
-        lyrics.trackId == track.id) {
-      final pos = ref.read(playbackPositionProvider);
-      _currentPosition = pos;
-      _slotData = _calculateSlotData(lyrics.lines, pos);
-    }
-  }
-
-  @override
-  void didUpdateWidget(NowPlayingInlineLyrics oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.track?.id != widget.track?.id) {
-      _slotData = const _ReelSlotData(
-        phase: _ReelPhase.singing,
-        activeIndex: -1,
-      );
-      _initSlotData();
-    }
-  }
+  TrackLyrics? _positionedLyrics;
 
   int _estimateLineDuration(List<LyricLine> lines, int index) {
     final line = lines[index];
@@ -303,58 +273,42 @@ class _NowPlayingInlineLyricsState
 
   @override
   Widget build(BuildContext context) {
-    final inlineLyricsEnabled = ref.watch(inlineLyricsEnabledProvider);
-    final lyricsAsync = widget.track != null
-        ? ref.watch(trackLyricsProvider(widget.track!.id))
-        : const AsyncValue<TrackLyrics?>.data(null);
-    final lyrics = lyricsAsync.value;
-
-    final hasValidSyncedLyrics =
-        widget.track != null &&
-        lyrics != null &&
-        lyrics.isSynchronized &&
-        lyrics.lines.isNotEmpty &&
-        lyrics.trackId == widget.track!.id;
-
+    final track = widget.track;
+    final enabled = ref.watch(inlineLyricsEnabledProvider);
+    final lyrics = enabled && !widget.isCompactScreen && track != null
+        ? ref.watch(trackLyricsProvider(track.id)).value
+        : null;
     final shouldShow =
-        inlineLyricsEnabled && !widget.isCompactScreen && hasValidSyncedLyrics;
-    final disableAnimations = MediaQuery.of(context).disableAnimations;
+        lyrics != null &&
+        lyrics.trackId == track?.id &&
+        lyrics.isSynchronized &&
+        lyrics.lines.isNotEmpty;
+    final disableAnimations = MediaQuery.disableAnimationsOf(context);
 
-    // Listen to playback position changes. Only update slot data when phase,
-    // active index, or countdown target changes, or during the 3-second countdown.
-    ref.listen<Duration>(playbackPositionProvider, (prev, next) {
-      final currentTrack = widget.track;
-      final currentLyrics = lyrics;
-      if (currentTrack == null ||
-          currentLyrics == null ||
-          !currentLyrics.isSynchronized ||
-          currentLyrics.lines.isEmpty ||
-          currentLyrics.trackId != currentTrack.id) {
-        return;
+    if (shouldShow) {
+      if (!identical(_positionedLyrics, lyrics)) {
+        _positionedLyrics = lyrics;
+        _currentPosition = ref.read(playbackPositionProvider);
+        _slotData = _calculateSlotData(lyrics.lines, _currentPosition);
       }
 
-      final newSlotData = _calculateSlotData(currentLyrics.lines, next);
-      final isCountdown =
-          newSlotData.targetMs > 0 &&
-          (newSlotData.targetMs - next.inMilliseconds) <= 3000 &&
-          (newSlotData.targetMs - next.inMilliseconds) > 0;
-
-      if (newSlotData != _slotData || isCountdown) {
-        setState(() {
-          _slotData = newSlotData;
-          _currentPosition = next;
-        });
-      }
-    });
-
-    // Cold-start or asynchronous lyrics arrival resolution
-    if (hasValidSyncedLyrics && _slotData.activeIndex == -1) {
-      final pos = ref.read(playbackPositionProvider);
-      final initialData = _calculateSlotData(lyrics.lines, pos);
-      if (initialData != _slotData) {
-        _slotData = initialData;
-        _currentPosition = pos;
-      }
+      ref.listen<Duration>(playbackPositionProvider, (previous, next) {
+        if (ref.read(playerStateProvider).value?.currentTrack?.id !=
+            track?.id) {
+          return;
+        }
+        final newSlotData = _calculateSlotData(lyrics.lines, next);
+        final remainingMs = newSlotData.targetMs - next.inMilliseconds;
+        final isCountdown = remainingMs > 0 && remainingMs <= 3000;
+        if (newSlotData != _slotData || isCountdown) {
+          setState(() {
+            _slotData = newSlotData;
+            _currentPosition = next;
+          });
+        }
+      });
+    } else {
+      _positionedLyrics = null;
     }
 
     return AnimatedSize(
@@ -390,6 +344,7 @@ class _NowPlayingInlineLyricsState
                     width: double.infinity,
                     height: 108.0,
                     child: _InlineLyricsReel(
+                      key: ValueKey(track!.id),
                       slotData: _slotData,
                       currentPosition: _currentPosition,
                       isDark: true,
@@ -422,6 +377,7 @@ class _InlineLyricsReel extends StatefulWidget {
   final VoidCallback? onTap;
 
   const _InlineLyricsReel({
+    super.key,
     required this.slotData,
     required this.currentPosition,
     required this.isDark,
