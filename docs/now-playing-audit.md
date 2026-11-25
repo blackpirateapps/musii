@@ -9,6 +9,7 @@ Audited commit `920feaf098d6e2fd79fd1c29aa324468ebe9b124` on 2026-11-26. The Red
 | 1. Stale track in the lyrics panel | The Now Playing panel follows the current track and resets its lyric view on track change. Library previews stay on the selected track and only enable timed playback controls when that track is playing. |
 | 2. Active lyric can remain off-screen | The timed viewport anchors directly at a distant row and aligns against its measured layout. Rapid updates coalesce around the latest active row. |
 | 3. Seek thumb rebounds | The scrubber displays the requested position until an audio snapshot acknowledges it. Track changes, errors, and acknowledgement timeout recover to the audio clock. |
+| 4. Lyrics title hides the close button | The title ellipsizes inside the remaining header width while the close button keeps its touch target. |
 
 ## Android stress runs
 

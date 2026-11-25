@@ -243,10 +243,11 @@ void main() {
       child: LyricsSheet(track: a),
       size: const Size(360, 800),
     );
-    final overflow = tester.takeException();
-    expect(overflow.toString(), contains('RenderFlex overflowed'));
-    expect(find.byIcon(CupertinoIcons.xmark).hitTestable(), findsNothing);
-    debugPrint('long title: $overflow');
+    expect(tester.takeException(), isNull);
+    expect(find.byIcon(CupertinoIcons.xmark).hitTestable(), findsOneWidget);
+    final title = tester.widget<Text>(find.text(a.title));
+    expect(title.overflow, TextOverflow.ellipsis);
+    expect(tester.getSize(find.text(a.title)).width, lessThan(360));
   });
 
   testWidgets('Now Playing at 360 x 640 with large text', (tester) async {

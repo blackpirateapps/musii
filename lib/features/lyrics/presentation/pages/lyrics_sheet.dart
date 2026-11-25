@@ -341,33 +341,36 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Lyrics',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
-                              color: isDark
-                                  ? CupertinoColors.white
-                                  : CupertinoColors.black,
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Lyrics',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                                color: isDark
+                                    ? CupertinoColors.white
+                                    : CupertinoColors.black,
+                              ),
                             ),
-                          ),
-                          Text(
-                            track.title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w400,
-                              color: isDark
-                                  ? CupertinoColors.systemGrey
-                                  : CupertinoColors.secondaryLabel,
+                            Text(
+                              track.title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w400,
+                                color: isDark
+                                    ? CupertinoColors.systemGrey
+                                    : CupertinoColors.secondaryLabel,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
+                      const SizedBox(width: AppSpacing.sm),
                       CupertinoButton(
                         padding: EdgeInsets.zero,
                         onPressed: () => Navigator.of(context).pop(),
