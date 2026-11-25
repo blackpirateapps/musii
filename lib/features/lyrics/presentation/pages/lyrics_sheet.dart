@@ -122,7 +122,7 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet> {
                 viewport.size.height * 0.45)
             .clamp(position.minScrollExtent, position.maxScrollExtent);
     if ((position.pixels - target).abs() < 0.5) return;
-    if (animate) {
+    if (animate && !MediaQuery.disableAnimationsOf(context)) {
       unawaited(
         _scrollController.animateTo(
           target,
@@ -395,6 +395,7 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet> {
                           ),
                           child: Icon(
                             CupertinoIcons.xmark,
+                            semanticLabel: 'Close lyrics',
                             size: 16,
                             color: isDark
                                 ? CupertinoColors.white
@@ -506,7 +507,9 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet> {
               right: 24,
               child: TweenAnimationBuilder<double>(
                 tween: Tween<double>(begin: 0.0, end: 1.0),
-                duration: const Duration(milliseconds: 250),
+                duration: MediaQuery.disableAnimationsOf(context)
+                    ? Duration.zero
+                    : const Duration(milliseconds: 250),
                 curve: Curves.easeOutCubic,
                 builder: (context, val, child) {
                   return Transform.translate(

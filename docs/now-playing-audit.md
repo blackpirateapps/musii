@@ -20,6 +20,7 @@ Audited commit `920feaf098d6e2fd79fd1c29aa324468ebe9b124` on 2026-11-26. The Red
 | Playback load feedback and cancellation | Initial loads are cancellable through the transport control. Failed loads show a retry message, and late results from cancelled requests cannot start playback. |
 | Dismiss animation listener accumulation | One controller listener updates a transform around the existing player content. Twenty short pulls return to the resting position with zero full page rebuilds in the widget probe. |
 | Artwork and lyric rendering work | Both screens reuse a bounded artwork decode and blur only the artwork input. The covered player mutes its foreground tickers. A completed sweep stops producing animation ticks until needed again. |
+| Accessible controls and motion | Icon-only actions expose meaningful labels. Timed lyrics keep position tracking with immediate scrolling and styling when reduced motion is enabled. The inline reel skips animated resize in this mode. |
 
 ## Android stress runs
 

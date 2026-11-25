@@ -96,6 +96,7 @@ class _Fixture {
     bool playing = false,
     bool buffering = false,
     bool inlineLyrics = true,
+    bool reduceMotion = false,
     Duration duration = const Duration(minutes: 5),
   }) async {
     tester.view.physicalSize = size;
@@ -143,6 +144,7 @@ class _Fixture {
             data: MediaQuery.of(context).copyWith(
               padding: const EdgeInsets.only(top: 28, bottom: 24),
               textScaler: TextScaler.linear(textScale),
+              disableAnimations: reduceMotion,
             ),
             child: child!,
           ),
@@ -489,6 +491,39 @@ void main() {
       expect(provider.height, 256);
       expect(provider.policy, ResizeImagePolicy.fit);
     }
+  });
+
+  testWidgets('player actions are labelled and lyrics respect reduced motion', (
+    tester,
+  ) async {
+    final a = _track('a');
+    final fixture = _Fixture(tester);
+    await fixture.mount(
+      a,
+      lyrics: {a.id: _lyrics(a, _lines(12, interval: 3000))},
+      reduceMotion: true,
+      playing: true,
+      position: 1000,
+    );
+    expect(find.bySemanticsLabel('Previous track'), findsOneWidget);
+    expect(find.bySemanticsLabel('Next track'), findsOneWidget);
+    expect(find.bySemanticsLabel('Pause'), findsOneWidget);
+
+    await tester.tap(find.bySemanticsLabel('Show lyrics'));
+    await tester.pumpAndSettle();
+    expect(find.bySemanticsLabel('Close lyrics'), findsOneWidget);
+    final active = _activeSheetLine();
+    final scale = tester.widget<AnimatedScale>(
+      find.descendant(of: active, matching: find.byType(AnimatedScale)),
+    );
+    expect(scale.duration, Duration.zero);
+    await fixture.position(3200);
+    await tester.pumpAndSettle();
+    final row = tester.widget<WordSyncedLyricText>(
+      find.descendant(of: active, matching: find.byType(WordSyncedLyricText)),
+    );
+    expect(row.line.sequence, 1);
+    expect(row.position, const Duration(milliseconds: 3200));
   });
 
   testWidgets('twenty-five sequential lyrics panel opens and closes', (

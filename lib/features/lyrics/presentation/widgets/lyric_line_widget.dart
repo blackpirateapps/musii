@@ -82,7 +82,7 @@ class _LyricLineWidgetState extends ConsumerState<LyricLineWidget>
     if (_elapsed != elapsed) setState(() => _elapsed = elapsed);
   }
 
-  Duration _positionForFrame() {
+  Duration _positionForFrame({required bool reduceMotion}) {
     final needsClock =
         widget.isActive &&
         (widget.line.hasWords || widget.enableSimulatedLineSweep);
@@ -97,6 +97,7 @@ class _LyricLineWidgetState extends ConsumerState<LyricLineWidget>
         widget.position ?? ref.watch(playbackPositionProvider);
     final remaining = Duration(milliseconds: _sweepEnd) - position;
     final advancing =
+        !reduceMotion &&
         remaining > Duration.zero &&
         ref.watch(
           playerStateProvider.select((state) {
@@ -129,7 +130,11 @@ class _LyricLineWidgetState extends ConsumerState<LyricLineWidget>
 
   @override
   Widget build(BuildContext context) {
-    final effectivePosition = _positionForFrame();
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    final effectivePosition = _positionForFrame(reduceMotion: reduceMotion);
+    final transitionDuration = reduceMotion
+        ? Duration.zero
+        : const Duration(milliseconds: 280);
 
     final activeColor = widget.isDark
         ? CupertinoColors.white
@@ -171,10 +176,10 @@ class _LyricLineWidgetState extends ConsumerState<LyricLineWidget>
           child: AnimatedScale(
             scale: scale,
             alignment: widget.alignment,
-            duration: const Duration(milliseconds: 280),
+            duration: transitionDuration,
             curve: Curves.easeOutCubic,
             child: AnimatedDefaultTextStyle(
-              duration: const Duration(milliseconds: 280),
+              duration: transitionDuration,
               curve: Curves.easeOutCubic,
               style: textStyle,
               child: WordSyncedLyricText(

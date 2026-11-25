@@ -204,6 +204,7 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
                                         Navigator.of(context).pop(),
                                     child: const Icon(
                                       CupertinoIcons.chevron_down,
+                                      semanticLabel: 'Minimize player',
                                       size: 24,
                                       color: CupertinoColors.white,
                                     ),
@@ -232,6 +233,7 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
                                     onPressed: () => showQueueSheet(context),
                                     child: const Icon(
                                       CupertinoIcons.text_badge_plus,
+                                      semanticLabel: 'Show queue',
                                       size: 22,
                                       color: CupertinoColors.white,
                                     ),
@@ -445,6 +447,8 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
                                           child: const Center(
                                             child: Icon(
                                               CupertinoIcons.ellipsis,
+                                              semanticLabel:
+                                                  'More track actions',
                                               size: 20,
                                               color: CupertinoColors.white,
                                             ),
@@ -518,6 +522,9 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
                                             .toggleShuffle(),
                                         child: Icon(
                                           CupertinoIcons.shuffle,
+                                          semanticLabel: shuffleMode
+                                              ? 'Shuffle on'
+                                              : 'Shuffle off',
                                           size: 22,
                                           color: shuffleMode
                                               ? CupertinoColors.systemPink
@@ -534,6 +541,7 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
                                             .skipToPrevious(),
                                         child: const Icon(
                                           CupertinoIcons.backward_end_fill,
+                                          semanticLabel: 'Previous track',
                                           size: 34,
                                           color: CupertinoColors.white,
                                         ),
@@ -566,28 +574,35 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
                                                 .withOpacity(0.24),
                                           ),
                                           child: Center(
-                                            child: isLoadingTrack
-                                                ? const Icon(
-                                                    CupertinoIcons.stop_fill,
-                                                    size: 28,
-                                                    color:
-                                                        CupertinoColors.white,
-                                                  )
-                                                : isBuffering
-                                                ? const CupertinoActivityIndicator(
-                                                    color:
-                                                        CupertinoColors.white,
-                                                  )
-                                                : Icon(
-                                                    isPlaying
-                                                        ? CupertinoIcons
-                                                              .pause_fill
-                                                        : CupertinoIcons
-                                                              .play_fill,
-                                                    size: 36,
-                                                    color:
-                                                        CupertinoColors.white,
-                                                  ),
+                                            child: Semantics(
+                                              label: isLoadingTrack
+                                                  ? 'Cancel loading'
+                                                  : isPlaying
+                                                  ? 'Pause'
+                                                  : 'Play',
+                                              child: isLoadingTrack
+                                                  ? const Icon(
+                                                      CupertinoIcons.stop_fill,
+                                                      size: 28,
+                                                      color:
+                                                          CupertinoColors.white,
+                                                    )
+                                                  : isBuffering
+                                                  ? const CupertinoActivityIndicator(
+                                                      color:
+                                                          CupertinoColors.white,
+                                                    )
+                                                  : Icon(
+                                                      isPlaying
+                                                          ? CupertinoIcons
+                                                                .pause_fill
+                                                          : CupertinoIcons
+                                                                .play_fill,
+                                                      size: 36,
+                                                      color:
+                                                          CupertinoColors.white,
+                                                    ),
+                                            ),
                                           ),
                                         ),
                                       ),
@@ -600,6 +615,7 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
                                             .skipToNext(),
                                         child: const Icon(
                                           CupertinoIcons.forward_end_fill,
+                                          semanticLabel: 'Next track',
                                           size: 34,
                                           color: CupertinoColors.white,
                                         ),
@@ -615,6 +631,11 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
                                           repeatMode == AudioRepeatMode.one
                                               ? CupertinoIcons.repeat_1
                                               : CupertinoIcons.repeat,
+                                          semanticLabel: switch (repeatMode) {
+                                            AudioRepeatMode.off => 'Repeat off',
+                                            AudioRepeatMode.all => 'Repeat all',
+                                            AudioRepeatMode.one => 'Repeat one',
+                                          },
                                           size: 22,
                                           color:
                                               repeatMode != AudioRepeatMode.off
@@ -667,6 +688,9 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
                                             isFav
                                                 ? CupertinoIcons.heart_fill
                                                 : CupertinoIcons.heart,
+                                            semanticLabel: isFav
+                                                ? 'Remove from favorites'
+                                                : 'Add to favorites',
                                             size: 24,
                                             color: isFav
                                                 ? CupertinoColors.systemPink
@@ -702,6 +726,7 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
                                           ),
                                           child: const Icon(
                                             CupertinoIcons.quote_bubble,
+                                            semanticLabel: 'Show lyrics',
                                             size: 22,
                                             color: CupertinoColors.white,
                                           ),
@@ -728,6 +753,7 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
                                           ),
                                           child: const Icon(
                                             CupertinoIcons.text_badge_plus,
+                                            semanticLabel: 'Show queue',
                                             size: 22,
                                             color: CupertinoColors.white,
                                           ),

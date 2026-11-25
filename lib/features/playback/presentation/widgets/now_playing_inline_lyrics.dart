@@ -311,58 +311,45 @@ class _NowPlayingInlineLyricsState
       _positionedLyrics = null;
     }
 
+    void openLyrics() {
+      if (track != null) showLyricsSheet(context, track, followPlayback: true);
+    }
+
+    final content = shouldShow
+        ? Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg,
+              vertical: 2,
+            ),
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: openLyrics,
+              child: SizedBox(
+                width: double.infinity,
+                height: 108,
+                child: _InlineLyricsReel(
+                  key: ValueKey(track!.id),
+                  slotData: _slotData,
+                  currentPosition: _currentPosition,
+                  isDark: true,
+                  disableAnimations: disableAnimations,
+                  onTap: openLyrics,
+                ),
+              ),
+            ),
+          )
+        : const SizedBox(width: double.infinity, height: 0);
+
+    if (disableAnimations) return content;
     return AnimatedSize(
-      duration: disableAnimations
-          ? Duration.zero
-          : const Duration(milliseconds: 280),
+      duration: const Duration(milliseconds: 280),
       curve: Curves.easeOutCubic,
       alignment: Alignment.topCenter,
       child: AnimatedOpacity(
-        duration: disableAnimations
-            ? Duration.zero
-            : const Duration(milliseconds: 250),
+        duration: const Duration(milliseconds: 250),
         curve: Curves.easeOutCubic,
-        opacity: shouldShow ? 1.0 : 0.0,
-        child: shouldShow
-            ? Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.lg,
-                  vertical: 2.0,
-                ),
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () {
-                    if (widget.track != null) {
-                      showLyricsSheet(
-                        context,
-                        widget.track!,
-                        followPlayback: true,
-                      );
-                    }
-                  },
-                  child: SizedBox(
-                    width: double.infinity,
-                    height: 108.0,
-                    child: _InlineLyricsReel(
-                      key: ValueKey(track!.id),
-                      slotData: _slotData,
-                      currentPosition: _currentPosition,
-                      isDark: true,
-                      disableAnimations: disableAnimations,
-                      onTap: () {
-                        if (widget.track != null) {
-                          showLyricsSheet(
-                            context,
-                            widget.track!,
-                            followPlayback: true,
-                          );
-                        }
-                      },
-                    ),
-                  ),
-                ),
-              )
-            : const SizedBox(width: double.infinity, height: 0),
+        opacity: shouldShow ? 1 : 0,
+        child: content,
       ),
     );
   }
