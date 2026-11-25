@@ -421,6 +421,8 @@ dart format .
 
 ## 6. CI/CD & Build Workflows
 
+Both Android workflows pin Flutter 3.50.1 and use Java 17, Gradle 9.5.0, Android Gradle Plugin 9.3.1, and Kotlin 2.4.20. When updating Flutter in CI, update both workflow pins and check the Android toolchain against that Flutter release.
+
 ### 1. Build APK Workflow (`.github/workflows/build-apk.yml`)
 - **Trigger**: Push to `main`, PR, or manual `workflow_dispatch`.
 - **Keystore Secrets**: Automatically checks for `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, and `KEY_PASSWORD`.
