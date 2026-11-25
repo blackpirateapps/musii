@@ -905,9 +905,14 @@ class _NowPlayingScrubberState extends ConsumerState<_NowPlayingScrubber>
       isPlaying: isPlaying,
     );
 
-    final double maxMs = duration.inMilliseconds > 0
-        ? duration.inMilliseconds.toDouble()
-        : 1.0;
+    final hasDuration = duration.inMilliseconds > 0;
+    final maxMs = hasDuration ? duration.inMilliseconds.toDouble() : 1.0;
+    if (!hasDuration && (_isScrubbing || _pendingSeekMs != null)) {
+      _seekTimer?.cancel();
+      _isScrubbing = false;
+      _pendingSeekMs = null;
+      _snapTo(rawPosition.inMilliseconds.toDouble());
+    }
     final curMs =
         (_isScrubbing ? _scrubValue : _pendingSeekMs ?? _interpolatedPosition)
             .clamp(0.0, maxMs);
@@ -937,14 +942,16 @@ class _NowPlayingScrubberState extends ConsumerState<_NowPlayingScrubber>
                 trackShape: const RoundedRectSliderTrackShape(),
               ),
               child: Slider(
-                value: curMs,
+                value: hasDuration ? curMs : 0.0,
                 min: 0.0,
                 max: maxMs,
-                onChangeStart: _startScrubbing,
-                onChanged: (val) {
-                  setState(() => _scrubValue = val);
-                },
-                onChangeEnd: (val) => unawaited(_seek(val)),
+                onChangeStart: hasDuration ? _startScrubbing : null,
+                onChanged: hasDuration
+                    ? (value) => setState(() => _scrubValue = value)
+                    : null,
+                onChangeEnd: hasDuration
+                    ? (value) => unawaited(_seek(value))
+                    : null,
               ),
             ),
           ),
@@ -954,7 +961,11 @@ class _NowPlayingScrubberState extends ConsumerState<_NowPlayingScrubber>
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  _formatDuration(Duration(milliseconds: curMs.toInt())),
+                  _formatDuration(
+                    hasDuration
+                        ? Duration(milliseconds: curMs.toInt())
+                        : rawPosition,
+                  ),
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
@@ -962,7 +973,7 @@ class _NowPlayingScrubberState extends ConsumerState<_NowPlayingScrubber>
                   ),
                 ),
                 Text(
-                  '-${_formatDuration(remainingDuration)}',
+                  hasDuration ? '-${_formatDuration(remainingDuration)}' : '—',
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w500,

@@ -388,20 +388,27 @@ void main() {
     },
   );
 
-  testWidgets('seek control stays interactive when duration is unknown', (
+  testWidgets('seek control is disabled until duration is known', (
     tester,
   ) async {
     final a = _track('a');
     final fixture = _Fixture(tester);
     await fixture.mount(a, lyrics: {}, duration: Duration.zero);
     final slider = find.byType(Slider);
-    expect(tester.widget<Slider>(slider).max, 1);
+    expect(tester.widget<Slider>(slider).onChanged, isNull);
     expect(find.text('0:00'), findsOneWidget);
-    expect(find.text('-0:00'), findsOneWidget);
+    expect(find.text('—'), findsOneWidget);
     final bounds = tester.getRect(slider);
     await tester.tapAt(Offset(bounds.right - 8, bounds.center.dy));
     await tester.pump();
-    expect(fixture.seeks, [const Duration(milliseconds: 1)]);
+    expect(fixture.seeks, isEmpty);
+    fixture.updates.add(
+      fixture.snapshot.copyWith(duration: const Duration(minutes: 5)),
+    );
+    await tester.pumpAndSettle();
+    expect(tester.widget<Slider>(slider).onChanged, isNotNull);
+    await tester.tapAt(Offset(bounds.right - 8, bounds.center.dy));
+    expect(fixture.seeks.single.inSeconds, greaterThan(285));
   });
 
   testWidgets('twenty-five sequential lyrics panel opens and closes', (
