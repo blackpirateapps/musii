@@ -280,11 +280,11 @@ void main() {
         final userVersionResult = await db
             .customSelect('PRAGMA user_version;')
             .getSingle();
-        expect(userVersionResult.read<int>('user_version'), 10);
+        expect(userVersionResult.read<int>('user_version'), 11);
       },
     );
 
-    test('reproduction: migration from schema v4 to v10 succeeds without duplicate column error', () async {
+    test('reproduction: migration from schema v4 to v11 succeeds without duplicate column error', () async {
       final dbFile = createDbFile('v4_to_v10.sqlite');
 
       final rawDb = raw_sqlite.sqlite3.open(dbFile.path);
@@ -305,7 +305,7 @@ void main() {
       final uvResult = await db
           .customSelect('PRAGMA user_version;')
           .getSingle();
-      expect(uvResult.read<int>('user_version'), 10);
+      expect(uvResult.read<int>('user_version'), 11);
 
       // Verify columns in discovered_files exist and can be inserted/selected
       final now = DateTime.now();
@@ -372,7 +372,7 @@ void main() {
       expect(track.artworkPath, '/path/to/art.jpg');
     });
 
-    test('migration from schema v1 to v10 succeeds seamlessly', () async {
+    test('migration from schema v1 to v11 succeeds seamlessly', () async {
       final dbFile = createDbFile('v1_to_v10.sqlite');
 
       final rawDb = raw_sqlite.sqlite3.open(dbFile.path);
@@ -389,10 +389,10 @@ void main() {
       final uvResult = await db
           .customSelect('PRAGMA user_version;')
           .getSingle();
-      expect(uvResult.read<int>('user_version'), 10);
+      expect(uvResult.read<int>('user_version'), 11);
     });
 
-    test('migration from schema v5 (with legacy discovered_files without is_processed) to v10', () async {
+    test('migration from schema v5 (with legacy discovered_files without is_processed) to v11', () async {
       final dbFile = createDbFile('v5_to_v10.sqlite');
 
       final rawDb = raw_sqlite.sqlite3.open(dbFile.path);
@@ -413,7 +413,7 @@ void main() {
       final uvResult = await db
           .customSelect('PRAGMA user_version;')
           .getSingle();
-      expect(uvResult.read<int>('user_version'), 10);
+      expect(uvResult.read<int>('user_version'), 11);
 
       // Ensure newly added columns can be written and read
       final now = DateTime.now();
@@ -439,7 +439,7 @@ void main() {
       expect(row.processStatus, 'updated');
     });
 
-    test('migration from schema v9 to v10 adds tracks.artwork_path and backfills from albums', () async {
+    test('migration from schema v9 to v11 adds tracks.artwork_path and backfills from albums', () async {
       final dbFile = createDbFile('v9_to_v10.sqlite');
 
       final rawDb = raw_sqlite.sqlite3.open(dbFile.path);
@@ -482,7 +482,7 @@ void main() {
       final uvResult = await db
           .customSelect('PRAGMA user_version;')
           .getSingle();
-      expect(uvResult.read<int>('user_version'), 10);
+      expect(uvResult.read<int>('user_version'), 11);
     });
 
     test('idempotency: re-running onUpgrade with existing tables/columns does not error', () async {
@@ -499,6 +499,59 @@ void main() {
       // Verify database still operates normally
       final tracks = await db.select(db.tracks).get();
       expect(tracks, isEmpty);
+    });
+
+    test('migration from v10 clears unsafe snapshots and leaves ambiguous roots unowned', () async {
+      final dbFile = createDbFile('v10_to_v11.sqlite');
+      final original = AppDatabase(NativeDatabase(dbFile));
+      await original.customStatement("""
+        INSERT INTO users (id, email, created_at) VALUES ('bob', 'bob@example.test', 1)
+      """);
+      await original.customStatement("""
+        INSERT INTO music_sources (id, type, account_email, root_folder_id, created_at)
+        VALUES ('source_gdrive', 'google_drive', 'primary', 'old-folder', 1)
+      """);
+      await original.customStatement("""
+        INSERT INTO sync_runs (id, source_id, started_at, status, discovery_completed, files_discovered)
+        VALUES ('stale', 'source_gdrive', 1, 'running', 1, 1)
+      """);
+      await original.customStatement("""
+        INSERT INTO discovered_files (id, sync_run_id, drive_file_id, name, mime_type, modified_time)
+        VALUES ('stale_audio', 'stale', 'audio', 'Song.mp3', 'audio/mpeg', 1)
+      """);
+      await original.customStatement("""
+        INSERT INTO tracks (id, drive_file_id, source_id, title, normalized_title, created_at, updated_at)
+        VALUES ('track_audio', 'audio', 'source_gdrive', 'Song', 'song', 1, 1)
+      """);
+      for (final (table, column) in [
+        ('sync_runs', 'force_sync'),
+        ('tracks', 'embedded_artwork_path'),
+        ('tracks', 'sidecar_fingerprint'),
+        ('albums', 'drive_artwork_fingerprint'),
+      ]) {
+        await original.customStatement(
+          'ALTER TABLE $table DROP COLUMN $column',
+        );
+      }
+      await original.customStatement('PRAGMA user_version = 10');
+      await original.close();
+
+      final upgraded = AppDatabase(NativeDatabase(dbFile));
+      addTearDown(upgraded.close);
+      final run = await upgraded.select(upgraded.syncRuns).getSingle();
+      expect(run.sourceId, 'source_gdrive');
+      expect(run.discoveryCompleted, isFalse);
+      expect(run.forceSync, isFalse);
+      expect(run.filesDiscovered, 0);
+      expect(await upgraded.select(upgraded.discoveredFiles).get(), isEmpty);
+      expect(
+        (await upgraded.select(upgraded.tracks).getSingle()).id,
+        'track_audio',
+      );
+      expect(
+        (await upgraded.select(upgraded.musicSources).getSingle()).id,
+        'source_gdrive',
+      );
     });
   });
 }

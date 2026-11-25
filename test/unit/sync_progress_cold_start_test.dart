@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:drift/native.dart';
@@ -24,12 +25,17 @@ class StubGoogleDriveRepository implements GoogleDriveRepository {
     String rootFolderId, {
     void Function(int discoveredCount)? onProgress,
     void Function(DriveFileItem file)? onFileDiscovered,
-    void Function(List<String> pendingFolders, Set<String> visitedFolders)?
+    FutureOr<void> Function(
+      List<String> pendingFolders,
+      Set<String> visitedFolders,
+    )?
     onFolderStateChanged,
     List<String>? initialFolderQueue,
     Set<String>? initialVisitedFolders,
     bool Function()? isCancelled,
     Map<String, String?>? folderParentMap,
+    void Function(String folderId, String parentId)? onFolderDiscovered,
+    Future<void>? abortTrigger,
   }) async {
     return const Result.success([]);
   }
@@ -39,12 +45,16 @@ class StubGoogleDriveRepository implements GoogleDriveRepository {
     required String fileId,
     required File destinationFile,
     void Function(int receivedBytes, int totalBytes)? onProgress,
+    Future<void>? abortTrigger,
   }) async {
     throw UnimplementedError();
   }
 
   @override
-  Future<Result<String, AppFailure>> downloadTextFile(String fileId) async {
+  Future<Result<String, AppFailure>> downloadTextFile(
+    String fileId, {
+    Future<void>? abortTrigger,
+  }) async {
     throw UnimplementedError();
   }
 

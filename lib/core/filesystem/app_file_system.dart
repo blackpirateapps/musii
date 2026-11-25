@@ -148,6 +148,25 @@ class AppFileSystem {
     }
   }
 
+  Future<void> removeUnreferencedAudio(Set<String> retainedPaths) async {
+    if (!await audioCacheDir.exists()) return;
+    await for (final entry in audioCacheDir.list()) {
+      if (entry is File &&
+          !entry.path.endsWith('.partial') &&
+          !retainedPaths.contains(entry.path)) {
+        try {
+          await entry.delete();
+        } on FileSystemException catch (error) {
+          AppLogger.warning(
+            LogCategory.cache,
+            'Could not remove unreferenced audio',
+            error,
+          );
+        }
+      }
+    }
+  }
+
   Future<int> getAudioCacheSizeBytes() async {
     if (!await audioCacheDir.exists()) return 0;
     int total = 0;

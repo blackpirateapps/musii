@@ -59,10 +59,9 @@ final googleDriveRepositoryProvider = Provider<GoogleDriveRepository>((ref) {
 });
 
 // Metadata
-final metadataExtractorProvider = Provider<MetadataExtractor>((ref) {
-  final fs = ref.watch(appFileSystemProvider);
-  return MetadataExtractor(fileSystem: fs);
-});
+final metadataExtractorProvider = Provider<MetadataExtractor>(
+  (ref) => MetadataExtractor(),
+);
 
 // Cache
 final cacheRepositoryProvider = Provider<CacheRepository>((ref) {
@@ -264,14 +263,17 @@ final musicLibraryRepositoryProvider = Provider<MusicLibraryRepository>((ref) {
   final fs = ref.watch(appFileSystemProvider);
   final downloader = ref.watch(artistArtworkDownloaderProvider);
 
-  return MusicLibraryRepositoryImpl(
+  final repository = MusicLibraryRepositoryImpl(
     database: db,
     driveRepository: drive,
+    authRepository: ref.watch(authRepositoryProvider),
     metadataExtractor: extractor,
     lyricsRepository: lyrics,
     fileSystem: fs,
     artistArtworkDownloader: downloader,
   );
+  ref.onDispose(repository.dispose);
+  return repository;
 });
 
 final allTracksProvider = StreamProvider.family<List<Track>, String?>((

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:convert';
 import 'dart:io';
 
@@ -20,7 +21,18 @@ class _AuthenticatedHttpClient extends http.BaseClient {
 
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
-    final tokenResult = await _authRepository.getAccessToken();
+    final pendingToken = _authRepository.getAccessToken();
+    final abort = request is http.AbortableRequest
+        ? request.abortTrigger
+        : null;
+    final tokenResult = abort == null
+        ? await pendingToken
+        : await Future.any([
+            pendingToken,
+            abort.then<Result<String, AppFailure>>(
+              (_) => throw http.RequestAbortedException(request.url),
+            ),
+          ]);
     if (tokenResult.isFailure) {
       throw const AuthenticationFailure('Not authenticated with Google');
     }
@@ -38,6 +50,29 @@ class _AuthenticatedHttpClient extends http.BaseClient {
   }
 }
 
+class _AbortableClient extends http.BaseClient {
+  final http.Client _delegate;
+  final Future<void> _abortTrigger;
+
+  _AbortableClient(this._delegate, this._abortTrigger);
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    final abortable =
+        http.AbortableRequest(
+            request.method,
+            request.url,
+            abortTrigger: _abortTrigger,
+          )
+          ..headers.addAll(request.headers)
+          ..followRedirects = request.followRedirects
+          ..maxRedirects = request.maxRedirects
+          ..persistentConnection = request.persistentConnection;
+    if (request is http.Request) abortable.bodyBytes = request.bodyBytes;
+    return _delegate.send(abortable);
+  }
+}
+
 class GoogleDriveRepositoryImpl implements GoogleDriveRepository {
   final AuthRepository _authRepository;
   final http.Client _client;
@@ -48,42 +83,108 @@ class GoogleDriveRepositoryImpl implements GoogleDriveRepository {
   }) : _authRepository = authRepository,
        _client = client ?? _AuthenticatedHttpClient(authRepository);
 
-  drive.DriveApi _getDriveApi() => drive.DriveApi(_client);
+  drive.DriveApi _getDriveApi([Future<void>? abortTrigger]) => drive.DriveApi(
+    abortTrigger == null ? _client : _AbortableClient(_client, abortTrigger),
+  );
+
+  static const _folderMime = 'application/vnd.google-apps.folder';
+  static const _shortcutMime = 'application/vnd.google-apps.shortcut';
+
+  Future<void> _forEachFolderPage(
+    drive.DriveApi api,
+    String parentId,
+    String fields,
+    Future<void> Function(List<drive.File>) visit, {
+    bool Function()? isCancelled,
+    String? filter,
+  }) async {
+    String? token;
+    final seenTokens = <String>{};
+    do {
+      if (isCancelled?.call() == true) return;
+      final page = await api.files.list(
+        q: "'$parentId' in parents and trashed = false${filter == null ? '' : ' and $filter'}",
+        $fields: 'nextPageToken,incompleteSearch,files($fields)',
+        orderBy: 'name',
+        pageSize: 100,
+        pageToken: token,
+        spaces: 'drive',
+        supportsAllDrives: true,
+        includeItemsFromAllDrives: true,
+      );
+      if (isCancelled?.call() == true) return;
+      if (page.incompleteSearch == true) {
+        throw const DriveApiFailure(
+          'Google Drive returned an incomplete folder listing.',
+        );
+      }
+      await visit(page.files ?? const []);
+      token = page.nextPageToken;
+      if (token != null && !seenTokens.add(token)) {
+        throw const DriveApiFailure(
+          'Google Drive repeated a folder page token.',
+        );
+      }
+    } while (token != null);
+  }
 
   @override
   Future<Result<List<DriveFolderItem>, AppFailure>> listFolders({
     String? parentFolderId,
   }) async {
     try {
-      final driveApi = _getDriveApi();
+      final api = _getDriveApi();
       final parentId = parentFolderId ?? 'root';
-      final query =
-          "mimeType = 'application/vnd.google-apps.folder' and '$parentId' in parents and trashed = false";
-
-      AppLogger.debug(
-        LogCategory.drive,
-        'Listing folders for parent: $parentId',
+      final folders = <String, DriveFolderItem>{};
+      await _forEachFolderPage(
+        api,
+        parentId,
+        'id,name,mimeType,parents,shortcutDetails(targetId,targetMimeType)',
+        (files) async {
+          for (final file in files) {
+            final id = _folderTargetId(file);
+            if (id == null || id == parentId) continue;
+            folders.putIfAbsent(
+              id,
+              () => DriveFolderItem(
+                id: id,
+                name: file.name ?? 'Untitled Folder',
+                parentFolderId: parentId,
+              ),
+            );
+          }
+        },
+        filter: "(mimeType = '$_folderMime' or mimeType = '$_shortcutMime')",
       );
-
-      final fileList = await driveApi.files.list(
-        q: query,
-        $fields: 'files(id,name,parents)',
-        orderBy: 'name',
-        pageSize: 100,
-        spaces: 'drive',
-      );
-
-      final folders = (fileList.files ?? []).map((f) {
-        return DriveFolderItem(
-          id: f.id ?? '',
-          name: f.name ?? 'Untitled Folder',
-          parentFolderId: (f.parents != null && f.parents!.isNotEmpty)
-              ? f.parents!.first
-              : null,
-        );
-      }).toList();
-
-      return Result.success(folders);
+      if (parentId == 'root') {
+        String? token;
+        final seenTokens = <String>{};
+        do {
+          final page = await api.drives.list(
+            $fields: 'nextPageToken,drives(id,name)',
+            pageSize: 100,
+            pageToken: token,
+          );
+          for (final sharedDrive in page.drives ?? <drive.Drive>[]) {
+            final id = sharedDrive.id;
+            if (id == null) continue;
+            folders.putIfAbsent(
+              id,
+              () => DriveFolderItem(
+                id: id,
+                name: sharedDrive.name ?? 'Shared drive',
+              ),
+            );
+          }
+          token = page.nextPageToken;
+          if (token != null && !seenTokens.add(token)) {
+            throw const DriveApiFailure(
+              'Google Drive repeated a shared drive page token.',
+            );
+          }
+        } while (token != null);
+      }
+      return Result.success(folders.values.toList());
     } catch (e, st) {
       AppLogger.error(LogCategory.drive, 'Failed to list folders', e, st);
       return Result.failure(
@@ -96,134 +197,92 @@ class GoogleDriveRepositoryImpl implements GoogleDriveRepository {
     }
   }
 
+  String? _folderTargetId(drive.File file) {
+    if (file.mimeType == _folderMime) return file.id;
+    final shortcut = file.shortcutDetails;
+    return file.mimeType == _shortcutMime &&
+            shortcut?.targetMimeType == _folderMime
+        ? shortcut?.targetId
+        : null;
+  }
+
   @override
   Future<Result<List<DriveFileItem>, AppFailure>> listAudioFilesRecursively(
     String rootFolderId, {
     void Function(int discoveredCount)? onProgress,
     void Function(DriveFileItem file)? onFileDiscovered,
-    void Function(List<String> pendingFolders, Set<String> visitedFolders)?
+    FutureOr<void> Function(
+      List<String> pendingFolders,
+      Set<String> visitedFolders,
+    )?
     onFolderStateChanged,
     List<String>? initialFolderQueue,
     Set<String>? initialVisitedFolders,
     bool Function()? isCancelled,
     Map<String, String?>? folderParentMap,
+    void Function(String folderId, String parentId)? onFolderDiscovered,
+    Future<void>? abortTrigger,
   }) async {
     try {
-      final driveApi = _getDriveApi();
-      final List<DriveFileItem> discoveredAudio = [];
-      final List<String> folderQueue =
-          (initialFolderQueue != null && initialFolderQueue.isNotEmpty)
-          ? List<String>.from(initialFolderQueue)
-          : [rootFolderId];
-      final Set<String> visitedFolders =
-          (initialVisitedFolders != null && initialVisitedFolders.isNotEmpty)
-          ? Set<String>.from(initialVisitedFolders)
-          : {};
+      final api = _getDriveApi(abortTrigger);
+      final discovered = <String, DriveFileItem>{};
+      final queue = Queue<String>.of(initialFolderQueue ?? [rootFolderId]);
+      final queued = queue.toSet();
+      final visited = {...?initialVisitedFolders};
+      var audioCount = 0;
 
-      AppLogger.info(
-        LogCategory.drive,
-        'Beginning recursive scan of Drive folder: $rootFolderId (Queue: ${folderQueue.length}, Visited: ${visitedFolders.length})',
-      );
+      while (queue.isNotEmpty && isCancelled?.call() != true) {
+        final folderId = queue.removeFirst();
+        queued.remove(folderId);
+        if (visited.contains(folderId)) continue;
+        final filesInFolder = <String, DriveFileItem>{};
+        final children = <String>{};
 
-      while (folderQueue.isNotEmpty) {
-        if (isCancelled?.call() == true) {
-          AppLogger.info(
-            LogCategory.drive,
-            'Recursive scan stopped by cancellation token',
-          );
-          break;
-        }
-        final currentFolderId = folderQueue.removeAt(0);
-        if (visitedFolders.contains(currentFolderId)) continue;
-        visitedFolders.add(currentFolderId);
-        onFolderStateChanged?.call(folderQueue, visitedFolders);
-
-        String? pageToken;
-        do {
-          if (isCancelled?.call() == true) {
-            AppLogger.info(
-              LogCategory.drive,
-              'Recursive scan stopped by cancellation token',
-            );
-            break;
-          }
-          final query = "'$currentFolderId' in parents and trashed = false";
-          final result = await driveApi.files.list(
-            q: query,
-            $fields: 'nextPageToken,files(id,name,mimeType,size,modifiedTime,md5Checksum,parents)',
-            pageSize: 100,
-            pageToken: pageToken,
-            spaces: 'drive',
-          );
-
-          final files = result.files ?? [];
-          for (final f in files) {
-            final fId = f.id;
-            final name = f.name ?? '';
-            final mime = f.mimeType ?? '';
-            if (fId == null) continue;
-
-            if (mime == 'application/vnd.google-apps.folder') {
-              folderParentMap?[fId] = currentFolderId;
-              if (!visitedFolders.contains(fId) && !folderQueue.contains(fId)) {
-                folderQueue.add(fId);
-                onFolderStateChanged?.call(folderQueue, visitedFolders);
-              }
-            } else {
-              final ext = name.contains('.')
-                  ? name.split('.').last.toLowerCase()
-                  : '';
-              final isAudioExt = AppAudioConstants.supportedExtensions.contains(
-                ext,
-              );
-              final isAudioMime =
-                  mime.startsWith('audio/') ||
-                  AppAudioConstants.supportedMimeTypes.contains(mime);
-              final isLrc = ext == 'lrc';
-              final isImage = AppImageConstants.isImageFile(name, mime);
-
-              if (isAudioExt || isAudioMime || isLrc || isImage) {
-                final sizeBytes = int.tryParse(f.size ?? '0') ?? 0;
-                final fileItem = DriveFileItem(
-                  id: fId,
-                  name: name,
-                  mimeType: mime.isNotEmpty
-                      ? mime
-                      : (isLrc
-                            ? 'text/plain'
-                            : (isImage ? 'image/jpeg' : 'audio/mpeg')),
-                  size: sizeBytes,
-                  modifiedTime: f.modifiedTime,
-                  md5Checksum: f.md5Checksum,
-                  parentFolderId: currentFolderId,
-                  isLrc: isLrc,
-                  isImage: isImage,
-                );
-                discoveredAudio.add(fileItem);
-                onFileDiscovered?.call(fileItem);
-                if (!isLrc && !isImage) {
-                  onProgress?.call(
-                    discoveredAudio
-                        .where((item) => !item.isLrc && !item.isImage)
-                        .length,
-                  );
+        await _forEachFolderPage(
+          api,
+          folderId,
+          'id,name,mimeType,size,modifiedTime,md5Checksum,shortcutDetails(targetId,targetMimeType)',
+          (files) async {
+            for (final file in files) {
+              if (isCancelled?.call() == true) return;
+              final child = _folderTargetId(file);
+              if (child != null) {
+                if (child != folderId &&
+                    !visited.contains(child) &&
+                    !queued.contains(child)) {
+                  children.add(child);
                 }
+                continue;
+              }
+              final item = await _readMusicItem(api, file, folderId);
+              if (item != null && !discovered.containsKey(item.id)) {
+                filesInFolder.putIfAbsent(item.id, () => item);
               }
             }
-          }
-          pageToken = result.nextPageToken;
-        } while (pageToken != null);
+          },
+          isCancelled: isCancelled,
+        );
+        if (isCancelled?.call() == true) break;
+
+        for (final child in children) {
+          queue.add(child);
+          queued.add(child);
+          folderParentMap?[child] = folderId;
+          onFolderDiscovered?.call(child, folderId);
+        }
+        visited.add(folderId);
+        for (final item in filesInFolder.values) {
+          discovered[item.id] = item;
+          onFileDiscovered?.call(item);
+          if (!item.isLrc && !item.isImage) audioCount++;
+        }
+        await onFolderStateChanged?.call(queue.toList(), visited);
+        onProgress?.call(audioCount);
       }
 
-      onFolderStateChanged?.call(folderQueue, visitedFolders);
-
-      AppLogger.info(
-        LogCategory.drive,
-        'Recursive scan completed. Discovered ${discoveredAudio.length} items (${discoveredAudio.where((i) => !i.isLrc && !i.isImage).length} audio, ${discoveredAudio.where((i) => i.isLrc).length} lrc, ${discoveredAudio.where((i) => i.isImage).length} image).',
-      );
-
-      return Result.success(discoveredAudio);
+      return Result.success(discovered.values.toList());
     } catch (e, st) {
+      if (isCancelled?.call() == true) return const Result.success([]);
       AppLogger.error(
         LogCategory.drive,
         'Error during recursive audio scan',
@@ -231,13 +290,60 @@ class GoogleDriveRepositoryImpl implements GoogleDriveRepository {
         st,
       );
       return Result.failure(
-        DriveApiFailure(
-          'Failed while scanning Google Drive for music files',
-          technicalDetails: e.toString(),
-          cause: e,
-        ),
+        e is AppFailure
+            ? e
+            : DriveApiFailure(
+                'Failed while scanning Google Drive for music files',
+                technicalDetails: e.toString(),
+                cause: e,
+              ),
       );
     }
+  }
+
+  Future<DriveFileItem?> _readMusicItem(
+    drive.DriveApi api,
+    drive.File file,
+    String folderId,
+  ) async {
+    final shortcut = file.mimeType == _shortcutMime
+        ? file.shortcutDetails
+        : null;
+    final id = shortcut?.targetId ?? file.id;
+    if (id == null || (shortcut != null && shortcut.targetId == null)) {
+      return null;
+    }
+    final name = file.name ?? '';
+    final mime = shortcut?.targetMimeType ?? file.mimeType ?? '';
+    final ext = name.contains('.') ? name.split('.').last.toLowerCase() : '';
+    final isLrc = ext == 'lrc';
+    final isImage = AppImageConstants.isImageFile(name, mime);
+    if (!isLrc &&
+        !isImage &&
+        !mime.startsWith('audio/') &&
+        !AppAudioConstants.supportedMimeTypes.contains(mime) &&
+        !AppAudioConstants.supportedExtensions.contains(ext)) {
+      return null;
+    }
+    final metadata = shortcut == null
+        ? file
+        : await api.files.get(
+            id,
+            supportsAllDrives: true,
+            $fields: 'size,modifiedTime,md5Checksum,trashed',
+          ) as drive.File;
+    if (metadata.trashed == true) return null;
+    return DriveFileItem(
+      id: id,
+      name: name,
+      mimeType: mime,
+      size: int.tryParse(metadata.size ?? '') ?? 0,
+      modifiedTime: metadata.modifiedTime,
+      md5Checksum: metadata.md5Checksum,
+      parentFolderId: folderId,
+      isLrc: isLrc,
+      isImage: isImage,
+    );
   }
 
   @override
@@ -245,9 +351,11 @@ class GoogleDriveRepositoryImpl implements GoogleDriveRepository {
     required String fileId,
     required File destinationFile,
     void Function(int receivedBytes, int totalBytes)? onProgress,
+    Future<void>? abortTrigger,
   }) async {
+    IOSink? sink;
     try {
-      final driveApi = _getDriveApi();
+      final driveApi = _getDriveApi(abortTrigger);
       AppLogger.debug(
         LogCategory.drive,
         'Downloading Drive file $fileId to ${destinationFile.path}',
@@ -256,12 +364,14 @@ class GoogleDriveRepositoryImpl implements GoogleDriveRepository {
       final media = await driveApi.files.get(
         fileId,
         downloadOptions: drive.DownloadOptions.fullMedia,
+        supportsAllDrives: true,
       ) as drive.Media;
 
       final totalBytes = media.length ?? 0;
       int receivedBytes = 0;
 
-      final sink = destinationFile.openWrite();
+      sink = destinationFile.openWrite();
+      unawaited(sink.done.catchError((Object _) {}));
 
       await for (final chunk in media.stream) {
         sink.add(chunk);
@@ -285,6 +395,9 @@ class GoogleDriveRepositoryImpl implements GoogleDriveRepository {
         st,
       );
       try {
+        await sink?.close();
+      } catch (_) {}
+      try {
         if (await destinationFile.exists()) {
           await destinationFile.delete();
         }
@@ -301,14 +414,18 @@ class GoogleDriveRepositoryImpl implements GoogleDriveRepository {
   }
 
   @override
-  Future<Result<String, AppFailure>> downloadTextFile(String fileId) async {
+  Future<Result<String, AppFailure>> downloadTextFile(
+    String fileId, {
+    Future<void>? abortTrigger,
+  }) async {
     try {
-      final driveApi = _getDriveApi();
+      final driveApi = _getDriveApi(abortTrigger);
       AppLogger.debug(LogCategory.drive, 'Downloading text file $fileId');
 
       final media = await driveApi.files.get(
         fileId,
         downloadOptions: drive.DownloadOptions.fullMedia,
+        supportsAllDrives: true,
       ) as drive.Media;
 
       final bytes = <int>[];
@@ -349,7 +466,7 @@ class GoogleDriveRepositoryImpl implements GoogleDriveRepository {
       final token = tokenResult.dataOrNull;
 
       final uri = Uri.parse(
-        'https://www.googleapis.com/drive/v3/files/$fileId?alt=media',
+        'https://www.googleapis.com/drive/v3/files/$fileId?alt=media&supportsAllDrives=true',
       );
 
       final response = await http.get(

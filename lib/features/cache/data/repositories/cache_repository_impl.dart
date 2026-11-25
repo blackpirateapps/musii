@@ -35,36 +35,42 @@ class CacheRepositoryImpl implements CacheRepository {
     _currentlyPlayingTrackId = trackId;
   }
 
-  @override
-  Future<bool> isTrackCached(String trackId) async {
-    final entry = await (_database.select(
-      _database.cacheEntries,
-    )..where((tbl) => tbl.trackId.equals(trackId))).getSingleOrNull();
-
-    if (entry == null || entry.state != 'cached') return false;
-    return File(entry.localPath).exists();
-  }
+  Future<TrackRow?> _findTrack(String trackId) => (_database.select(
+    _database.tracks,
+  )..where((row) => row.id.equals(trackId))).getSingleOrNull();
 
   @override
-  Future<File?> getCachedAudioFile(String trackId) async {
-    final entry = await (_database.select(
-      _database.cacheEntries,
-    )..where((tbl) => tbl.trackId.equals(trackId))).getSingleOrNull();
+  Future<bool> isTrackCached(String trackId) async =>
+      await _cachedAudioFile(trackId, touch: false) != null;
 
-    if (entry != null && entry.state == 'cached') {
-      final file = File(entry.localPath);
-      if (await file.exists()) {
-        // Update last accessed
-        await (_database.update(
+  @override
+  Future<File?> getCachedAudioFile(String trackId) =>
+      _cachedAudioFile(trackId, touch: true);
+
+  Future<File?> _cachedAudioFile(String trackId, {required bool touch}) =>
+      _database.transaction(() async {
+        final track = await _findTrack(trackId);
+        if (track == null) return null;
+        final entry = await (_database.select(
           _database.cacheEntries,
-        )..where((tbl) => tbl.trackId.equals(trackId))).write(
-          CacheEntriesCompanion(lastAccessedAt: Value(DateTime.now())),
-        );
+        )..where((row) => row.trackId.equals(trackId))).getSingleOrNull();
+        if (entry == null ||
+            entry.state != 'cached' ||
+            (entry.driveVersion != null &&
+                entry.driveVersion != track.driveAudioVersion)) {
+          return null;
+        }
+        final file = File(entry.localPath);
+        if (!await file.exists()) return null;
+        if (touch) {
+          await (_database.update(
+            _database.cacheEntries,
+          )..where((row) => row.trackId.equals(trackId))).write(
+            CacheEntriesCompanion(lastAccessedAt: Value(DateTime.now())),
+          );
+        }
         return file;
-      }
-    }
-    return null;
-  }
+      });
 
   @override
   Stream<double?> watchDownloadProgress(String trackId) {
@@ -102,112 +108,113 @@ class CacheRepositoryImpl implements CacheRepository {
     Track track, {
     void Function(double progress)? onProgress,
   }) async {
+    File? partialFile;
     try {
-      // 1. Check if already cached
-      final existingFile = await getCachedAudioFile(track.id);
-      if (existingFile != null) {
-        AppLogger.debug(
-          LogCategory.cache,
-          'Track ${track.id} already cached at ${existingFile.path}',
-        );
-        return Result.success(existingFile);
-      }
-
-      // 2. Ensure cache storage limit before downloading
+      final existing = await getCachedAudioFile(track.id);
+      if (existing != null) return Result.success(existing);
       await evictLruCache();
 
-      // 3. Prepare partial and destination files
-      final ext = track.format?.toLowerCase() ?? 'mp3';
-      final partialFile = _fileSystem.getPartialAudioCacheFile(track.id, ext);
-      final targetFile = _fileSystem.getAudioCacheFile(track.id, ext);
+      final reservation = await _database.transaction(() async {
+        final latest = await _findTrack(track.id);
+        if (latest == null) return null;
+        final extension = latest.format?.toLowerCase() ?? 'mp3';
+        final target = _fileSystem.getAudioCacheFile(track.id, extension);
+        final version = latest.driveAudioVersion;
+        await _database
+            .into(_database.cacheEntries)
+            .insertOnConflictUpdate(
+              CacheEntriesCompanion.insert(
+                id: track.id,
+                trackId: track.id,
+                driveFileId: latest.driveFileId,
+                localPath: target.path,
+                fileSize: latest.fileSize,
+                state: 'downloading',
+                lastAccessedAt: DateTime.now(),
+                driveVersion: Value(version),
+                isPinnedOffline: Value(latest.isPinnedOffline),
+              ),
+            );
+        return (latest.driveFileId, target, version);
+      });
+      if (reservation == null) {
+        return const Result.failure(
+          CacheFailure('Track is no longer in the library.'),
+        );
+      }
+      final (driveId, target, version) = reservation;
+      final staging = File(
+        '${target.path}.${DateTime.now().microsecondsSinceEpoch}.partial',
+      );
+      partialFile = staging;
 
-      // Record downloading state
-      await _database
-          .into(_database.cacheEntries)
-          .insertOnConflictUpdate(
-            CacheEntriesCompanion(
-              id: Value(track.id),
-              trackId: Value(track.id),
-              driveFileId: Value(track.driveFileId),
-              localPath: Value(targetFile.path),
-              fileSize: Value(track.fileSize),
-              state: const Value('downloading'),
-              lastAccessedAt: Value(DateTime.now()),
-            ),
-          );
-
-      _emitProgress(track.id, 0.0);
-
-      // 4. Download from Drive to partial file
-      final downloadResult = await _driveRepository.downloadFile(
-        fileId: track.driveFileId,
-        destinationFile: partialFile,
+      _emitProgress(track.id, 0);
+      final download = await _driveRepository.downloadFile(
+        fileId: driveId,
+        destinationFile: staging,
         onProgress: (received, total) {
-          final progress = total > 0 ? (received / total) : 0.0;
+          final progress = total > 0 ? received / total : 0.0;
           onProgress?.call(progress);
           _emitProgress(track.id, progress);
         },
       );
-
-      if (downloadResult.isFailure) {
-        await _database
-            .into(_database.cacheEntries)
-            .insertOnConflictUpdate(
-              CacheEntriesCompanion(
-                id: Value(track.id),
-                trackId: Value(track.id),
-                driveFileId: Value(track.driveFileId),
-                localPath: Value(targetFile.path),
-                fileSize: const Value(0),
-                state: const Value('failed'),
-                lastAccessedAt: Value(DateTime.now()),
+      if (download.isFailure) {
+        await (_database.update(_database.cacheEntries)..where(
+              (row) =>
+                  row.trackId.equals(track.id) &
+                  row.driveVersion.equals(version) &
+                  row.state.equals('downloading'),
+            ))
+            .write(
+              const CacheEntriesCompanion(
+                fileSize: Value(0),
+                state: Value('failed'),
               ),
             );
-        _emitProgress(track.id, null);
-        return Result.failure(downloadResult.failureOrNull!);
+        return Result.failure(download.failureOrNull!);
       }
 
-      // 5. Atomic commit
-      final committedFile = await _fileSystem.atomicCommitFile(
-        partialFile,
-        targetFile,
-      );
-      final finalSize = await committedFile.length();
-
-      // 6. Update database record to cached
-      await _database
-          .into(_database.cacheEntries)
-          .insertOnConflictUpdate(
-            CacheEntriesCompanion(
-              id: Value(track.id),
-              trackId: Value(track.id),
-              driveFileId: Value(track.driveFileId),
-              localPath: Value(committedFile.path),
-              fileSize: Value(finalSize),
-              state: const Value('cached'),
-              downloadedAt: Value(DateTime.now()),
-              lastAccessedAt: Value(DateTime.now()),
-            ),
-          );
-
-      await (_database.update(
-        _database.tracks,
-      )..where((tbl) => tbl.id.equals(track.id))).write(
-        TracksCompanion(
-          isCached: const Value(true),
-          localPath: Value(committedFile.path),
-        ),
-      );
-
+      final committed = await _database.transaction(() async {
+        final latest = await _findTrack(track.id);
+        if (latest == null || latest.driveAudioVersion != version) return false;
+        final entry =
+            await (_database.select(_database.cacheEntries)..where(
+                  (row) =>
+                      row.trackId.equals(track.id) &
+                      row.driveVersion.equals(version),
+                ))
+                .getSingleOrNull();
+        if (entry == null) return false;
+        final size = await staging.length();
+        await staging.rename(target.path);
+        await (_database.update(
+          _database.cacheEntries,
+        )..where((row) => row.trackId.equals(track.id))).write(
+          CacheEntriesCompanion(
+            fileSize: Value(size),
+            state: const Value('cached'),
+            downloadedAt: Value(DateTime.now()),
+            lastAccessedAt: Value(DateTime.now()),
+            isPinnedOffline: Value(latest.isPinnedOffline),
+          ),
+        );
+        await (_database.update(
+          _database.tracks,
+        )..where((row) => row.id.equals(track.id))).write(
+          TracksCompanion(
+            isCached: const Value(true),
+            localPath: Value(target.path),
+          ),
+        );
+        return true;
+      });
+      if (!committed) {
+        return const Result.failure(
+          CacheFailure('Track changed while downloading. Try again.'),
+        );
+      }
       _emitProgress(track.id, 1.0);
-      _emitProgress(track.id, null);
-
-      AppLogger.info(
-        LogCategory.cache,
-        'Successfully cached track ${track.title} (${track.id})',
-      );
-
-      return Result.success(committedFile);
+      return Result.success(target);
     } catch (e, st) {
       AppLogger.error(
         LogCategory.cache,
@@ -215,12 +222,31 @@ class CacheRepositoryImpl implements CacheRepository {
         e,
         st,
       );
-      _emitProgress(track.id, null);
       return Result.failure(
         CacheFailure('Failed to cache track: ${track.title}', cause: e),
       );
+    } finally {
+      _emitProgress(track.id, null);
+      if (partialFile != null) {
+        try {
+          if (await partialFile.exists()) await partialFile.delete();
+        } on FileSystemException catch (error) {
+          AppLogger.warning(
+            LogCategory.cache,
+            'Could not remove partial audio',
+            error,
+          );
+        }
+      }
     }
   }
+
+  Future<void> _removeUnreferencedAudio() => _database.transaction(() async {
+    final entries = await _database.select(_database.cacheEntries).get();
+    await _fileSystem.removeUnreferencedAudio(
+      entries.map((entry) => entry.localPath).toSet(),
+    );
+  });
 
   @override
   Future<Result<void, AppFailure>> pinTrackOffline(String trackId) async {
@@ -283,57 +309,63 @@ class CacheRepositoryImpl implements CacheRepository {
   @override
   Future<Result<void, AppFailure>> evictLruCache({int? targetSizeBytes}) async {
     try {
-      final maxAllowedBytes =
-          targetSizeBytes ?? AppAudioConstants.defaultCacheSizeBytes;
-      int currentTotal = await getTotalCacheSize();
+      return await _database.transaction(() async {
+        await _removeUnreferencedAudio();
+        final maxAllowedBytes =
+            targetSizeBytes ?? AppAudioConstants.defaultCacheSizeBytes;
+        int currentTotal = await getTotalCacheSize();
 
-      if (currentTotal <= maxAllowedBytes) {
-        return const Result.success(null);
-      }
-
-      AppLogger.info(
-        LogCategory.cache,
-        'Cache exceeds threshold ($currentTotal > $maxAllowedBytes). Starting LRU eviction.',
-      );
-
-      // Query LRU non-pinned tracks
-      final candidates =
-          await (_database.select(_database.cacheEntries)
-                ..where(
-                  (tbl) =>
-                      tbl.isPinnedOffline.equals(false) &
-                      tbl.state.equals('cached'),
-                )
-                ..orderBy([(tbl) => OrderingTerm.asc(tbl.lastAccessedAt)]))
-              .get();
-
-      for (final entry in candidates) {
-        if (entry.trackId == _currentlyPlayingTrackId) continue;
-
-        final file = File(entry.localPath);
-        if (await file.exists()) {
-          final size = await file.length();
-          await file.delete();
-          currentTotal -= size;
+        if (currentTotal <= maxAllowedBytes) {
+          return const Result.success(null);
         }
 
-        // Update database
-        await (_database.delete(
-          _database.cacheEntries,
-        )..where((tbl) => tbl.id.equals(entry.id))).go();
-
-        await (_database.update(
-          _database.tracks,
-        )..where((tbl) => tbl.id.equals(entry.trackId))).write(
-          const TracksCompanion(isCached: Value(false), localPath: Value(null)),
+        AppLogger.info(
+          LogCategory.cache,
+          'Cache exceeds threshold ($currentTotal > $maxAllowedBytes). Starting LRU eviction.',
         );
 
-        if (currentTotal <= (maxAllowedBytes * 0.90)) {
-          break; // Safely below watermark
-        }
-      }
+        // Query LRU non-pinned tracks
+        final candidates =
+            await (_database.select(_database.cacheEntries)
+                  ..where(
+                    (tbl) =>
+                        tbl.isPinnedOffline.equals(false) &
+                        tbl.state.equals('cached'),
+                  )
+                  ..orderBy([(tbl) => OrderingTerm.asc(tbl.lastAccessedAt)]))
+                .get();
 
-      return const Result.success(null);
+        for (final entry in candidates) {
+          if (entry.trackId == _currentlyPlayingTrackId) continue;
+
+          final file = File(entry.localPath);
+          if (await file.exists()) {
+            final size = await file.length();
+            await file.delete();
+            currentTotal -= size;
+          }
+
+          // Update database
+          await (_database.delete(
+            _database.cacheEntries,
+          )..where((tbl) => tbl.id.equals(entry.id))).go();
+
+          await (_database.update(
+            _database.tracks,
+          )..where((tbl) => tbl.id.equals(entry.trackId))).write(
+            const TracksCompanion(
+              isCached: Value(false),
+              localPath: Value(null),
+            ),
+          );
+
+          if (currentTotal <= (maxAllowedBytes * 0.90)) {
+            break; // Safely below watermark
+          }
+        }
+
+        return const Result<void, AppFailure>.success(null);
+      });
     } catch (e) {
       AppLogger.error(LogCategory.cache, 'Error during LRU eviction', e);
       return Result.failure(
@@ -347,32 +379,38 @@ class CacheRepositoryImpl implements CacheRepository {
     bool includePinned = false,
   }) async {
     try {
-      var query = _database.select(_database.cacheEntries);
-      if (!includePinned) {
-        query = query..where((tbl) => tbl.isPinnedOffline.equals(false));
-      }
-
-      final entries = await query.get();
-      for (final entry in entries) {
-        if (entry.trackId == _currentlyPlayingTrackId) continue;
-
-        final file = File(entry.localPath);
-        if (await file.exists()) {
-          await file.delete();
+      return await _database.transaction(() async {
+        await _removeUnreferencedAudio();
+        var query = _database.select(_database.cacheEntries);
+        if (!includePinned) {
+          query = query..where((tbl) => tbl.isPinnedOffline.equals(false));
         }
 
-        await (_database.delete(
-          _database.cacheEntries,
-        )..where((tbl) => tbl.id.equals(entry.id))).go();
+        final entries = await query.get();
+        for (final entry in entries) {
+          if (entry.trackId == _currentlyPlayingTrackId) continue;
 
-        await (_database.update(
-          _database.tracks,
-        )..where((tbl) => tbl.id.equals(entry.trackId))).write(
-          const TracksCompanion(isCached: Value(false), localPath: Value(null)),
-        );
-      }
+          final file = File(entry.localPath);
+          if (await file.exists()) {
+            await file.delete();
+          }
 
-      return const Result.success(null);
+          await (_database.delete(
+            _database.cacheEntries,
+          )..where((tbl) => tbl.id.equals(entry.id))).go();
+
+          await (_database.update(
+            _database.tracks,
+          )..where((tbl) => tbl.id.equals(entry.trackId))).write(
+            const TracksCompanion(
+              isCached: Value(false),
+              localPath: Value(null),
+            ),
+          );
+        }
+
+        return const Result<void, AppFailure>.success(null);
+      });
     } catch (e) {
       return Result.failure(CacheFailure('Failed to clear cache', cause: e));
     }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -24,12 +26,17 @@ class MockGoogleDriveRepository implements GoogleDriveRepository {
     String rootFolderId, {
     void Function(int discoveredCount)? onProgress,
     void Function(DriveFileItem file)? onFileDiscovered,
-    void Function(List<String> pendingFolders, Set<String> visitedFolders)?
+    FutureOr<void> Function(
+      List<String> pendingFolders,
+      Set<String> visitedFolders,
+    )?
     onFolderStateChanged,
     List<String>? initialFolderQueue,
     Set<String>? initialVisitedFolders,
     bool Function()? isCancelled,
     Map<String, String?>? folderParentMap,
+    void Function(String folderId, String parentId)? onFolderDiscovered,
+    Future<void>? abortTrigger,
   }) async {
     return const Result.success([]);
   }

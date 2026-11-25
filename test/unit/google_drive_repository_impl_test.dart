@@ -49,11 +49,13 @@ void main() {
               {
                 'id': 'folder_music',
                 'name': 'Music',
+                'mimeType': 'application/vnd.google-apps.folder',
                 'parents': ['root'],
               },
               {
                 'id': 'folder_podcasts',
                 'name': 'Podcasts',
+                'mimeType': 'application/vnd.google-apps.folder',
                 'parents': ['root'],
               },
             ],
@@ -62,6 +64,13 @@ void main() {
             jsonEncode(responseJson),
             200,
             headers: {'content-type': 'application/json; charset=utf-8'},
+          );
+        }
+        if (request.url.path.endsWith('/drives')) {
+          return http.Response(
+            '{"drives":[]}',
+            200,
+            headers: {'content-type': 'application/json'},
           );
         }
         return http.Response('Not found', 404);
@@ -81,7 +90,12 @@ void main() {
       expect(folders[1].name, equals('Podcasts'));
 
       // CRITICAL: fields parameter must be compact without whitespace
-      expect(requestedFields, equals('files(id,name,parents)'));
+      expect(
+        requestedFields,
+        equals(
+          'nextPageToken,incompleteSearch,files(id,name,mimeType,parents,shortcutDetails(targetId,targetMimeType))',
+        ),
+      );
       expect(requestedFields!.contains(' '), isFalse);
       expect(requestedQuery, contains("'root' in parents"));
     });
@@ -147,7 +161,7 @@ void main() {
       expect(
         requestedFields,
         equals(
-          'nextPageToken,files(id,name,mimeType,size,modifiedTime,md5Checksum,parents)',
+          'nextPageToken,incompleteSearch,files(id,name,mimeType,size,modifiedTime,md5Checksum,shortcutDetails(targetId,targetMimeType))',
         ),
       );
       expect(requestedFields!.contains(' '), isFalse);

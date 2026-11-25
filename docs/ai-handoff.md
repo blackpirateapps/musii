@@ -1,10 +1,10 @@
 # Musii — AI Engineering Handoff Document
 
-> **Document Version**: 1.18.0  
+> **Document Version**: 1.19.0
 > **Target Audience**: Incoming AI Coding Assistants & Human Software Engineers  
-> **Last Verified**: September 2026  
+> **Last Verified**: November 2026
 > **App Identifier**: `com.blackpirateapps.musii`  
-> **Test Status**: 268 / 268 Passing (`flutter test`), 0 Analyzer Warnings (`flutter analyze`)
+> **Verification**: See the Google Drive sync audit for suite results and live testing scope.
 
 ---
 
@@ -37,7 +37,7 @@ The codebase strictly adheres to standard four-layer Clean Architecture:
    - `constants/app_constants.dart`: Design tokens (`AppRadii`, `AppSpacing`, `AppAudioConstants`, `AppGreeting`).
    - `filesystem/app_file_system.dart`: Centralized cache directory management, `.partial` file staging, and atomic commits.
    - `storage/secure_credential_store.dart`: Abstract `SecureCredentialStore` with hardware-backed Android Keystore (`FlutterSecureStorage`) and in-memory test store.
-   - `database/`: Drift SQLite setup, 25 tables with `@DataClassName` annotations and schema v10 migration.
+   - `database/`: Drift SQLite setup, 25 tables with `@DataClassName` annotations and schema v11 migration.
 2. **Domain (`lib/features/*/domain/`)**:
    - Pure Dart entities (`Track`, `Album`, `Artist`, `Genre`, `Playlist`, `CacheEntry`, `PlayerStateSnapshot`, `TrackLyrics`, `LyricLine`, `LyricWord`, `LyricSource`, `SyncProgress`, `SyncPhase`, `SyncCancellationToken`).
    - Repository interfaces declaring business contracts (`MusicLibraryRepository`, `GoogleDriveRepository`, `CacheRepository`, `PlaybackRepository`, `LyricsRepository`, `PlaylistRepository`, etc.).
@@ -142,82 +142,19 @@ Located in `lib/features/lyrics/`:
   - **Smooth Viewport Movement**: 300ms `Curves.easeOutCubic` animated scrolling triggered on `activeIndex` changes.
   - **Manual Scroll Recovery & Tap-to-Seek**: User drag notifications pause auto-scroll and animate in the floating "Current line" button. Tapping "Current line" or tapping any lyric line seeks playback, snaps to the 45% focal position, and restores auto-following.
 
-### 5. Google Drive Integration & Incremental Sync Engine (Optimized & Crash-Safe)
-See the [Google Drive sync audit](google-drive-sync-audit.md) for reproduced failures and recovery edge cases in the implementation described below.
+### 5. Google Drive integration and sync
 
-Located in `lib/features/google_drive/` and `lib/features/library/`:
-- **Persistent Discovery & Smart Zero-Rescan Resume**:
-  - Streamed discovery records discovered files directly into the `DiscoveredFiles` table in SQLite (`@DataClassName('DiscoveredFileRow')`).
-  - When discovery finishes, `discoveryCompleted = true` is committed to `SyncRuns`.
-  - **Smart Zero-Rescan Resume**: When `resumeSync()` or startup crash recovery (`recoverInterruptedSyncIfNeeded()`) is called after discovery has completed, the engine **completely bypasses remote Google Drive directory scans**, loads discovered files directly from SQLite in milliseconds with **0 network requests**, and immediately resumes metadata extraction from the exact file checkpoint.
-  - **Partial Discovery Continuation**: If sync is stopped *during* folder discovery (`discoveryCompleted == false`), `pendingFoldersJson` and `visitedFoldersJson` store the exact folder traversal state. Resuming continues traversing the remaining folder queue without rescanning from the root.
-  - **Fresh Sync on Completion**: When a sync run is completed and the user subsequently triggers a sync ("Sync Now", "Sync Library Now", "Force Full Re-sync"), a new sync run is created that performs a fresh Drive scan and prunes obsolete discovered file rows.
-- **Folder Selection During Active Sync**:
-  - If a user chooses a new music folder while synchronization is actively in progress, `syncLibrary()` automatically cancels the running sync via `SyncCancellationToken`, updates status to `stopping`, and cleanly awaits termination of the active sync (`_activeSyncCompleter`).
-  - Sequence numbering (`_syncSequenceNumber`) ensures rapid sequential folder selections cleanly supersede older requests.
-  - The new sync runs for the newly selected root folder, prunes tracks from the previous folder during Step 6 reconciliation, and updates `MusicSources`.
-- **Incremental Metadata Reuse**:
-  - Stable Google Drive file identity (`driveFileId`) used as primary mapping.
-  - For each discovered remote audio file, classifies into:
-    - `UNCHANGED_COMPLETE`: Matches existing record in SQLite with matching modified timestamp (`!remote.modifiedTime.isAfter(local.driveModifiedAt)`), matching checksum, and complete metadata (title, format present). File size mismatch is only detected if the local record has a meaningful stored size (`fileSize > 0`). **Zero audio downloads, zero metadata parsing.** Reuses all local records.
-    - `CHANGED`: Remote modification timestamp is newer, checksum differs, or file size changed (when local size is non-zero). Downloads temporary audio staging file, refreshes metadata, updates track and relations in SQLite.
-    - `INCOMPLETE`: Track exists in SQLite but missing vital fields (e.g., missing title, format). Re-fetches and repairs metadata. Note: file size is NOT part of the completeness check — a track with `fileSize=0` but complete title/format is considered complete.
-    - `NEW`: Completely new remote file. Full metadata extraction and relational upsert.
-- **One-Tap Sync (`syncFromSavedFolder()`)**:
-  - Looks up the previously configured root folder from in-memory progress → `MusicSources` table → latest `SyncRuns` record.
-  - Triggers `syncLibrary()` directly without requiring the Google Drive folder picker UI.
-  - Settings page "Sync Library Now" button calls this method to enable one-tap re-sync.
-  - Returns `DriveApiFailure` if no folder has ever been configured.
-- **Force Sync (`forceSync: true`)**:
-  - When `syncLibrary(forceSync: true)` is called, ALL discovered files are added to the processing queue regardless of classification.
-  - Bypasses the `unchangedComplete` optimization to force re-download and re-extraction of every file.
-  - Settings page "Force Full Re-sync" button triggers this with a confirmation dialog.
-  - Useful when metadata extraction logic has changed or files need complete re-indexing.
-- **Atomic Work Units & Checkpoint Storage**:
-  - Work unit: Single audio track processing with transactional SQLite commit.
-  - Single atomic database transaction wraps:
-    1. Artist upsert (`insertOnConflictUpdate`)
-    2. Album upsert (`insertOnConflictUpdate`)
-    3. Genre upsert (`insertOnConflictUpdate`)
-    4. Track upsert (`insertOnConflictUpdate`)
-    5. Lyrics saving
-    6. `SyncRun` checkpoint update (`filesProcessed`, `filesAdded`, `filesUpdated`, `errorsCount`, `progressPercent`, `lastCheckpointAt`, `updatedAt`).
-  - Temporary audio metadata extraction files (`.partial` / `temp_...`) are deleted immediately in `finally` blocks.
-- **Stop & Resume Engine (Persistent Track Processed Status)**:
-  - Explicit `SyncCancellationToken` with non-blocking checks across folder scanning and item processing loops.
-  - `stopSync()` requests cooperative stop, allows the current atomic item transaction to safely finish, commits checkpoint, updates session state to `stopped` (`isResumable: true`), and exits cleanly.
-  - **Persistent Processed State (Schema v9)**: In Step 5, each processed track atomically updates `DiscoveredFiles` with `isProcessed = true`, `processStatus = 'added' | 'updated'`, and `processedAt = DateTime.now()` in the same SQLite transaction that commits the track and sync run checkpoint.
-  - Unchanged tracks are batch-marked as `isProcessed = true, processStatus = 'unchanged'`.
-  - Failed tracks are marked `isProcessed = false, processStatus = 'failed'`, ensuring they are retried on subsequent sync resumes.
-  - `resumeSync()` looks up the latest stopped/interrupted session, restores `rootFolderId` and `syncRunId`, fetches `alreadyProcessedDriveIds` from `DiscoveredFiles` where `isProcessed == true`, and completely skips re-downloading or re-extracting metadata for already-processed songs.
-  - Previous session stats (`filesAdded`, `filesUpdated`, `errorsCount`, `progressPercent`) are restored from the `SyncRuns` table to accumulate accurately rather than resetting to zero.
-- **Crash & Force-Close Recovery**:
-  - Process death / force-stop leaves `SyncRuns` table with `status == 'running'` and accurate `lastCheckpointAt`.
-  - On app launch, `recoverInterruptedSyncIfNeeded()` automatically detects interrupted unclosed sessions and resumes without restarting from zero.
-  - Progress percentage in UI immediately reflects the actual completed tracks.
-- **Remote Deletion Reconciliation**:
-  - Full remote scan builds complete `driveFileMap`. Tracks present locally but absent on Drive are deleted from `tracks`, `cacheEntries`, and `lyrics`, and album/artist aggregates are updated.
-- **Database Schema v9 & v10**:
-  - `SyncRuns` table (`@DataClassName('SyncRunRow')`) with columns: `id`, `sourceId`, `rootFolderId`, `rootFolderName`, `startedAt`, `updatedAt`, `lastCheckpointAt`, `completedAt`, `status`, `phase`, `currentFile`, `errorMessage`, `progressPercent`, `filesDiscovered`, `filesProcessed`, `filesAdded`, `filesUpdated`, `filesRemoved`, `errorsCount`, `discoveryCompleted`, `pendingFoldersJson`, `visitedFoldersJson`.
-  - `DiscoveredFiles` table (`@DataClassName('DiscoveredFileRow')`) with columns: `id`, `syncRunId`, `driveFileId`, `name`, `mimeType`, `size`, `modifiedTime`, `md5Checksum`, `parentFolderId`, `isLrc`, `isProcessed`, `processStatus`, `processedAt`.
-  - `Tracks` table (`@DataClassName('TrackRow')`) with Schema v10 addition: `artworkPath` (nullable text) backfilled from `albums.artworkPath`.
-  - Indexes:
-    - `CREATE INDEX IF NOT EXISTS idx_sync_runs_status ON sync_runs(status, started_at);`
-    - `CREATE INDEX IF NOT EXISTS idx_discovered_files_sync ON discovered_files(sync_run_id);`
-- **Idempotent Database Migrations Architecture (`app_database.dart`)**:
-  - **Pitfall**: In Drift, `Migrator.createTable(table)` generates SQL from the *current* compiled Dart class. If a table introduced in an earlier version (e.g. `DiscoveredFiles` in v5) has new columns added in a later version (e.g. `isProcessed` in v9), upgrading from `from < 5` creates the table with all current columns. Subsequent execution of `from < 9`'s `m.addColumn` triggers SQLite fatal error `SqliteException(1): duplicate column name: is_processed`.
-  - **Resolution**: All migration steps MUST use idempotent helpers:
-    - `_tableExists(tableName)`: Checks `sqlite_master`.
-    - `_columnExists(tableName, columnName)`: Checks `PRAGMA table_info`.
-    - `_createTableSafely(m, table)`: Creates table only if absent in SQLite.
-    - `_addColumnSafely(m, table, column)`: Adds column via `m.addColumn` only if the table exists and the column does not already exist.
-  - In `reconcileDuplicateAlbums()`, updates to `tracks.artworkPath` check `_columnExists('tracks', 'artwork_path')` to prevent `no such column: artwork_path` during intermediate v6/v7 steps.
-- **UI Presentation (`SyncProgressSheet`)**:
-  - Running: displays progress bar, file counts, current filename, and prominent Cupertino `Stop Sync` button.
-  - Stopping: displays animated activity indicator and disables stop button.
-  - Stopped: displays "Sync Stopped", "X of Y completed", and prominent Cupertino `Resume Sync` button.
-  - Complete: displays "Library Synced", `Sync Now` button (to trigger incremental re-sync), and `Done` button.
-  - Idle with saved folder: displays `Sync Now` button and `Done` button.
+The [audit and remediation record](google-drive-sync-audit.md) links each pre-fix symptom to its regression coverage.
+
+- **Drive listings.** The folder picker follows every page, includes shared-drive roots, and resolves accessible folder shortcuts. Recursive discovery handles supported audio shortcuts using target metadata and avoids cycles by target folder ID. Any incomplete Drive listing or repeated page token fails the run before local removals.
+- **Folder checkpoints.** A folder enters the visited set after all its pages succeed. Its discovered files, child-to-parent links, and remaining folder queue commit together in SQLite. A stop or failure within a folder discards that folder’s partial listing. Startup recovery continues at the first unfinished folder. Completed discovery needs zero additional listing requests on resume, while outstanding audio, sidecar, or artwork work can still make remote requests.
+- **Saved roots and account changes.** Roots, runs, and pruning are scoped to the active Google account. Signing out keeps indexed music and offline files available. Sign-out and account changes cancel an active run. Startup only attempts recovery with a restored Google sign-in.
+- **Stop and force resume.** Drive list and media requests use an abort trigger. Each track transaction commits its checkpoint and preserves its original outcome on resume. Schema v11 persists Force Full Re-sync mode, so resume still processes the remaining tracks in force mode. Cancellation before reconciliation completes rolls back local removals.
+- **Incremental metadata.** Unchanged audio reuses local metadata. A changed checksum, newer remote timestamp, or difference between known sizes refreshes audio metadata. Missing core metadata triggers repair. Discovery deduplicates by file ID and writes unchanged status in bounded SQLite batches.
+- **Lyrics and artwork.** Sidecar fingerprints are tracked separately from audio. Editing or removing a matching LRC updates the stored lyrics without an audio download when the audio is unchanged. Embedded lyrics take priority. Sidecar downloads occur before the track transaction and remain retryable on failure. Album artwork prefers embedded bytes, then the matching folder cover. Folder parent links survive resume and cover files are refreshed by Drive fingerprint or force sync.
+- **Failures and reconciliation.** A run with any unresolved track or media failure remains resumable and keeps the previous last-sync timestamp. Remote removals occur after complete discovery and successful processing. Track deletion and related lyrics, favorites, playlist memberships, queue entries, history, and aggregate updates share a transaction. Changed pinned tracks are refreshed from the downloaded audio. Unreferenced audio files are cleaned after sync and during cache maintenance.
+- **Progress.** Subscribers receive the current state with their live subscription already attached. Progress counts unique audio IDs. A new or resumed run clears old failure text. The sheet offers Resume Sync for stopped and retryable failures.
+- **Schema v11 upgrade.** The migration adds force mode, sidecar and artwork fingerprints, and embedded-artwork paths. Legacy unfinished discovery snapshots are reset because their folder checkpoints may be incomplete. A legacy source with a matching saved account email can retain its root. A source saved under the old generic account label keeps its indexed music and offline audio, and the active account selects a folder before syncing. A successful scan claims the legacy tracks it verifies on Drive.
 
 ### 6. Android Media Notifications & Lock Screen Playback Controls
 Located in `lib/app/bootstrap/bootstrap.dart`, `lib/core/services/notification_permission_service.dart`, and `lib/features/playback/data/repositories/playback_repository_impl.dart`:
@@ -473,7 +410,7 @@ dart run build_runner build --delete-conflicting-outputs
 # Verify static analysis (must be 0 issues)
 flutter analyze
 
-# Run all tests (all 284 tests must pass)
+# Run all tests
 flutter test
 
 # Auto-format Dart source code

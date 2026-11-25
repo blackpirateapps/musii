@@ -125,3 +125,10 @@ Key columns are indexed to ensure responsive UI performance even with libraries 
 - `cache_entries(last_accessed_at)` (High-speed LRU eviction scanning)
 
 All UI providers subscribe to reactive queries using Drift's `watch()` methods, ensuring that deletions, cache state updates, or playlist edits instantly re-render corresponding views without manual polling.
+
+
+## Schema v11 sync checkpoints
+
+`sync_runs.force_sync` records whether the run must reprocess unchanged audio. Each fully listed folder commits its discovered files, parent links, and traversal queue together. Rows in `drive_folders` use the run ID in `source_id` so folder artwork lookup can be restored with the discovery snapshot.
+
+`tracks.sidecar_fingerprint` records which Drive lyric sidecar was processed. `tracks.embedded_artwork_path` records embedded artwork, and `albums.drive_artwork_fingerprint` tracks a Drive folder cover separately. Upgrading discards unfinished discovery snapshots from earlier schema versions, then recovery rebuilds the listing against the existing indexed library. Legacy roots recorded under the generic account label require a new folder selection. Verified legacy tracks can be associated with the signed-in account after a complete scan.

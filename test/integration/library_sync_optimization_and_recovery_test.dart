@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:drift/drift.dart' hide isNotNull, isNull;
@@ -31,12 +32,17 @@ class FakeGoogleDriveRepository implements GoogleDriveRepository {
     String rootFolderId, {
     void Function(int discoveredCount)? onProgress,
     void Function(DriveFileItem file)? onFileDiscovered,
-    void Function(List<String> pendingFolders, Set<String> visitedFolders)?
+    FutureOr<void> Function(
+      List<String> pendingFolders,
+      Set<String> visitedFolders,
+    )?
     onFolderStateChanged,
     List<String>? initialFolderQueue,
     Set<String>? initialVisitedFolders,
     bool Function()? isCancelled,
     Map<String, String?>? folderParentMap,
+    void Function(String folderId, String parentId)? onFolderDiscovered,
+    Future<void>? abortTrigger,
   }) async {
     listCallCount++;
     if (isCancelled?.call() == true) {
@@ -47,7 +53,7 @@ class FakeGoogleDriveRepository implements GoogleDriveRepository {
       onFileDiscovered?.call(f);
     }
     onProgress?.call(filesToReturn.where((f) => !f.isLrc).length);
-    onFolderStateChanged?.call([], {rootFolderId});
+    await onFolderStateChanged?.call([], {rootFolderId});
     return Result.success(filesToReturn);
   }
 
@@ -58,6 +64,7 @@ class FakeGoogleDriveRepository implements GoogleDriveRepository {
     required String fileId,
     required File destinationFile,
     void Function(int receivedBytes, int totalBytes)? onProgress,
+    Future<void>? abortTrigger,
   }) async {
     if (failingFileIds.contains(fileId)) {
       return const Result.failure(NetworkFailure('Simulated download failure'));
@@ -72,7 +79,10 @@ class FakeGoogleDriveRepository implements GoogleDriveRepository {
   }
 
   @override
-  Future<Result<String, AppFailure>> downloadTextFile(String fileId) async {
+  Future<Result<String, AppFailure>> downloadTextFile(
+    String fileId, {
+    Future<void>? abortTrigger,
+  }) async {
     return const Result.success('[00:10.00]Sidecar lyrics line');
   }
 
@@ -1147,7 +1157,7 @@ void main() {
         rootFolderId: 'root_f',
         rootFolderName: 'Music F',
       );
-      expect(firstRes.isSuccess, isTrue);
+      expect(firstRes.isFailure, isTrue);
 
       final lastSession = await libraryRepo.getLastSyncSession();
       expect(lastSession, isNotNull);

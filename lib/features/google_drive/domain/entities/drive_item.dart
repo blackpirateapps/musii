@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -75,21 +76,30 @@ abstract class GoogleDriveRepository {
     String rootFolderId, {
     void Function(int discoveredCount)? onProgress,
     void Function(DriveFileItem file)? onFileDiscovered,
-    void Function(List<String> pendingFolders, Set<String> visitedFolders)?
+    FutureOr<void> Function(
+      List<String> pendingFolders,
+      Set<String> visitedFolders,
+    )?
     onFolderStateChanged,
     List<String>? initialFolderQueue,
     Set<String>? initialVisitedFolders,
     bool Function()? isCancelled,
     Map<String, String?>? folderParentMap,
+    void Function(String folderId, String parentId)? onFolderDiscovered,
+    Future<void>? abortTrigger,
   });
 
   Future<Result<File, AppFailure>> downloadFile({
     required String fileId,
     required File destinationFile,
     void Function(int receivedBytes, int totalBytes)? onProgress,
+    Future<void>? abortTrigger,
   });
 
-  Future<Result<String, AppFailure>> downloadTextFile(String fileId);
+  Future<Result<String, AppFailure>> downloadTextFile(
+    String fileId, {
+    Future<void>? abortTrigger,
+  });
 
   Future<Result<List<int>, AppFailure>> readByteRange({
     required String fileId,

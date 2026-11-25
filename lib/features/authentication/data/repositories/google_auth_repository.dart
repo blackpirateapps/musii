@@ -69,22 +69,7 @@ class GoogleAuthRepository implements AuthRepository {
           displayName: account.displayName,
           photoUrl: account.photoUrl,
         );
-        await _syncUserToDatabase(user);
         return Result.success(user);
-      }
-
-      // Check if we have a cached user in the database
-      final dbUsers = await (_database.select(_database.users)..limit(1)).get();
-      if (dbUsers.isNotEmpty) {
-        final u = dbUsers.first;
-        return Result.success(
-          AuthUser(
-            id: u.id,
-            email: u.email,
-            displayName: u.displayName,
-            photoUrl: u.photoUrl,
-          ),
-        );
       }
 
       return const Result.success(null);
@@ -151,14 +136,19 @@ class GoogleAuthRepository implements AuthRepository {
   }
 
   @override
-  Stream<AuthUser?> watchCurrentUser() async* {
-    // Emit current user immediately on subscription so cold starts
-    // don't show the "Connect Google Drive" empty state incorrectly.
-    final currentResult = await getCurrentUser();
-    yield currentResult.dataOrNull;
-    // Then forward all future changes from sign-in / sign-out events.
-    yield* _userStreamController.stream;
-  }
+  Stream<AuthUser?> watchCurrentUser() => Stream.multi((listener) {
+    var receivedAuthEvent = false;
+    final subscription = _userStreamController.stream.listen((user) {
+      receivedAuthEvent = true;
+      listener.addSync(user);
+    });
+    listener.onCancel = subscription.cancel;
+    unawaited(
+      getCurrentUser().then((result) {
+        if (!receivedAuthEvent) listener.add(result.dataOrNull);
+      }),
+    );
+  });
 
   @override
   Future<Result<String, AppFailure>> getAccessToken() async {

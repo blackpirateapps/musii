@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
+
 import 'package:drift/drift.dart';
 
 import '../../../../core/constants/app_constants.dart';
@@ -10,6 +12,7 @@ import '../../../../core/error/failures.dart';
 import '../../../../core/filesystem/app_file_system.dart';
 import '../../../../core/logging/app_logger.dart';
 import '../../../../core/result/result.dart';
+import '../../../authentication/domain/entities/auth_user.dart';
 import '../../../google_drive/domain/entities/drive_item.dart';
 import '../../../lyrics/data/repositories/lyrics_repository_impl.dart';
 import '../../../lyrics/domain/entities/lyric_model.dart';
@@ -33,6 +36,10 @@ enum TrackSyncAction {
 class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
   final AppDatabase _database;
   final GoogleDriveRepository _driveRepository;
+  final AuthRepository? _authRepository;
+  StreamSubscription<AuthUser?>? _authSubscription;
+  String? _activeSourceId;
+  String? _visibleSourceId;
   final MetadataExtractor _metadataExtractor;
   final LyricsRepository _lyricsRepository;
   final AppFileSystem _fileSystem;
@@ -50,12 +57,14 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
   MusicLibraryRepositoryImpl({
     required AppDatabase database,
     required GoogleDriveRepository driveRepository,
+    AuthRepository? authRepository,
     MetadataExtractor? metadataExtractor,
     LyricsRepository? lyricsRepository,
     AppFileSystem? fileSystem,
     ArtistArtworkDownloader? artistArtworkDownloader,
   }) : _database = database,
        _driveRepository = driveRepository,
+       _authRepository = authRepository,
        _metadataExtractor = metadataExtractor ?? MetadataExtractor(),
        _lyricsRepository =
            lyricsRepository ?? LyricsRepositoryImpl(database: database),
@@ -66,21 +75,64 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
              fileSystem: fileSystem ?? AppFileSystem.instance,
              database: database,
            ) {
-    unawaited(_hydrateInitialState());
+    if (authRepository == null) {
+      _visibleSourceId = 'source_gdrive';
+      unawaited(_hydrateInitialState('source_gdrive'));
+    } else {
+      _authSubscription = authRepository.watchCurrentUser().listen((user) {
+        final sourceId = user == null ? null : _sourceIdFor(user);
+        if (sourceId == _visibleSourceId) return;
+        _visibleSourceId = sourceId;
+        if (_isSyncRunning && _activeSourceId != sourceId) {
+          _currentCancellationToken?.cancel();
+          _syncProgressController.add(const SyncProgress());
+        } else if (!_isSyncRunning) {
+          _updateProgress(const SyncProgress());
+          if (sourceId != null) unawaited(_hydrateInitialState(sourceId));
+        }
+      });
+    }
   }
 
-  Future<void> _hydrateInitialState() async {
-    try {
-      final latest =
-          await (_database.select(_database.syncRuns)
-                ..orderBy([
-                  (tbl) => OrderingTerm.desc(tbl.startedAt),
-                  (tbl) => OrderingTerm.desc(tbl.id),
-                ])
-                ..limit(1))
-              .getSingleOrNull();
+  String _sourceIdFor(AuthUser user) => 'source_gdrive_${user.id}';
 
-      if (latest != null) {
+  Future<({String id, String email})?> _syncAccount() async {
+    final auth = _authRepository;
+    if (auth == null) return (id: 'source_gdrive', email: 'primary');
+    final user = (await auth.getCurrentUser()).dataOrNull;
+    return user == null ? null : (id: _sourceIdFor(user), email: user.email);
+  }
+
+  Future<SyncRunRow?> _latestRun(String sourceId) =>
+      (_database.select(_database.syncRuns)
+            ..where(
+              (row) =>
+                  row.sourceId.equals(sourceId) &
+                  row.status.isNotValue('superseded'),
+            )
+            ..orderBy([
+              (row) => OrderingTerm.desc(row.startedAt),
+              (row) => OrderingTerm.desc(row.id),
+            ])
+            ..limit(1))
+          .getSingleOrNull();
+
+  Future<MusicSource?> _musicSource(String sourceId) => (_database.select(
+    _database.musicSources,
+  )..where((row) => row.id.equals(sourceId))).getSingleOrNull();
+
+  void dispose() {
+    _currentCancellationToken?.cancel();
+    unawaited(_authSubscription?.cancel());
+  }
+
+  Future<void> _hydrateInitialState(String sourceId) async {
+    try {
+      final latest = await _latestRun(sourceId);
+      if (latest != null &&
+          !_isSyncRunning &&
+          _visibleSourceId == sourceId &&
+          _currentProgress.syncRunId == null) {
         SyncPhase phase;
         bool isResumable = false;
 
@@ -136,27 +188,32 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
   }
 
   @override
-  Stream<SyncProgress> watchSyncProgress() async* {
-    yield _currentProgress;
-    yield* _syncProgressController.stream;
-  }
+  Stream<SyncProgress> watchSyncProgress() => Stream.multi((listener) {
+    final subscription = _syncProgressController.stream.listen(
+      listener.addSync,
+      onError: listener.addErrorSync,
+      onDone: listener.closeSync,
+    );
+    listener.onCancel = subscription.cancel;
+    listener.addSync(
+      _activeSourceId == null || _activeSourceId == _visibleSourceId
+          ? _currentProgress
+          : const SyncProgress(),
+    );
+  });
 
   void _updateProgress(SyncProgress progress) {
     _currentProgress = progress;
-    _syncProgressController.add(progress);
+    if (_activeSourceId == null || _activeSourceId == _visibleSourceId) {
+      _syncProgressController.add(progress);
+    }
   }
 
   @override
   Future<SyncProgress?> getLastSyncSession() async {
     try {
-      final latest =
-          await (_database.select(_database.syncRuns)
-                ..orderBy([
-                  (tbl) => OrderingTerm.desc(tbl.startedAt),
-                  (tbl) => OrderingTerm.desc(tbl.id),
-                ])
-                ..limit(1))
-              .getSingleOrNull();
+      final account = await _syncAccount();
+      final latest = account == null ? null : await _latestRun(account.id);
 
       if (latest == null) return null;
 
@@ -173,7 +230,12 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
         errorMessage: latest.errorMessage,
         progressPercent: latest.progressPercent,
         lastCheckpointAt: latest.lastCheckpointAt ?? latest.updatedAt,
-        isResumable: latest.status == 'stopped' || latest.status == 'running',
+        isResumable: const {
+          'stopped',
+          'running',
+          'stopping',
+          'failed',
+        }.contains(latest.status),
         rootFolderId: latest.rootFolderId,
         rootFolderName: latest.rootFolderName,
       );
@@ -209,14 +271,8 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
   @override
   Future<void> recoverInterruptedSyncIfNeeded() async {
     try {
-      final latest =
-          await (_database.select(_database.syncRuns)
-                ..orderBy([
-                  (tbl) => OrderingTerm.desc(tbl.startedAt),
-                  (tbl) => OrderingTerm.desc(tbl.id),
-                ])
-                ..limit(1))
-              .getSingleOrNull();
+      final account = await _syncAccount();
+      final latest = account == null ? null : await _latestRun(account.id);
 
       if (latest != null &&
           (latest.status == 'running' || latest.status == 'stopping')) {
@@ -226,9 +282,16 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
         );
 
         final folderId = latest.rootFolderId;
-
-        if (folderId != null) {
-          unawaited(resumeSync());
+        if (folderId != null && account != null) {
+          unawaited(
+            _syncLibrary(
+              rootFolderId: folderId,
+              rootFolderName: latest.rootFolderName ?? 'Music',
+              isResume: true,
+              requestedSyncRunId: latest.id,
+              expectedSourceId: account.id,
+            ),
+          );
         }
       }
     } catch (e, st) {
@@ -243,7 +306,9 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
 
   @override
   Future<Result<void, AppFailure>> stopSync() async {
-    if (!_isSyncRunning || _currentCancellationToken == null) {
+    if (!_isSyncRunning ||
+        _currentCancellationToken == null ||
+        !_currentProgress.isBusy) {
       AppLogger.info(
         LogCategory.sync,
         'stopSync called but no active synchronization is running',
@@ -267,47 +332,37 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
       return const Result.success(null);
     }
 
-    String? folderId = _currentProgress.rootFolderId;
-    String? folderName = _currentProgress.rootFolderName;
-    String? targetRunId = _currentProgress.syncRunId;
-
-    if (folderId == null || targetRunId == null) {
-      final latest =
-          await (_database.select(_database.syncRuns)
-                ..orderBy([
-                  (tbl) => OrderingTerm.desc(tbl.startedAt),
-                  (tbl) => OrderingTerm.desc(tbl.id),
-                ])
-                ..limit(1))
-              .getSingleOrNull();
-      if (latest != null) {
-        folderId ??= latest.rootFolderId;
-        folderName ??= latest.rootFolderName;
-        targetRunId ??= latest.id;
-      }
-    }
-
-    if (folderId == null) {
-      final source = await (_database.select(
-        _database.musicSources,
-      )..where((tbl) => tbl.id.equals('source_gdrive'))).getSingleOrNull();
-      if (source != null && source.rootFolderId != null) {
-        folderId = source.rootFolderId;
-        folderName = source.rootFolderName;
-      }
-    }
-
-    if (folderId == null) {
+    final account = await _syncAccount();
+    if (account == null) {
       return const Result.failure(
-        DriveApiFailure('No previous folder found to resume sync'),
+        AuthenticationFailure('Connect Google Drive to resume sync.'),
+      );
+    }
+    final latest = await _latestRun(account.id);
+    final source = latest?.rootFolderId == null
+        ? await _musicSource(account.id)
+        : null;
+    final folderId = latest?.rootFolderId ?? source?.rootFolderId;
+    final folderName = latest?.rootFolderName ?? source?.rootFolderName;
+    if (folderId == null ||
+        latest == null ||
+        !const {
+          'running',
+          'stopping',
+          'stopped',
+          'failed',
+        }.contains(latest.status)) {
+      return const Result.failure(
+        DriveApiFailure('No resumable sync was found for this Google account.'),
       );
     }
 
-    return syncLibrary(
+    return _syncLibrary(
+      expectedSourceId: account.id,
       rootFolderId: folderId,
       rootFolderName: folderName ?? 'Music',
       isResume: true,
-      requestedSyncRunId: targetRunId,
+      requestedSyncRunId: latest.id,
     );
   }
 
@@ -319,36 +374,18 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
       return const Result.success(null);
     }
 
-    // Try in-memory progress first
-    String? folderId = _currentProgress.rootFolderId;
-    String? folderName = _currentProgress.rootFolderName;
-
-    // Fall back to MusicSources table
-    if (folderId == null) {
-      final source = await (_database.select(
-        _database.musicSources,
-      )..where((tbl) => tbl.id.equals('source_gdrive'))).getSingleOrNull();
-      if (source != null && source.rootFolderId != null) {
-        folderId = source.rootFolderId;
-        folderName = source.rootFolderName;
-      }
+    final account = await _syncAccount();
+    if (account == null) {
+      return const Result.failure(
+        AuthenticationFailure('Connect Google Drive to sync.'),
+      );
     }
-
-    // Fall back to latest SyncRun
-    if (folderId == null) {
-      final latest =
-          await (_database.select(_database.syncRuns)
-                ..orderBy([
-                  (tbl) => OrderingTerm.desc(tbl.startedAt),
-                  (tbl) => OrderingTerm.desc(tbl.id),
-                ])
-                ..limit(1))
-              .getSingleOrNull();
-      if (latest != null) {
-        folderId = latest.rootFolderId;
-        folderName = latest.rootFolderName;
-      }
-    }
+    final source = await _musicSource(account.id);
+    final latest = source?.rootFolderId == null
+        ? await _latestRun(account.id)
+        : null;
+    final folderId = source?.rootFolderId ?? latest?.rootFolderId;
+    final folderName = source?.rootFolderName ?? latest?.rootFolderName;
 
     if (folderId == null) {
       const failure = DriveApiFailure(
@@ -364,7 +401,8 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
       return const Result.failure(failure);
     }
 
-    return syncLibrary(
+    return _syncLibrary(
+      expectedSourceId: account.id,
       rootFolderId: folderId,
       rootFolderName: folderName ?? 'Music',
       forceSync: forceSync,
@@ -606,30 +644,21 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
       return TrackSyncAction.repairIncomplete;
     }
 
-    // Change detection via modified timestamp (second precision to prevent sub-second Drift/SQLite truncation false-positives)
-    if (remote.modifiedTime != null && local.driveModifiedAt != null) {
-      final remoteSec =
-          remote.modifiedTime!.toUtc().millisecondsSinceEpoch ~/ 1000;
-      final localSec =
-          local.driveModifiedAt!.toUtc().millisecondsSinceEpoch ~/ 1000;
-      if (remoteSec > localSec) {
-        return TrackSyncAction.updateModified;
-      }
-    }
+    return _audioChanged(remote, local)
+        ? TrackSyncAction.updateModified
+        : TrackSyncAction.unchangedComplete;
+  }
 
-    // Change detection via checksum
-    if (remote.md5Checksum != null && local.driveMd5Checksum != null) {
-      if (remote.md5Checksum != local.driveMd5Checksum) {
-        return TrackSyncAction.updateModified;
-      }
-    }
-
-    // Change detection via file size (only if local has a stored size)
-    if (local.fileSize > 0 && remote.size != local.fileSize) {
-      return TrackSyncAction.updateModified;
-    }
-
-    return TrackSyncAction.unchangedComplete;
+  bool _audioChanged(DriveFileItem remote, TrackRow local) {
+    final remoteTime = remote.modifiedTime?.millisecondsSinceEpoch;
+    final localTime = local.driveModifiedAt?.millisecondsSinceEpoch;
+    return (remoteTime != null &&
+            remoteTime ~/ 1000 > (localTime ?? 0) ~/ 1000) ||
+        (remote.md5Checksum != null &&
+            remote.md5Checksum != local.driveMd5Checksum) ||
+        (remote.size > 0 &&
+            local.fileSize > 0 &&
+            remote.size != local.fileSize);
   }
 
   @override
@@ -640,60 +669,71 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
     bool isResume = false,
     bool forceSync = false,
     String? requestedSyncRunId,
+  }) => _syncLibrary(
+    rootFolderId: rootFolderId,
+    rootFolderName: rootFolderName,
+    onProgress: onProgress,
+    isResume: isResume,
+    forceSync: forceSync,
+    requestedSyncRunId: requestedSyncRunId,
+  );
+
+  Future<Result<void, AppFailure>> _syncLibrary({
+    required String rootFolderId,
+    required String rootFolderName,
+    void Function(SyncProgress progress)? onProgress,
+    bool isResume = false,
+    bool forceSync = false,
+    String? requestedSyncRunId,
+    String? expectedSourceId,
   }) async {
     final int mySeq = ++_syncSequenceNumber;
+    final account = await _syncAccount();
+    if (mySeq != _syncSequenceNumber) return const Result.success(null);
+    if (account == null) {
+      const failure = AuthenticationFailure('Connect Google Drive to sync.');
+      _updateProgress(
+        const SyncProgress(
+          phase: SyncPhase.failed,
+          errorMessage: 'Connect Google Drive to sync.',
+        ),
+      );
+      return const Result.failure(failure);
+    }
+
+    if (expectedSourceId != null && account.id != expectedSourceId) {
+      return const Result.failure(
+        AuthenticationFailure('Google account changed. Start sync again.'),
+      );
+    }
 
     while (_isSyncRunning) {
-      AppLogger.info(
-        LogCategory.sync,
-        'Active sync in progress. Requesting graceful stop to start sync for $rootFolderName (seq: $mySeq)...',
-      );
       _currentCancellationToken?.cancel();
       _updateProgress(_currentProgress.copyWith(phase: SyncPhase.stopping));
-
-      if (_activeSyncCompleter != null) {
-        try {
-          await _activeSyncCompleter!.future;
-        } catch (_) {}
-      }
+      await _activeSyncCompleter?.future;
+      if (mySeq != _syncSequenceNumber) return const Result.success(null);
     }
 
-    if (mySeq != _syncSequenceNumber) {
-      AppLogger.info(
-        LogCategory.sync,
-        'Sync request (seq: $mySeq, folder: $rootFolderName) was superseded by newer request (seq: $_syncSequenceNumber); aborting.',
+    final sourceId = account.id;
+    final confirmedAccount = _authRepository == null
+        ? account
+        : await _syncAccount();
+    if (mySeq != _syncSequenceNumber) return const Result.success(null);
+    if (confirmedAccount?.id != sourceId) {
+      return const Result.failure(
+        AuthenticationFailure('Google account changed. Start sync again.'),
       );
-      return const Result.success(null);
     }
-
+    _activeSourceId = sourceId;
+    _visibleSourceId = sourceId;
     _isSyncRunning = true;
     _activeSyncCompleter = Completer<void>();
     final cancellationToken = SyncCancellationToken();
     _currentCancellationToken = cancellationToken;
 
-    String? targetSyncRunId = requestedSyncRunId;
-    if (targetSyncRunId == null &&
-        isResume &&
-        _currentProgress.syncRunId != null) {
-      targetSyncRunId = _currentProgress.syncRunId;
-    }
-    if (targetSyncRunId == null && isResume) {
-      final latest =
-          await (_database.select(_database.syncRuns)
-                ..where((tbl) => tbl.rootFolderId.equals(rootFolderId))
-                ..orderBy([
-                  (tbl) => OrderingTerm.desc(tbl.startedAt),
-                  (tbl) => OrderingTerm.desc(tbl.id),
-                ])
-                ..limit(1))
-              .getSingleOrNull();
-      if (latest != null) {
-        targetSyncRunId = latest.id;
-      }
-    }
     final syncRunId =
-        targetSyncRunId ?? 'sync_${DateTime.now().millisecondsSinceEpoch}';
-    const sourceId = 'source_gdrive';
+        (isResume ? requestedSyncRunId : null) ??
+        'sync_${DateTime.now().microsecondsSinceEpoch}';
 
     AppLogger.info(
       LogCategory.sync,
@@ -714,273 +754,301 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
         errorsCount: isResume ? _currentProgress.errorsCount : 0,
         progressPercent: isResume ? _currentProgress.progressPercent : 0.0,
         errorMessage: null,
+        currentFile: null,
         isResumable: false,
       ),
     );
-    onProgress?.call(_currentProgress);
-
+    var runRecorded = false;
     try {
-      // If fresh sync, clean up obsolete discovered files from previous sync runs
-      if (!isResume) {
-        await (_database.delete(
-          _database.discoveredFiles,
-        )..where((tbl) => tbl.syncRunId.equals(syncRunId).not())).go();
+      onProgress?.call(_currentProgress);
+      Future<void> verifyAccount() async {
+        if (_authRepository != null && (await _syncAccount())?.id != sourceId) {
+          cancellationToken.cancel();
+          throw const AuthenticationFailure(
+            'Google account changed during sync.',
+          );
+        }
       }
 
+      await verifyAccount();
       // Fetch existing sync run record if resuming
       SyncRunRow? existingRun;
       if (isResume) {
-        existingRun = await (_database.select(
-          _database.syncRuns,
-        )..where((tbl) => tbl.id.equals(syncRunId))).getSingleOrNull();
-      }
-
-      // 1. Record / update sync run in database
-      await _database
-          .into(_database.syncRuns)
-          .insertOnConflictUpdate(
-            SyncRunsCompanion(
-              id: Value(syncRunId),
-              sourceId: const Value(sourceId),
-              rootFolderId: Value(rootFolderId),
-              rootFolderName: Value(rootFolderName),
-              startedAt: Value(existingRun?.startedAt ?? DateTime.now()),
-              updatedAt: Value(DateTime.now()),
-              lastCheckpointAt: Value(DateTime.now()),
-              status: const Value('running'),
-              phase: const Value('scanning'),
-              filesDiscovered: Value(
-                isResume
-                    ? (existingRun?.filesDiscovered ??
-                          _currentProgress.filesDiscovered)
-                    : 0,
-              ),
-              filesProcessed: Value(
-                isResume
-                    ? (existingRun?.filesProcessed ??
-                          _currentProgress.filesProcessed)
-                    : 0,
-              ),
-              filesAdded: Value(
-                isResume
-                    ? (existingRun?.filesAdded ?? _currentProgress.filesAdded)
-                    : 0,
-              ),
-              filesUpdated: Value(
-                isResume
-                    ? (existingRun?.filesUpdated ??
-                          _currentProgress.filesUpdated)
-                    : 0,
-              ),
-              filesRemoved: Value(
-                isResume
-                    ? (existingRun?.filesRemoved ??
-                          _currentProgress.filesRemoved)
-                    : 0,
-              ),
-              errorsCount: Value(
-                isResume
-                    ? (existingRun?.errorsCount ?? _currentProgress.errorsCount)
-                    : 0,
-              ),
-              progressPercent: Value(
-                isResume
-                    ? (existingRun?.progressPercent ??
-                          _currentProgress.progressPercent)
-                    : 0.0,
-              ),
-              discoveryCompleted: Value(
-                isResume ? (existingRun?.discoveryCompleted ?? false) : false,
-              ),
-              pendingFoldersJson: Value(
-                isResume ? existingRun?.pendingFoldersJson : null,
-              ),
-              visitedFoldersJson: Value(
-                isResume ? existingRun?.visitedFoldersJson : null,
-              ),
-            ),
+        existingRun =
+            await (_database.select(_database.syncRuns)..where(
+                  (tbl) =>
+                      tbl.id.equals(syncRunId) &
+                      tbl.sourceId.equals(sourceId) &
+                      tbl.rootFolderId.equals(rootFolderId) &
+                      tbl.status.isIn(const [
+                        'running',
+                        'stopping',
+                        'stopped',
+                        'failed',
+                      ]),
+                ))
+                .getSingleOrNull();
+        if (requestedSyncRunId != null && existingRun == null) {
+          throw const DriveApiFailure(
+            'This sync run is no longer available for the selected folder and Google account.',
           );
-
-      // Save/update music source
-      await _database
-          .into(_database.musicSources)
-          .insertOnConflictUpdate(
-            MusicSourcesCompanion(
-              id: const Value(sourceId),
-              type: const Value('google_drive'),
-              accountEmail: const Value('primary'),
-              rootFolderId: Value(rootFolderId),
-              rootFolderName: Value(rootFolderName),
-              createdAt: Value(DateTime.now()),
-            ),
-          );
-
-      // 2. Discover audio files recursively from Drive or restore from DB
-      final List<DriveFileItem> allDriveFiles = [];
-      final Set<String> alreadyProcessedDriveIds = {};
-      bool discoveryAlreadyComplete = false;
-      List<String>? initialPendingFolders;
-      Set<String>? initialVisitedFolders;
-
-      if (isResume && existingRun != null) {
-        if (existingRun.discoveryCompleted) {
-          discoveryAlreadyComplete = true;
-          final rows = await (_database.select(
-            _database.discoveredFiles,
-          )..where((tbl) => tbl.syncRunId.equals(syncRunId))).get();
-
-          for (final r in rows) {
-            allDriveFiles.add(
-              DriveFileItem(
-                id: r.driveFileId,
-                name: r.name,
-                mimeType: r.mimeType,
-                size: r.size,
-                modifiedTime: r.modifiedTime,
-                md5Checksum: r.md5Checksum,
-                parentFolderId: r.parentFolderId,
-                isLrc: r.isLrc,
-                isImage: AppImageConstants.isImageFile(r.name, r.mimeType),
-              ),
-            );
-            if (r.isProcessed) {
-              alreadyProcessedDriveIds.add(r.driveFileId);
-            }
-          }
-
-          AppLogger.info(
-            LogCategory.sync,
-            'Resuming sync: Discovery already complete ($syncRunId). Restored ${allDriveFiles.length} files from DB (${alreadyProcessedDriveIds.length} already processed); skipping Drive scan.',
-          );
-        } else {
-          if (existingRun.pendingFoldersJson != null) {
-            try {
-              final list =
-                  jsonDecode(existingRun.pendingFoldersJson!) as List<dynamic>;
-              initialPendingFolders = list.map((e) => e.toString()).toList();
-            } catch (_) {}
-          }
-          if (existingRun.visitedFoldersJson != null) {
-            try {
-              final list =
-                  jsonDecode(existingRun.visitedFoldersJson!) as List<dynamic>;
-              initialVisitedFolders = list.map((e) => e.toString()).toSet();
-            } catch (_) {}
-          }
-
-          final rows = await (_database.select(
-            _database.discoveredFiles,
-          )..where((tbl) => tbl.syncRunId.equals(syncRunId))).get();
-
-          for (final r in rows) {
-            allDriveFiles.add(
-              DriveFileItem(
-                id: r.driveFileId,
-                name: r.name,
-                mimeType: r.mimeType,
-                size: r.size,
-                modifiedTime: r.modifiedTime,
-                md5Checksum: r.md5Checksum,
-                parentFolderId: r.parentFolderId,
-                isLrc: r.isLrc,
-                isImage: AppImageConstants.isImageFile(r.name, r.mimeType),
-              ),
-            );
-            if (r.isProcessed) {
-              alreadyProcessedDriveIds.add(r.driveFileId);
-            }
-          }
         }
       }
 
-      final Map<String, String?> folderParentMap = {};
+      final effectiveForceSync = existingRun?.forceSync ?? forceSync;
 
-      if (discoveryAlreadyComplete) {
+      await _database.transaction(() async {
+        if (existingRun == null) {
+          final oldRuns = _database.selectOnly(_database.syncRuns)
+            ..addColumns([_database.syncRuns.id])
+            ..where(_database.syncRuns.sourceId.equals(sourceId));
+          await (_database.delete(
+            _database.driveFolders,
+          )..where((row) => row.sourceId.isInQuery(oldRuns))).go();
+          await (_database.delete(
+            _database.discoveredFiles,
+          )..where((row) => row.syncRunId.isInQuery(oldRuns))).go();
+          await (_database.update(_database.syncRuns)..where(
+                (row) =>
+                    row.sourceId.equals(sourceId) &
+                    row.status.isNotValue('completed'),
+              ))
+              .write(const SyncRunsCompanion(status: Value('superseded')));
+        }
+
+        final now = DateTime.now();
+        await _database
+            .into(_database.syncRuns)
+            .insertOnConflictUpdate(
+              SyncRunsCompanion.insert(
+                id: syncRunId,
+                sourceId: sourceId,
+                rootFolderId: Value(rootFolderId),
+                rootFolderName: Value(rootFolderName),
+                startedAt: existingRun?.startedAt ?? now,
+                updatedAt: Value(now),
+                lastCheckpointAt: Value(now),
+                status: 'running',
+                forceSync: Value(effectiveForceSync),
+                errorMessage: const Value(null),
+                currentFile: const Value(null),
+                phase: const Value('scanning'),
+                filesDiscovered: Value(existingRun?.filesDiscovered ?? 0),
+                filesProcessed: Value(existingRun?.filesProcessed ?? 0),
+                filesAdded: Value(existingRun?.filesAdded ?? 0),
+                filesUpdated: Value(existingRun?.filesUpdated ?? 0),
+                filesRemoved: Value(existingRun?.filesRemoved ?? 0),
+                errorsCount: Value(existingRun?.errorsCount ?? 0),
+                progressPercent: Value(existingRun?.progressPercent ?? 0),
+                discoveryCompleted: Value(
+                  existingRun?.discoveryCompleted ?? false,
+                ),
+                pendingFoldersJson: Value(existingRun?.pendingFoldersJson),
+                visitedFoldersJson: Value(existingRun?.visitedFoldersJson),
+              ),
+            );
+
+        final source = await _musicSource(sourceId);
+        await _database
+            .into(_database.musicSources)
+            .insertOnConflictUpdate(
+              MusicSourcesCompanion.insert(
+                id: sourceId,
+                type: 'google_drive',
+                accountEmail: account.email,
+                rootFolderId: Value(rootFolderId),
+                rootFolderName: Value(rootFolderName),
+                createdAt: source?.createdAt ?? now,
+              ),
+            );
+      });
+
+      runRecorded = true;
+
+      // Each fully listed folder and its queue transition share one commit.
+      final discoveredById = <String, DriveFileItem>{};
+      final alreadyProcessedDriveIds = <String>{};
+      final failedDriveIds = <String>{};
+      final folderParentMap = <String, String?>{};
+      var discoveryAlreadyComplete = existingRun?.discoveryCompleted == true;
+      var pendingFolders = <String>[rootFolderId];
+      var visitedFolders = <String>{};
+
+      if (existingRun != null) {
+        final rows = await (_database.select(
+          _database.discoveredFiles,
+        )..where((row) => row.syncRunId.equals(syncRunId))).get();
+        for (final row in rows) {
+          discoveredById[row.driveFileId] = DriveFileItem(
+            id: row.driveFileId,
+            name: row.name,
+            mimeType: row.mimeType,
+            size: row.size,
+            modifiedTime: row.modifiedTime.millisecondsSinceEpoch == 0
+                ? null
+                : row.modifiedTime,
+            md5Checksum: row.md5Checksum,
+            parentFolderId: row.parentFolderId,
+            isLrc: row.isLrc,
+            isImage: AppImageConstants.isImageFile(row.name, row.mimeType),
+          );
+          if (row.isProcessed) alreadyProcessedDriveIds.add(row.driveFileId);
+          if (row.processStatus == 'failed') {
+            failedDriveIds.add(row.driveFileId);
+          }
+        }
         final savedFolders = await (_database.select(
           _database.driveFolders,
-        )..where((tbl) => tbl.sourceId.equals(sourceId))).get();
-        for (final df in savedFolders) {
-          folderParentMap[df.folderId] = df.parentFolderId;
+        )..where((row) => row.sourceId.equals(syncRunId))).get();
+        for (final folder in savedFolders) {
+          folderParentMap[folder.folderId] = folder.parentFolderId;
         }
+        if (existingRun.pendingFoldersJson case final pending?) {
+          pendingFolders = (jsonDecode(pending) as List).cast<String>();
+        }
+        if (existingRun.visitedFoldersJson case final visited?) {
+          visitedFolders = (jsonDecode(visited) as List).cast<String>().toSet();
+        }
+      }
+
+      final restoredAudioCount = discoveredById.values
+          .where((file) => !file.isLrc && !file.isImage)
+          .length;
+      if (discoveryAlreadyComplete &&
+          restoredAudioCount != existingRun!.filesDiscovered) {
+        // An incomplete saved snapshot can never authorize local removals.
+        await _database.transaction(() async {
+          await (_database.delete(
+            _database.discoveredFiles,
+          )..where((row) => row.syncRunId.equals(syncRunId))).go();
+          await (_database.delete(
+            _database.driveFolders,
+          )..where((row) => row.sourceId.equals(syncRunId))).go();
+          await (_database.update(
+            _database.syncRuns,
+          )..where((row) => row.id.equals(syncRunId))).write(
+            const SyncRunsCompanion(
+              discoveryCompleted: Value(false),
+              pendingFoldersJson: Value(null),
+              visitedFoldersJson: Value(null),
+              filesDiscovered: Value(0),
+              filesProcessed: Value(0),
+              filesAdded: Value(0),
+              filesUpdated: Value(0),
+              filesRemoved: Value(0),
+              errorsCount: Value(0),
+              progressPercent: Value(0),
+            ),
+          );
+        });
+        discoveredById.clear();
+        folderParentMap.clear();
+        alreadyProcessedDriveIds.clear();
+        failedDriveIds.clear();
+        pendingFolders = [rootFolderId];
+        visitedFolders.clear();
+        discoveryAlreadyComplete = false;
+        existingRun = null;
       }
 
       if (!discoveryAlreadyComplete) {
-        _updateProgress(
-          _currentProgress.copyWith(
-            syncRunId: syncRunId,
-            phase: SyncPhase.scanning,
-            rootFolderId: rootFolderId,
-            rootFolderName: rootFolderName,
-            filesDiscovered: allDriveFiles
-                .where((f) => !f.isLrc && !f.isImage)
-                .length,
-            filesProcessed: isResume ? _currentProgress.filesProcessed : 0,
-            filesAdded: isResume ? _currentProgress.filesAdded : 0,
-            filesUpdated: isResume ? _currentProgress.filesUpdated : 0,
-            filesRemoved: isResume ? _currentProgress.filesRemoved : 0,
-            errorsCount: isResume ? _currentProgress.errorsCount : 0,
-            progressPercent: isResume ? _currentProgress.progressPercent : 0.0,
-            errorMessage: null,
-            isResumable: false,
-          ),
-        );
-        onProgress?.call(_currentProgress);
+        var audioDiscovered = discoveredById.values
+            .where((file) => !file.isLrc && !file.isImage)
+            .length;
+        final stagedFiles = <String, DriveFileItem>{};
+        final stagedFolders = <String, String>{};
 
-        List<String> lastPendingFolders =
-            initialPendingFolders ?? [rootFolderId];
-        Set<String> lastVisitedFolders = initialVisitedFolders ?? {};
-
-        final scanResult = await _driveRepository.listAudioFilesRecursively(
-          rootFolderId,
-          initialFolderQueue: initialPendingFolders,
-          initialVisitedFolders: initialVisitedFolders,
-          folderParentMap: folderParentMap,
-          onProgress: (count) {
-            final totalDiscovered =
-                allDriveFiles.where((f) => !f.isLrc && !f.isImage).length +
-                count;
-            _updateProgress(
-              _currentProgress.copyWith(filesDiscovered: totalDiscovered),
-            );
-            onProgress?.call(_currentProgress);
-          },
-          onFileDiscovered: (file) async {
-            if (!allDriveFiles.any((f) => f.id == file.id)) {
-              allDriveFiles.add(file);
-            }
-            await _database
-                .into(_database.discoveredFiles)
-                .insertOnConflictUpdate(
-                  DiscoveredFilesCompanion(
+        Future<void> saveFolder(
+          List<String> pending,
+          Set<String> visited,
+        ) async {
+          await verifyAccount();
+          final addedAudio = stagedFiles.values
+              .where((file) => !file.isLrc && !file.isImage)
+              .length;
+          await _database.transaction(() async {
+            await _database.batch((batch) {
+              batch.insertAllOnConflictUpdate(
+                _database.discoveredFiles,
+                stagedFiles.values.map(
+                  (file) => DiscoveredFilesCompanion(
                     id: Value('${syncRunId}_${file.id}'),
                     syncRunId: Value(syncRunId),
                     driveFileId: Value(file.id),
                     name: Value(file.name),
                     mimeType: Value(file.mimeType),
                     size: Value(file.size),
-                    modifiedTime: Value(file.modifiedTime ?? DateTime.now()),
+                    modifiedTime: Value(
+                      file.modifiedTime ??
+                          DateTime.fromMillisecondsSinceEpoch(0),
+                    ),
                     md5Checksum: Value(file.md5Checksum),
                     parentFolderId: Value(file.parentFolderId),
                     isLrc: Value(file.isLrc),
-                    isProcessed: const Value(false),
                   ),
-                );
+                ),
+              );
+              batch.insertAllOnConflictUpdate(
+                _database.driveFolders,
+                stagedFolders.entries.map(
+                  (folder) => DriveFoldersCompanion.insert(
+                    id: '${syncRunId}_${folder.key}',
+                    sourceId: syncRunId,
+                    folderId: folder.key,
+                    name: folder.key,
+                    parentFolderId: Value(folder.value),
+                    path: '',
+                  ),
+                ),
+              );
+            });
+            await (_database.update(
+              _database.syncRuns,
+            )..where((row) => row.id.equals(syncRunId))).write(
+              SyncRunsCompanion(
+                pendingFoldersJson: Value(jsonEncode(pending)),
+                visitedFoldersJson: Value(jsonEncode(visited.toList())),
+                filesDiscovered: Value(audioDiscovered + addedAudio),
+                updatedAt: Value(DateTime.now()),
+                lastCheckpointAt: Value(DateTime.now()),
+              ),
+            );
+          });
+          discoveredById.addAll(stagedFiles);
+          stagedFiles.clear();
+          stagedFolders.clear();
+          audioDiscovered += addedAudio;
+          pendingFolders = List.of(pending);
+          visitedFolders = Set.of(visited);
+          _updateProgress(
+            _currentProgress.copyWith(filesDiscovered: audioDiscovered),
+          );
+          onProgress?.call(_currentProgress);
+        }
+
+        final scanResult = await _driveRepository.listAudioFilesRecursively(
+          rootFolderId,
+          initialFolderQueue: pendingFolders,
+          initialVisitedFolders: visitedFolders,
+          folderParentMap: folderParentMap,
+          onFolderDiscovered: (id, parent) => stagedFolders[id] = parent,
+          onFileDiscovered: (file) {
+            if (!discoveredById.containsKey(file.id)) {
+              stagedFiles[file.id] = file;
+            }
           },
-          onFolderStateChanged: (pending, visited) {
-            lastPendingFolders = List<String>.from(pending);
-            lastVisitedFolders = Set<String>.from(visited);
-          },
+          onFolderStateChanged: saveFolder,
           isCancelled: () => cancellationToken.isCancelled,
+          abortTrigger: cancellationToken.whenCancelled,
         );
 
         if (cancellationToken.isCancelled) {
           await _persistSessionStopped(
             syncRunId: syncRunId,
-            filesDiscovered: _currentProgress.filesDiscovered,
-            filesProcessed: _currentProgress.filesProcessed,
+            filesDiscovered: audioDiscovered,
             discoveryCompleted: false,
-            pendingFolders: lastPendingFolders,
-            visitedFolders: lastVisitedFolders,
+            pendingFolders: pendingFolders,
+            visitedFolders: visitedFolders,
           );
           _updateProgress(
             _currentProgress.copyWith(
@@ -992,38 +1060,45 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
           onProgress?.call(_currentProgress);
           return const Result.success(null);
         }
-
         if (scanResult.isFailure) {
-          final err = scanResult.failureOrNull!;
-          await _persistSessionFailed(syncRunId: syncRunId, error: err.message);
+          final error = scanResult.failureOrNull!;
+          await _persistSessionFailed(
+            syncRunId: syncRunId,
+            error: error.message,
+          );
           _updateProgress(
             _currentProgress.copyWith(
               phase: SyncPhase.failed,
-              errorMessage: err.message,
+              errorMessage: error.message,
               isResumable: true,
             ),
           );
           onProgress?.call(_currentProgress);
-          return Result.failure(err);
+          return Result.failure(error);
         }
 
-        // Discovery completed! Mark discoveryCompleted = true
+        // Repositories may return a listing without streaming folder callbacks.
+        for (final file in scanResult.dataOrNull!) {
+          if (!discoveredById.containsKey(file.id)) stagedFiles[file.id] = file;
+        }
+        if (stagedFiles.isNotEmpty || stagedFolders.isNotEmpty) {
+          await saveFolder(const [], visitedFolders);
+        }
         await (_database.update(
           _database.syncRuns,
-        )..where((tbl) => tbl.id.equals(syncRunId))).write(
+        )..where((row) => row.id.equals(syncRunId))).write(
           SyncRunsCompanion(
             discoveryCompleted: const Value(true),
             pendingFoldersJson: const Value(null),
             visitedFoldersJson: const Value(null),
-            filesDiscovered: Value(
-              allDriveFiles.where((f) => !f.isLrc && !f.isImage).length,
-            ),
+            filesDiscovered: Value(audioDiscovered),
             updatedAt: Value(DateTime.now()),
             lastCheckpointAt: Value(DateTime.now()),
           ),
         );
       }
 
+      final allDriveFiles = discoveredById.values;
       final driveAudioFiles = allDriveFiles
           .where((f) => !f.isLrc && !f.isImage)
           .toList();
@@ -1031,11 +1106,11 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
       final driveImageFiles = allDriveFiles.where((f) => f.isImage).toList();
 
       // Build map of sidecar LRC files keyed by folder and base filename
-      final Map<String, DriveFileItem> lrcMap = {};
+      final lrcMap = <(String, String), DriveFileItem>{};
       for (final lrc in driveLrcFiles) {
         final folder = lrc.parentFolderId ?? '';
         final base = _cleanBaseName(lrc.name);
-        lrcMap['${folder}_$base'] = lrc;
+        lrcMap[(folder, base)] = lrc;
       }
 
       // Build map of folder image files keyed by parentFolderId
@@ -1048,24 +1123,33 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
       final driveFileMap = {for (final f in driveAudioFiles) f.id: f};
 
       // 3. Load existing indexed tracks
-      final existingTracks = await (_database.select(
-        _database.tracks,
-      )..where((tbl) => tbl.sourceId.equals(sourceId))).get();
-      final existingMap = {for (final t in existingTracks) t.driveFileId: t};
+      final allIndexedTracks = await _database.select(_database.tracks).get();
+      final existingTracks = allIndexedTracks.where(
+        (track) => track.sourceId == sourceId,
+      );
+      final existingMap = {
+        for (final track in allIndexedTracks) track.driveFileId: track,
+      };
 
       // 4. Classify each audio file
+      final existingLyrics = {
+        for (final row in await _database.select(_database.lyrics).get())
+          row.trackId: row.source,
+      };
+      final sidecarOnly = <String>{};
       final List<DriveFileItem> toProcess = [];
       final List<DriveFileItem> unchangedComplete = [];
+      var processedCount = 0;
 
       for (final df in driveAudioFiles) {
-        if (forceSync) {
-          toProcess.add(df);
+        // Check if this file was already processed and added in this sync run
+        if (isResume && alreadyProcessedDriveIds.contains(df.id)) {
+          processedCount++;
           continue;
         }
 
-        // Check if this file was already processed and added in this sync run
-        if (isResume && alreadyProcessedDriveIds.contains(df.id)) {
-          unchangedComplete.add(df);
+        if (effectiveForceSync) {
+          toProcess.add(df);
           continue;
         }
 
@@ -1073,7 +1157,22 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
         final action = _classifyTrack(df, existing);
         switch (action) {
           case TrackSyncAction.unchangedComplete:
-            unchangedComplete.add(df);
+            final sidecar = _sidecarFor(df, lrcMap);
+            final lyricSource = existingLyrics[existing!.id];
+            final hasEmbeddedLyrics =
+                lyricSource == LyricSource.embeddedSynced.value ||
+                lyricSource == LyricSource.embeddedPlain.value;
+            if (!hasEmbeddedLyrics &&
+                (existing.sidecarFingerprint != _fileFingerprint(sidecar) ||
+                    (sidecar == null &&
+                        lyricSource == LyricSource.sidecarLrc.value))) {
+              sidecarOnly.add(df.id);
+              toProcess.add(df);
+            } else if (failedDriveIds.contains(df.id)) {
+              toProcess.add(df);
+            } else {
+              unchangedComplete.add(df);
+            }
             break;
           case TrackSyncAction.updateModified:
           case TrackSyncAction.processNew:
@@ -1083,11 +1182,12 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
         }
       }
 
-      // Mark all unchangedComplete files as processed in DiscoveredFiles
-      if (unchangedComplete.isNotEmpty) {
+      // Each batch stays below SQLite's lowest supported variable limit.
+      for (var offset = 0; offset < unchangedComplete.length; offset += 500) {
         final unchangedRowIds = unchangedComplete
-            .map((f) => '${syncRunId}_${f.id}')
-            .toList();
+            .skip(offset)
+            .take(500)
+            .map((file) => '${syncRunId}_${file.id}');
         await (_database.update(
           _database.discoveredFiles,
         )..where((tbl) => tbl.id.isIn(unchangedRowIds))).write(
@@ -1100,16 +1200,10 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
       }
 
       final totalDiscovered = driveAudioFiles.length;
-      int processedCount = unchangedComplete.length;
-      int addedCount = isResume
-          ? (existingRun?.filesAdded ?? _currentProgress.filesAdded)
-          : 0;
-      int updatedCount = isResume
-          ? (existingRun?.filesUpdated ?? _currentProgress.filesUpdated)
-          : 0;
-      int errorsCount = isResume
-          ? (existingRun?.errorsCount ?? _currentProgress.errorsCount)
-          : 0;
+      processedCount += unchangedComplete.length;
+      int addedCount = isResume ? (existingRun?.filesAdded ?? 0) : 0;
+      int updatedCount = isResume ? (existingRun?.filesUpdated ?? 0) : 0;
+      var errorsCount = 0;
 
       final initialPercent = totalDiscovered > 0
           ? (processedCount / totalDiscovered)
@@ -1125,6 +1219,7 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
           phase: SyncPhase.extractingMetadata,
           filesDiscovered: totalDiscovered,
           filesProcessed: processedCount,
+          errorsCount: errorsCount,
           progressPercent: initialPercent,
         ),
       );
@@ -1138,6 +1233,7 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
           phase: const Value('extractingMetadata'),
           filesDiscovered: Value(totalDiscovered),
           filesProcessed: Value(processedCount),
+          errorsCount: Value(errorsCount),
           progressPercent: Value(initialPercent),
           lastCheckpointAt: Value(DateTime.now()),
           updatedAt: Value(DateTime.now()),
@@ -1187,127 +1283,146 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
 
         File? tempFile;
         try {
-          tempFile = _fileSystem.getTempMetadataFile(
-            'temp_${driveFile.id}_${driveFile.name}',
-          );
-          final downloadRes = await _driveRepository.downloadFile(
-            fileId: driveFile.id,
-            destinationFile: tempFile,
-          );
-
-          if (downloadRes.isSuccess) {
-            final parsedMeta = await _metadataExtractor.extractFromFile(
+          await verifyAccount();
+          final existing = existingMap[driveFile.id];
+          final trackId = existing?.id ?? 'track_${driveFile.id}';
+          final sidecar = _sidecarFor(driveFile, lrcMap);
+          ParsedAudioMetadata? parsedMeta;
+          NormalizedMetadata? normalized;
+          String? embeddedArtworkPath;
+          if (!sidecarOnly.contains(driveFile.id)) {
+            final extension = driveFile.name
+                .split('.')
+                .last
+                .replaceAll(RegExp(r'[^a-zA-Z0-9]'), '');
+            tempFile = _fileSystem.getTempMetadataFile(
+              'temp_${Uri.encodeComponent(driveFile.id)}.${extension.substring(0, extension.length.clamp(0, 12))}',
+            );
+            final downloaded = await _driveRepository.downloadFile(
+              fileId: driveFile.id,
+              destinationFile: tempFile,
+              abortTrigger: cancellationToken.whenCancelled,
+            );
+            if (downloaded.isFailure) throw downloaded.failureOrNull!;
+            parsedMeta = await _metadataExtractor.extractFromFile(
               tempFile,
               fallbackName: driveFile.name,
-              knownFileSize: driveFile.size,
+              knownFileSize: driveFile.size > 0 ? driveFile.size : null,
             );
-
-            final normalized = MetadataNormalizationService.normalize(
+            normalized = MetadataNormalizationService.normalize(
               parsedMeta,
               filenameFallback: driveFile.name,
             );
+            final artwork = parsedMeta.artworkBytes;
+            if (artwork != null && artwork.isNotEmpty) {
+              final file = _fileSystem.getArtworkCacheFile(
+                'embedded_${sha256.convert(artwork)}',
+              );
+              if (!await file.exists()) {
+                final staged = File('${file.path}.partial');
+                await file.parent.create(recursive: true);
+                try {
+                  await staged.writeAsBytes(artwork, flush: true);
+                  await staged.rename(file.path);
+                } finally {
+                  if (await staged.exists()) await staged.delete();
+                }
+              }
+              embeddedArtworkPath = file.path;
+            }
+          }
 
-            final isExisting = existingMap.containsKey(driveFile.id);
-            final currentAdded = isExisting ? addedCount : addedCount + 1;
-            final currentUpdated = isExisting ? updatedCount + 1 : updatedCount;
-            final currentProcessed = processedCount + 1;
-            final currentProgressPercent = totalDiscovered > 0
-                ? (currentProcessed / totalDiscovered)
-                : 1.0;
+          // Fetch sidecars before opening the SQLite transaction.
+          final lyrics = await _readLyrics(
+            parsedMeta,
+            sidecar,
+            cancellationToken,
+          );
+          await verifyAccount();
+          final currentAdded = existing == null ? addedCount + 1 : addedCount;
+          final currentUpdated = existing == null
+              ? updatedCount
+              : updatedCount + 1;
+          final currentProcessed = processedCount + 1;
 
-            // Ensure album artwork is downloaded (from folder if embedded is missing)
-            final resolvedArtworkPath = await _ensureAlbumArtwork(
-              meta: normalized,
-              driveFile: driveFile,
-              folderImagesMap: folderImagesMap,
-              folderParentMap: folderParentMap,
-            );
-
-            // Atomically commit track, lyrics, and sync checkpoint
-            await _database.transaction(() async {
+          await _database.transaction(() async {
+            if (normalized != null) {
               await _upsertTrackAndRelationsInTx(
-                sourceId: sourceId,
+                sourceId: existing?.sourceId ?? sourceId,
                 driveFile: driveFile,
                 meta: normalized,
-                rawJson: jsonEncode(parsedMeta.rawMetadata ?? {}),
-                resolvedArtworkPath: resolvedArtworkPath,
+                previous: existing,
+                rawJson: jsonEncode(parsedMeta?.rawMetadata ?? {}),
+                embeddedArtworkPath: embeddedArtworkPath,
               );
-
-              final trackId = 'track_${driveFile.id}';
-              await _processLyricsForTrack(
-                trackId: trackId,
-                driveFile: driveFile,
-                parsedMeta: parsedMeta,
-                lrcMap: lrcMap,
-              );
-
-              await (_database.update(_database.discoveredFiles)..where(
-                    (tbl) => tbl.id.equals('${syncRunId}_${driveFile.id}'),
-                  ))
-                  .write(
-                    DiscoveredFilesCompanion(
-                      isProcessed: const Value(true),
-                      processStatus: Value(isExisting ? 'updated' : 'added'),
-                      processedAt: Value(DateTime.now()),
-                    ),
-                  );
-
-              await (_database.update(
-                _database.syncRuns,
-              )..where((tbl) => tbl.id.equals(syncRunId))).write(
-                SyncRunsCompanion(
-                  filesProcessed: Value(currentProcessed),
-                  filesAdded: Value(currentAdded),
-                  filesUpdated: Value(currentUpdated),
-                  errorsCount: Value(errorsCount),
-                  progressPercent: Value(currentProgressPercent),
-                  currentFile: Value(driveFile.name),
-                  lastCheckpointAt: Value(DateTime.now()),
-                  updatedAt: Value(DateTime.now()),
-                ),
-              );
-            });
-
-            processedCount = currentProcessed;
-            if (isExisting) {
-              updatedCount = currentUpdated;
-            } else {
-              addedCount = currentAdded;
+              if (existing != null &&
+                  (effectiveForceSync || _audioChanged(driveFile, existing))) {
+                await _refreshAudioCache(trackId, tempFile!);
+              }
             }
-
-            AppLogger.debug(
-              LogCategory.sync,
-              'Processed & checkpointed track: ${driveFile.name} ($processedCount/$totalDiscovered)',
+            if (lyrics == null) {
+              await _lyricsRepository.deleteLyricsForTrack(trackId);
+            } else {
+              final (source, parsed) = lyrics;
+              await _lyricsRepository.saveLyrics(
+                trackId: trackId,
+                source: source,
+                isSynchronized: parsed.isSynchronized,
+                rawText: parsed.rawText,
+                offsetMs: parsed.offsetMs,
+                lines: parsed.lines,
+              );
+            }
+            await (_database.update(
+              _database.tracks,
+            )..where((row) => row.id.equals(trackId))).write(
+              TracksCompanion(
+                sidecarFingerprint: Value(_fileFingerprint(sidecar)),
+              ),
             );
-          } else {
-            errorsCount++;
-            final err = downloadRes.failureOrNull!;
-            AppLogger.warning(
-              LogCategory.sync,
-              'Failed to download audio for metadata extraction: ${driveFile.name}',
-              err,
+            await (_database.update(_database.discoveredFiles)..where(
+                  (row) => row.id.equals('${syncRunId}_${driveFile.id}'),
+                ))
+                .write(
+                  DiscoveredFilesCompanion(
+                    isProcessed: const Value(true),
+                    processStatus: Value(
+                      existing == null ? 'added' : 'updated',
+                    ),
+                    processedAt: Value(DateTime.now()),
+                  ),
+                );
+            await (_database.update(
+              _database.syncRuns,
+            )..where((row) => row.id.equals(syncRunId))).write(
+              SyncRunsCompanion(
+                filesProcessed: Value(currentProcessed),
+                filesAdded: Value(currentAdded),
+                filesUpdated: Value(currentUpdated),
+                errorsCount: Value(errorsCount),
+                progressPercent: Value(currentProcessed / totalDiscovered),
+                currentFile: Value(driveFile.name),
+                lastCheckpointAt: Value(DateTime.now()),
+                updatedAt: Value(DateTime.now()),
+              ),
             );
-            await _recordSyncErrorAndCheckpoint(
-              syncRunId: syncRunId,
-              file: driveFile,
-              message: err.message,
-              filesDiscovered: totalDiscovered,
-              filesProcessed: ++processedCount,
-              errorsCount: errorsCount,
-            );
-          }
-        } catch (e, st) {
+          });
+          processedCount = currentProcessed;
+          addedCount = currentAdded;
+          updatedCount = currentUpdated;
+        } catch (error, stackTrace) {
+          if (cancellationToken.isCancelled) break;
           errorsCount++;
           AppLogger.warning(
             LogCategory.sync,
             'Error processing audio metadata: ${driveFile.name}',
-            e,
-            st,
+            error,
+            stackTrace,
           );
           await _recordSyncErrorAndCheckpoint(
             syncRunId: syncRunId,
             file: driveFile,
-            message: e.toString(),
+            message: error is AppFailure ? error.message : error.toString(),
             filesDiscovered: totalDiscovered,
             filesProcessed: ++processedCount,
             errorsCount: errorsCount,
@@ -1358,7 +1473,31 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
         return const Result.success(null);
       }
 
-      // 6. Handle remote deletions
+      if (errorsCount > 0) {
+        final error = DriveApiFailure(
+          'Could not synchronize $errorsCount of $totalDiscovered tracks. Resume to retry them.',
+        );
+        await _persistSessionFailed(syncRunId: syncRunId, error: error.message);
+        _updateProgress(
+          _currentProgress.copyWith(
+            phase: SyncPhase.failed,
+            errorMessage: error.message,
+            isResumable: true,
+            currentFile: null,
+          ),
+        );
+        onProgress?.call(_currentProgress);
+        return Result.failure(error);
+      }
+
+      // Fetch artwork before the transaction that prunes the local library.
+      final folderArtwork = await _prepareFolderArtwork(
+        driveFileMap,
+        folderImagesMap,
+        folderParentMap,
+        force: effectiveForceSync,
+        cancellation: cancellationToken,
+      );
       _updateProgress(
         _currentProgress.copyWith(
           phase: SyncPhase.updatingDatabase,
@@ -1367,61 +1506,94 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
       );
       onProgress?.call(_currentProgress);
 
-      final removedDriveIds = existingMap.keys
-          .where((id) => !driveFileMap.containsKey(id))
+      await verifyAccount();
+      final removedTracks = existingTracks
+          .where((track) => !driveFileMap.containsKey(track.driveFileId))
           .toList();
+      await _database.transaction(() async {
+        cancellationToken.throwIfCancelled();
+        final affectedPlaylists = <String>{};
+        for (final track in removedTracks) {
+          cancellationToken.throwIfCancelled();
+          affectedPlaylists.addAll(await _deleteTrack(track.id));
+        }
+        for (final playlistId in affectedPlaylists) {
+          final remaining =
+              await (_database.select(_database.playlistTracks)
+                    ..where((row) => row.playlistId.equals(playlistId))
+                    ..orderBy([(row) => OrderingTerm.asc(row.sortOrder)]))
+                  .get();
+          await _database.batch((batch) {
+            for (final (order, entry) in remaining.indexed) {
+              batch.update(
+                _database.playlistTracks,
+                PlaylistTracksCompanion(sortOrder: Value(order)),
+                where: (row) => row.id.equals(entry.id),
+              );
+            }
+          });
+          await (_database.update(
+            _database.playlists,
+          )..where((row) => row.id.equals(playlistId))).write(
+            PlaylistsCompanion(
+              trackCount: Value(remaining.length),
+              updatedAt: Value(DateTime.now()),
+            ),
+          );
+        }
 
-      if (removedDriveIds.isNotEmpty) {
-        AppLogger.info(
-          LogCategory.sync,
-          'Reconciling removed tracks: ${removedDriveIds.length} tracks deleted on Google Drive',
-        );
-        for (final remId in removedDriveIds) {
-          final track = existingMap[remId];
-          if (track != null) {
-            await (_database.delete(
-              _database.tracks,
-            )..where((tbl) => tbl.id.equals(track.id))).go();
-            await (_database.delete(
-              _database.cacheEntries,
-            )..where((tbl) => tbl.trackId.equals(track.id))).go();
-            await _lyricsRepository.deleteLyricsForTrack(track.id);
+        if (_authRepository != null) {
+          final legacyIds = allIndexedTracks
+              .where(
+                (track) =>
+                    track.sourceId == 'source_gdrive' &&
+                    driveFileMap.containsKey(track.driveFileId),
+              )
+              .map((track) => track.id)
+              .toList();
+          for (var offset = 0; offset < legacyIds.length; offset += 500) {
+            await (_database.update(_database.tracks)..where(
+                  (row) =>
+                      row.id.isIn(legacyIds.skip(offset).take(500)) &
+                      row.sourceId.equals('source_gdrive'),
+                ))
+                .write(TracksCompanion(sourceId: Value(sourceId)));
           }
         }
-      }
 
-      // 7. Reconcile duplicate albums and recompute library aggregates
-      await _database.reconcileDuplicateAlbums();
-      await _recomputeLibraryAggregates(
-        folderImagesMap: folderImagesMap,
-        folderParentMap: folderParentMap,
-        driveFileMap: driveFileMap,
-      );
+        await _database.reconcileDuplicateAlbums();
+        await _recomputeLibraryAggregates(
+          folderArtwork: folderArtwork,
+          driveFileMap: driveFileMap,
+        );
+        cancellationToken.throwIfCancelled();
 
-      // 8. Finalize sync run record
-      await (_database.update(
-        _database.syncRuns,
-      )..where((tbl) => tbl.id.equals(syncRunId))).write(
-        SyncRunsCompanion(
-          completedAt: Value(DateTime.now()),
-          updatedAt: Value(DateTime.now()),
-          lastCheckpointAt: Value(DateTime.now()),
-          status: const Value('completed'),
-          phase: const Value('complete'),
-          filesDiscovered: Value(totalDiscovered),
-          filesProcessed: Value(totalDiscovered),
-          filesAdded: Value(addedCount),
-          filesUpdated: Value(updatedCount),
-          filesRemoved: Value(removedDriveIds.length),
-          errorsCount: Value(errorsCount),
-          progressPercent: const Value(1.0),
-          currentFile: const Value(null),
-        ),
-      );
+        await (_database.update(
+          _database.syncRuns,
+        )..where((row) => row.id.equals(syncRunId))).write(
+          SyncRunsCompanion(
+            completedAt: Value(DateTime.now()),
+            updatedAt: Value(DateTime.now()),
+            lastCheckpointAt: Value(DateTime.now()),
+            status: const Value('completed'),
+            phase: const Value('complete'),
+            filesDiscovered: Value(totalDiscovered),
+            filesProcessed: Value(totalDiscovered),
+            filesAdded: Value(addedCount),
+            filesUpdated: Value(updatedCount),
+            filesRemoved: Value(removedTracks.length),
+            errorsCount: const Value(0),
+            progressPercent: const Value(1.0),
+            currentFile: const Value(null),
+            errorMessage: const Value(null),
+          ),
+        );
 
-      await (_database.update(_database.musicSources)
-            ..where((tbl) => tbl.id.equals(sourceId)))
-          .write(MusicSourcesCompanion(lastSyncedAt: Value(DateTime.now())));
+        await (_database.update(_database.musicSources)
+              ..where((row) => row.id.equals(sourceId)))
+            .write(MusicSourcesCompanion(lastSyncedAt: Value(DateTime.now())));
+        cancellationToken.throwIfCancelled();
+      });
 
       _updateProgress(
         _currentProgress.copyWith(
@@ -1430,7 +1602,7 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
           filesProcessed: totalDiscovered,
           filesAdded: addedCount,
           filesUpdated: updatedCount,
-          filesRemoved: removedDriveIds.length,
+          filesRemoved: removedTracks.length,
           errorsCount: errorsCount,
           progressPercent: 1.0,
           currentFile: null,
@@ -1441,7 +1613,7 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
 
       AppLogger.info(
         LogCategory.sync,
-        'Sync completed successfully! Discovered: $totalDiscovered, Unchanged: ${unchangedComplete.length}, Added: $addedCount, Updated: $updatedCount, Removed: ${removedDriveIds.length}, Errors: $errorsCount',
+        'Sync completed successfully! Discovered: $totalDiscovered, Unchanged: ${unchangedComplete.length}, Added: $addedCount, Updated: $updatedCount, Removed: ${removedTracks.length}, Errors: $errorsCount',
       );
 
       // Trigger background download of missing artist artwork
@@ -1449,20 +1621,59 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
 
       return const Result.success(null);
     } catch (e, st) {
+      if (cancellationToken.isCancelled) {
+        if (runRecorded) await _persistSessionStopped(syncRunId: syncRunId);
+        _updateProgress(
+          _currentProgress.copyWith(
+            phase: SyncPhase.stopped,
+            isResumable: true,
+            currentFile: null,
+          ),
+        );
+        onProgress?.call(_currentProgress);
+        return const Result.success(null);
+      }
       AppLogger.error(LogCategory.sync, 'Fatal error during sync', e, st);
-      await _persistSessionFailed(syncRunId: syncRunId, error: e.toString());
+      final message = e is AppFailure ? e.message : e.toString();
+      if (runRecorded) {
+        await _persistSessionFailed(syncRunId: syncRunId, error: message);
+      }
       _updateProgress(
         _currentProgress.copyWith(
           phase: SyncPhase.failed,
-          errorMessage: e.toString(),
+          errorMessage: message,
           isResumable: true,
         ),
       );
       onProgress?.call(_currentProgress);
 
-      return Result.failure(DatabaseFailure('Sync failed', cause: e));
+      return Result.failure(
+        e is AppFailure ? e : DatabaseFailure('Sync failed', cause: e),
+      );
     } finally {
+      try {
+        await _database.transaction(() async {
+          final entries = await _database.select(_database.cacheEntries).get();
+          await _fileSystem.removeUnreferencedAudio(
+            entries.map((entry) => entry.localPath).toSet(),
+          );
+        });
+      } catch (e) {
+        AppLogger.warning(
+          LogCategory.cache,
+          'Could not remove stale sync audio',
+          e,
+        );
+      }
       _isSyncRunning = false;
+      _activeSourceId = null;
+      if (_visibleSourceId != sourceId) {
+        _updateProgress(const SyncProgress());
+        final visibleSourceId = _visibleSourceId;
+        if (visibleSourceId != null) {
+          unawaited(_hydrateInitialState(visibleSourceId));
+        }
+      }
       _currentCancellationToken = null;
       _activeSyncCompleter?.complete();
       _activeSyncCompleter = null;
@@ -1596,8 +1807,9 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
     required String sourceId,
     required DriveFileItem driveFile,
     required NormalizedMetadata meta,
+    required TrackRow? previous,
     required String rawJson,
-    String? resolvedArtworkPath,
+    String? embeddedArtworkPath,
   }) async {
     // 1. Artist
     final artistId = 'artist_${meta.normalizedArtist}';
@@ -1659,7 +1871,7 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
 
     final existingArt = existingAlbum?.artworkPath;
     final effectiveArtwork =
-        resolvedArtworkPath ??
+        embeddedArtworkPath ??
         (artworkFile.existsSync()
             ? artworkFile.path
             : (existingArt != null &&
@@ -1780,71 +1992,175 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
             format: Value(meta.format),
             fileSize: Value(meta.fileSize),
             mimeType: Value(driveFile.mimeType),
-            driveModifiedAt: Value(driveFile.modifiedTime),
-            driveMd5Checksum: Value(driveFile.md5Checksum),
+            driveModifiedAt: Value(
+              driveFile.modifiedTime ?? previous?.driveModifiedAt,
+            ),
+            driveMd5Checksum: Value(
+              driveFile.md5Checksum ?? previous?.driveMd5Checksum,
+            ),
             artworkPath: effectiveArtwork != null
                 ? Value(effectiveArtwork)
                 : const Value(null),
             rawMetadataJson: Value(rawJson),
-            createdAt: Value(DateTime.now()),
+            embeddedArtworkPath: Value(embeddedArtworkPath),
+            createdAt: Value(previous?.createdAt ?? DateTime.now()),
             updatedAt: Value(DateTime.now()),
           ),
         );
   }
 
-  Future<String?> _ensureAlbumArtwork({
-    required NormalizedMetadata meta,
-    required DriveFileItem driveFile,
-    required Map<String, List<DriveFileItem>> folderImagesMap,
-    required Map<String, String?> folderParentMap,
-  }) async {
-    try {
-      final effectiveAlbumArtist =
-          (meta.albumArtist != null && meta.albumArtist!.trim().isNotEmpty)
-          ? meta.albumArtist!
-          : meta.artist;
-      final artworkKey = MetadataNormalizationService.computeArtworkKey(
-        meta.album,
-        effectiveAlbumArtist,
+  Future<void> _refreshAudioCache(String trackId, File downloaded) async {
+    final track = await (_database.select(
+      _database.tracks,
+    )..where((row) => row.id.equals(trackId))).getSingle();
+    if (!track.isPinnedOffline) {
+      await (_database.delete(
+        _database.cacheEntries,
+      )..where((row) => row.trackId.equals(trackId))).go();
+      await (_database.update(
+        _database.tracks,
+      )..where((row) => row.id.equals(trackId))).write(
+        const TracksCompanion(isCached: Value(false), localPath: Value(null)),
       );
-      final artworkFile = _fileSystem.getArtworkCacheFile(artworkKey);
-      if (artworkFile.existsSync()) return artworkFile.path;
-
-      final candidate = FolderArtworkResolver.resolveCandidate(
-        folderId: driveFile.parentFolderId,
-        folderImages: folderImagesMap,
-        folderParentMap: folderParentMap,
-      );
-
-      if (candidate != null) {
-        final dlRes = await _driveRepository.downloadFile(
-          fileId: candidate.id,
-          destinationFile: artworkFile,
-        );
-        if (dlRes.isSuccess && artworkFile.existsSync()) {
-          AppLogger.info(
-            LogCategory.metadata,
-            'Downloaded folder artwork for "${meta.album}" from "${candidate.name}" (${artworkFile.lengthSync()} bytes)',
-          );
-          return artworkFile.path;
-        }
-      }
-      return null;
-    } catch (e, st) {
-      AppLogger.warning(
-        LogCategory.metadata,
-        'Failed to resolve/download folder artwork for ${meta.album}',
-        e,
-        st,
-      );
-      return null;
+      return;
     }
+
+    // Use a new path so the previous pin survives transaction rollback.
+    final digest = sha256.convert(utf8.encode(track.driveAudioVersion));
+    final file = _fileSystem.getAudioCacheFile(
+      '${track.id}_$digest',
+      track.format?.toLowerCase() ?? 'mp3',
+    );
+    final staging = File('${file.path}.partial');
+    await file.parent.create(recursive: true);
+    try {
+      await downloaded.copy(staging.path);
+      await staging.rename(file.path);
+    } finally {
+      if (await staging.exists()) await staging.delete();
+    }
+    final now = DateTime.now();
+    await _database
+        .into(_database.cacheEntries)
+        .insertOnConflictUpdate(
+          CacheEntriesCompanion.insert(
+            id: track.id,
+            trackId: track.id,
+            driveFileId: track.driveFileId,
+            localPath: file.path,
+            fileSize: await file.length(),
+            state: 'cached',
+            isPinnedOffline: const Value(true),
+            driveVersion: Value(track.driveAudioVersion),
+            downloadedAt: Value(now),
+            lastAccessedAt: now,
+          ),
+        );
+    await (_database.update(
+      _database.tracks,
+    )..where((row) => row.id.equals(trackId))).write(
+      TracksCompanion(isCached: const Value(true), localPath: Value(file.path)),
+    );
   }
 
+  Future<Set<String>> _deleteTrack(String trackId) async {
+    final memberships = await (_database.select(
+      _database.playlistTracks,
+    )..where((row) => row.trackId.equals(trackId))).get();
+    await (_database.delete(
+      _database.playlistTracks,
+    )..where((row) => row.trackId.equals(trackId))).go();
+    await (_database.delete(
+      _database.favorites,
+    )..where((row) => row.trackId.equals(trackId))).go();
+    await (_database.delete(
+      _database.recentlyPlayed,
+    )..where((row) => row.trackId.equals(trackId))).go();
+    await (_database.delete(
+      _database.playbackQueue,
+    )..where((row) => row.trackId.equals(trackId))).go();
+    await (_database.update(
+      _database.playbackStates,
+    )..where((row) => row.currentTrackId.equals(trackId))).write(
+      const PlaybackStatesCompanion(
+        currentTrackId: Value(null),
+        positionMs: Value(0),
+        durationMs: Value(0),
+        isPlaying: Value(false),
+      ),
+    );
+    await (_database.delete(
+      _database.cacheEntries,
+    )..where((row) => row.trackId.equals(trackId))).go();
+    await _lyricsRepository.deleteLyricsForTrack(trackId);
+    await (_database.delete(
+      _database.tracks,
+    )..where((row) => row.id.equals(trackId))).go();
+    return memberships.map((row) => row.playlistId).toSet();
+  }
+
+  Future<Map<String, (String, String)>> _prepareFolderArtwork(
+    Map<String, DriveFileItem> driveFiles,
+    Map<String, List<DriveFileItem>> folderImages,
+    Map<String, String?> folderParents, {
+    required bool force,
+    required SyncCancellationToken cancellation,
+  }) async {
+    final byTrack = <String, (String, String)>{};
+    final filesByFingerprint = <String, File>{};
+    final tracksByAlbum = <String?, List<TrackRow>>{};
+    for (final track in await _database.select(_database.tracks).get()) {
+      tracksByAlbum.putIfAbsent(track.albumId, () => []).add(track);
+    }
+    for (final tracks in tracksByAlbum.values) {
+      if (tracks.any(
+        (track) => _existingFile(track.embeddedArtworkPath) != null,
+      )) {
+        continue;
+      }
+      for (final track in tracks) {
+        cancellation.throwIfCancelled();
+        final candidate = FolderArtworkResolver.resolveCandidate(
+          folderId: driveFiles[track.driveFileId]?.parentFolderId,
+          folderImages: folderImages,
+          folderParentMap: folderParents,
+        );
+        final fingerprint = _fileFingerprint(candidate);
+        if (candidate == null || fingerprint == null) continue;
+        var file = filesByFingerprint[fingerprint];
+        if (file == null) {
+          final digest = sha256.convert(utf8.encode(fingerprint));
+          file = _fileSystem.getArtworkCacheFile('drive_$digest');
+          if (force || !await file.exists()) {
+            await file.parent.create(recursive: true);
+            final staging = File('${file.path}.partial');
+            try {
+              final result = await _driveRepository.downloadFile(
+                fileId: candidate.id,
+                destinationFile: staging,
+                abortTrigger: cancellation.whenCancelled,
+              );
+              if (result.isFailure) throw result.failureOrNull!;
+              await staging.rename(file.path);
+            } finally {
+              if (await staging.exists()) await staging.delete();
+            }
+          }
+          filesByFingerprint[fingerprint] = file;
+        }
+        byTrack[track.driveFileId] = (fingerprint, file.path);
+        break;
+      }
+    }
+    return byTrack;
+  }
+
+  String? _existingFile(String? path) =>
+      path != null && path.isNotEmpty && File(path).existsSync() ? path : null;
+
   Future<void> _recomputeLibraryAggregates({
-    Map<String, List<DriveFileItem>>? folderImagesMap,
-    Map<String, String?>? folderParentMap,
-    Map<String, DriveFileItem>? driveFileMap,
+    required Map<String, (String, String)> folderArtwork,
+    required Map<String, DriveFileItem> driveFileMap,
   }) async {
     final albums = await _database.select(_database.albums).get();
     for (final alb in albums) {
@@ -1861,42 +2177,29 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
 
       final totalMs = tracks.fold<int>(0, (sum, t) => sum + t.durationMs);
 
-      String? currentArtwork = alb.artworkPath;
-      if (currentArtwork == null ||
-          currentArtwork.isEmpty ||
-          !File(currentArtwork).existsSync()) {
-        final key = MetadataNormalizationService.computeArtworkKey(
-          alb.title,
-          alb.artistName,
-        );
-        final file = _fileSystem.getArtworkCacheFile(key);
-        if (file.existsSync()) {
-          currentArtwork = file.path;
-        } else if (folderImagesMap != null && driveFileMap != null) {
-          for (final track in tracks) {
-            final df = driveFileMap[track.driveFileId];
-            if (df?.parentFolderId != null) {
-              final candidate = FolderArtworkResolver.resolveCandidate(
-                folderId: df!.parentFolderId,
-                folderImages: folderImagesMap,
-                folderParentMap: folderParentMap,
-              );
-              if (candidate != null) {
-                try {
-                  final dlRes = await _driveRepository.downloadFile(
-                    fileId: candidate.id,
-                    destinationFile: file,
-                  );
-                  if (dlRes.isSuccess && file.existsSync()) {
-                    currentArtwork = file.path;
-                    break;
-                  }
-                } catch (_) {}
-              }
-            }
-          }
-        }
-      }
+      final belongsToSync = tracks.any(
+        (track) => driveFileMap.containsKey(track.driveFileId),
+      );
+      final embeddedArtwork = tracks
+          .map((track) => _existingFile(track.embeddedArtworkPath))
+          .nonNulls
+          .firstOrNull;
+      final remoteArtwork = tracks
+          .map((track) => folderArtwork[track.driveFileId])
+          .nonNulls
+          .firstOrNull;
+      final previousArtwork = _existingFile(alb.artworkPath);
+      final isLegacyArtwork =
+          alb.driveArtworkFingerprint == null &&
+          !(previousArtwork
+                  ?.split(Platform.pathSeparator)
+                  .last
+                  .startsWith('embedded_') ??
+              false);
+      final currentArtwork =
+          embeddedArtwork ??
+          remoteArtwork?.$2 ??
+          (!belongsToSync || isLegacyArtwork ? previousArtwork : null);
 
       await (_database.update(
         _database.albums,
@@ -1904,19 +2207,16 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
         AlbumsCompanion(
           trackCount: Value(tracks.length),
           totalDurationMs: Value(totalMs),
-          artworkPath: currentArtwork != null
-              ? Value(currentArtwork)
+          artworkPath: Value(currentArtwork),
+          driveArtworkFingerprint: belongsToSync
+              ? Value(embeddedArtwork == null ? remoteArtwork?.$1 : null)
               : const Value.absent(),
         ),
       );
 
-      if (currentArtwork != null &&
-          currentArtwork.isNotEmpty &&
-          File(currentArtwork).existsSync()) {
-        await (_database.update(_database.tracks)
-              ..where((tbl) => tbl.albumId.equals(alb.id)))
-            .write(TracksCompanion(artworkPath: Value(currentArtwork)));
-      }
+      await (_database.update(_database.tracks)
+            ..where((tbl) => tbl.albumId.equals(alb.id)))
+          .write(TracksCompanion(artworkPath: Value(currentArtwork)));
     }
 
     final artists = await _database.select(_database.artists).get();
@@ -1982,91 +2282,47 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
     return withoutExt.trim().toLowerCase();
   }
 
-  Future<void> _processLyricsForTrack({
-    required String trackId,
-    required DriveFileItem driveFile,
-    required ParsedAudioMetadata parsedMeta,
-    required Map<String, DriveFileItem> lrcMap,
-  }) async {
-    try {
-      final folder = driveFile.parentFolderId ?? '';
-      final base = _cleanBaseName(driveFile.name);
-      final matchingLrc = lrcMap['${folder}_$base'];
+  DriveFileItem? _sidecarFor(
+    DriveFileItem audio,
+    Map<(String, String), DriveFileItem> sidecars,
+  ) => sidecars[(audio.parentFolderId ?? '', _cleanBaseName(audio.name))];
 
-      final embedded = parsedMeta.lyrics;
-      final bool hasEmbedded = embedded != null && embedded.trim().isNotEmpty;
-
-      if (hasEmbedded) {
-        final parsedEmbedded = LrcParser.parse(embedded);
-        if (parsedEmbedded.isSynchronized && parsedEmbedded.lines.isNotEmpty) {
-          // 1. Embedded synchronized
-          await _lyricsRepository.saveLyrics(
-            trackId: trackId,
-            source: LyricSource.embeddedSynced,
-            isSynchronized: true,
-            rawText: parsedEmbedded.rawText,
-            offsetMs: parsedEmbedded.offsetMs,
-            lines: parsedEmbedded.lines,
-          );
-          return;
-        } else if (parsedEmbedded.lines.isNotEmpty) {
-          // 2. Embedded unsynchronized / plain
-          await _lyricsRepository.saveLyrics(
-            trackId: trackId,
-            source: LyricSource.embeddedPlain,
-            isSynchronized: false,
-            rawText: parsedEmbedded.rawText,
-            offsetMs: 0,
-            lines: parsedEmbedded.lines,
-          );
-          return;
-        } else if (matchingLrc != null) {
-          // Fall back to matching LRC if embedded was empty or malformed
-          await _fetchAndSaveSidecarLrc(trackId, matchingLrc);
-          return;
-        }
-      } else if (matchingLrc != null) {
-        // 3. Matching external .lrc file
-        await _fetchAndSaveSidecarLrc(trackId, matchingLrc);
-        return;
-      }
-    } catch (e, st) {
-      AppLogger.warning(
-        LogCategory.metadata,
-        'Error indexing lyrics for track $trackId',
-        e,
-        st,
-      );
-    }
+  String? _fileFingerprint(DriveFileItem? file) {
+    if (file == null) return null;
+    return jsonEncode([
+      file.id,
+      file.name,
+      file.md5Checksum,
+      (file.modifiedTime?.millisecondsSinceEpoch ?? 0) ~/ 1000,
+      file.size,
+    ]);
   }
 
-  Future<void> _fetchAndSaveSidecarLrc(
-    String trackId,
-    DriveFileItem lrcFile,
+  Future<(LyricSource, ParsedLyricsResult)?> _readLyrics(
+    ParsedAudioMetadata? audio,
+    DriveFileItem? sidecar,
+    SyncCancellationToken cancellation,
   ) async {
-    try {
-      final lrcRes = await _driveRepository.downloadTextFile(lrcFile.id);
-      if (lrcRes.isSuccess) {
-        final text = lrcRes.dataOrNull ?? '';
-        final parsed = LrcParser.parse(text);
-        if (parsed.lines.isNotEmpty) {
-          await _lyricsRepository.saveLyrics(
-            trackId: trackId,
-            source: LyricSource.sidecarLrc,
-            isSynchronized: parsed.isSynchronized,
-            rawText: parsed.rawText,
-            offsetMs: parsed.offsetMs,
-            lines: parsed.lines,
-          );
-        }
+    final embedded = audio?.lyrics;
+    if (embedded != null && embedded.trim().isNotEmpty) {
+      final parsed = LrcParser.parse(embedded);
+      if (parsed.lines.isNotEmpty) {
+        return (
+          parsed.isSynchronized
+              ? LyricSource.embeddedSynced
+              : LyricSource.embeddedPlain,
+          parsed,
+        );
       }
-    } catch (e) {
-      AppLogger.warning(
-        LogCategory.metadata,
-        'Failed to fetch sidecar LRC for $trackId',
-        e,
-      );
     }
+    if (sidecar == null) return null;
+    final result = await _driveRepository.downloadTextFile(
+      sidecar.id,
+      abortTrigger: cancellation.whenCancelled,
+    );
+    if (result.isFailure) throw result.failureOrNull!;
+    final parsed = LrcParser.parse(result.dataOrNull!);
+    return parsed.lines.isEmpty ? null : (LyricSource.sidecarLrc, parsed);
   }
 
   Future<void> _triggerArtistArtworkDownload() async {

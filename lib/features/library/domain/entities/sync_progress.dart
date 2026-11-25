@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../../../../core/error/failures.dart';
@@ -5,11 +7,16 @@ import '../../../../core/result/result.dart';
 import 'music_entities.dart';
 
 class SyncCancellationToken {
-  bool _isCancelled = false;
-  bool get isCancelled => _isCancelled;
+  final _cancelled = Completer<void>();
+  bool get isCancelled => _cancelled.isCompleted;
+  Future<void> get whenCancelled => _cancelled.future;
+
+  void throwIfCancelled() {
+    if (isCancelled) throw StateError('Sync cancelled');
+  }
 
   void cancel() {
-    _isCancelled = true;
+    if (!isCancelled) _cancelled.complete();
   }
 }
 
@@ -74,6 +81,8 @@ class SyncProgress {
   bool get isComplete => phase == SyncPhase.complete;
   bool get isFailed => phase == SyncPhase.failed;
 
+  static const _unchanged = Object();
+
   SyncProgress copyWith({
     String? syncRunId,
     SyncPhase? phase,
@@ -83,8 +92,8 @@ class SyncProgress {
     int? filesUpdated,
     int? filesRemoved,
     int? errorsCount,
-    String? currentFile,
-    String? errorMessage,
+    Object? currentFile = _unchanged,
+    Object? errorMessage = _unchanged,
     double? progressPercent,
     DateTime? lastCheckpointAt,
     bool? isResumable,
@@ -100,8 +109,12 @@ class SyncProgress {
       filesUpdated: filesUpdated ?? this.filesUpdated,
       filesRemoved: filesRemoved ?? this.filesRemoved,
       errorsCount: errorsCount ?? this.errorsCount,
-      currentFile: currentFile ?? this.currentFile,
-      errorMessage: errorMessage ?? this.errorMessage,
+      currentFile: identical(currentFile, _unchanged)
+          ? this.currentFile
+          : currentFile as String?,
+      errorMessage: identical(errorMessage, _unchanged)
+          ? this.errorMessage
+          : errorMessage as String?,
       progressPercent: progressPercent ?? this.progressPercent,
       lastCheckpointAt: lastCheckpointAt ?? this.lastCheckpointAt,
       isResumable: isResumable ?? this.isResumable,

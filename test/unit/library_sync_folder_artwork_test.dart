@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:drift/drift.dart' hide isNotNull, isNull;
@@ -13,7 +14,6 @@ import 'package:musii/features/library/data/repositories/music_library_repositor
 import 'package:musii/features/lyrics/data/repositories/lyrics_repository_impl.dart';
 import 'package:musii/features/metadata/data/repositories/metadata_extractor_impl.dart';
 import 'package:musii/features/metadata/domain/entities/parsed_audio_metadata.dart';
-import 'package:musii/features/metadata/domain/services/metadata_normalization_service.dart';
 import 'package:musii/features/playlists/data/repositories/playlist_repository_impl.dart';
 import 'package:musii/features/recently_played/data/repositories/recently_played_repository_impl.dart';
 import 'package:musii/features/search/data/repositories/search_repository_impl.dart';
@@ -35,12 +35,17 @@ class FakeDriveRepo implements GoogleDriveRepository {
     String rootFolderId, {
     void Function(int discoveredCount)? onProgress,
     void Function(DriveFileItem file)? onFileDiscovered,
-    void Function(List<String> pendingFolders, Set<String> visitedFolders)?
+    FutureOr<void> Function(
+      List<String> pendingFolders,
+      Set<String> visitedFolders,
+    )?
     onFolderStateChanged,
     List<String>? initialFolderQueue,
     Set<String>? initialVisitedFolders,
     bool Function()? isCancelled,
     Map<String, String?>? folderParentMap,
+    void Function(String folderId, String parentId)? onFolderDiscovered,
+    Future<void>? abortTrigger,
   }) async {
     if (folderParentMap != null) {
       folderParentMap.addAll(parentMap);
@@ -57,6 +62,7 @@ class FakeDriveRepo implements GoogleDriveRepository {
     required String fileId,
     required File destinationFile,
     void Function(int receivedBytes, int totalBytes)? onProgress,
+    Future<void>? abortTrigger,
   }) async {
     downloadedFileIds.add(fileId);
     await destinationFile.create(recursive: true);
@@ -70,7 +76,10 @@ class FakeDriveRepo implements GoogleDriveRepository {
   }
 
   @override
-  Future<Result<String, AppFailure>> downloadTextFile(String fileId) async {
+  Future<Result<String, AppFailure>> downloadTextFile(
+    String fileId, {
+    Future<void>? abortTrigger,
+  }) async {
     return const Result.success('');
   }
 
@@ -227,27 +236,18 @@ void main() {
       artworkBytes: embeddedBytes,
     );
 
-    // Save embedded artwork to cache directory ahead of sync (simulating MetadataExtractor._saveArtworkIfNew)
-    final key = MetadataNormalizationService.computeArtworkKey(
-      'Self Titled Album',
-      'Self Titled Artist',
-    );
-    final cacheFile = fs.getArtworkCacheFile(key);
-    await cacheFile.create(recursive: true);
-    await cacheFile.writeAsBytes(embeddedBytes);
-
     final res = await libraryRepo.syncLibrary(
       rootFolderId: 'root',
       rootFolderName: 'Music',
     );
 
     expect(res.isSuccess, isTrue);
-    // Should NOT have downloaded the folder art because artwork file already existed from embedded tags
+    // Embedded tags take priority over folder artwork.
     expect(fakeDrive.downloadedFileIds, isNot(contains('folder_art')));
 
     final albums = await libraryRepo.watchAllAlbums().first;
     final album = albums.firstWhere((a) => a.title == 'Self Titled Album');
-    expect(album.artworkPath, equals(cacheFile.path));
+    expect(await File(album.artworkPath!).readAsBytes(), embeddedBytes);
   });
 
   test('resolves artwork from parent folder in multi-disc layout', () async {

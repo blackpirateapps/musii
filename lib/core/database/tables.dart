@@ -59,6 +59,7 @@ class Albums extends Table {
   TextColumn get artistName => text().nullable()();
   IntColumn get year => integer().nullable()();
   TextColumn get artworkPath => text().nullable()();
+  TextColumn get driveArtworkFingerprint => text().nullable()();
   IntColumn get trackCount => integer().withDefault(const Constant(0))();
   IntColumn get totalDurationMs => integer().withDefault(const Constant(0))();
 
@@ -104,6 +105,8 @@ class Tracks extends Table {
   TextColumn get driveMd5Checksum => text().nullable()();
   TextColumn get localPath => text().nullable()();
   TextColumn get artworkPath => text().nullable()();
+  TextColumn get embeddedArtworkPath => text().nullable()();
+  TextColumn get sidecarFingerprint => text().nullable()();
   BoolColumn get isCached => boolean().withDefault(const Constant(false))();
   BoolColumn get isPinnedOffline =>
       boolean().withDefault(const Constant(false))();
@@ -211,6 +214,7 @@ class SyncRuns extends Table {
   IntColumn get filesUpdated => integer().withDefault(const Constant(0))();
   IntColumn get filesRemoved => integer().withDefault(const Constant(0))();
   IntColumn get errorsCount => integer().withDefault(const Constant(0))();
+  BoolColumn get forceSync => boolean().withDefault(const Constant(false))();
   BoolColumn get discoveryCompleted =>
       boolean().withDefault(const Constant(false))();
   TextColumn get pendingFoldersJson => text().nullable()();

@@ -128,7 +128,9 @@ Future<void> bootstrap() async {
 
     // 11. Check for interrupted sync and auto-resume
     final libraryRepo = rootContainer.read(musicLibraryRepositoryProvider);
-    unawaited(libraryRepo.recoverInterruptedSyncIfNeeded());
+    if (userResult.dataOrNull != null) {
+      unawaited(libraryRepo.recoverInterruptedSyncIfNeeded());
+    }
   } catch (e, st) {
     AppLogger.error(LogCategory.ui, 'Error during bootstrap sequence', e, st);
   }

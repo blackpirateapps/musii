@@ -1782,6 +1782,17 @@ class $AlbumsTable extends Albums with TableInfo<$AlbumsTable, AlbumRow> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _driveArtworkFingerprintMeta =
+      const VerificationMeta('driveArtworkFingerprint');
+  @override
+  late final GeneratedColumn<String> driveArtworkFingerprint =
+      GeneratedColumn<String>(
+        'drive_artwork_fingerprint',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _trackCountMeta = const VerificationMeta(
     'trackCount',
   );
@@ -1816,6 +1827,7 @@ class $AlbumsTable extends Albums with TableInfo<$AlbumsTable, AlbumRow> {
     artistName,
     year,
     artworkPath,
+    driveArtworkFingerprint,
     trackCount,
     totalDurationMs,
   ];
@@ -1890,6 +1902,15 @@ class $AlbumsTable extends Albums with TableInfo<$AlbumsTable, AlbumRow> {
         ),
       );
     }
+    if (data.containsKey('drive_artwork_fingerprint')) {
+      context.handle(
+        _driveArtworkFingerprintMeta,
+        driveArtworkFingerprint.isAcceptableOrUnknown(
+          data['drive_artwork_fingerprint']!,
+          _driveArtworkFingerprintMeta,
+        ),
+      );
+    }
     if (data.containsKey('track_count')) {
       context.handle(
         _trackCountMeta,
@@ -1946,6 +1967,10 @@ class $AlbumsTable extends Albums with TableInfo<$AlbumsTable, AlbumRow> {
         DriftSqlType.string,
         data['${effectivePrefix}artwork_path'],
       ),
+      driveArtworkFingerprint: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}drive_artwork_fingerprint'],
+      ),
       trackCount: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}track_count'],
@@ -1972,6 +1997,7 @@ class AlbumRow extends DataClass implements Insertable<AlbumRow> {
   final String? artistName;
   final int? year;
   final String? artworkPath;
+  final String? driveArtworkFingerprint;
   final int trackCount;
   final int totalDurationMs;
   const AlbumRow({
@@ -1983,6 +2009,7 @@ class AlbumRow extends DataClass implements Insertable<AlbumRow> {
     this.artistName,
     this.year,
     this.artworkPath,
+    this.driveArtworkFingerprint,
     required this.trackCount,
     required this.totalDurationMs,
   });
@@ -2005,6 +2032,11 @@ class AlbumRow extends DataClass implements Insertable<AlbumRow> {
     if (!nullToAbsent || artworkPath != null) {
       map['artwork_path'] = Variable<String>(artworkPath);
     }
+    if (!nullToAbsent || driveArtworkFingerprint != null) {
+      map['drive_artwork_fingerprint'] = Variable<String>(
+        driveArtworkFingerprint,
+      );
+    }
     map['track_count'] = Variable<int>(trackCount);
     map['total_duration_ms'] = Variable<int>(totalDurationMs);
     return map;
@@ -2026,6 +2058,9 @@ class AlbumRow extends DataClass implements Insertable<AlbumRow> {
       artworkPath: artworkPath == null && nullToAbsent
           ? const Value.absent()
           : Value(artworkPath),
+      driveArtworkFingerprint: driveArtworkFingerprint == null && nullToAbsent
+          ? const Value.absent()
+          : Value(driveArtworkFingerprint),
       trackCount: Value(trackCount),
       totalDurationMs: Value(totalDurationMs),
     );
@@ -2045,6 +2080,9 @@ class AlbumRow extends DataClass implements Insertable<AlbumRow> {
       artistName: serializer.fromJson<String?>(json['artistName']),
       year: serializer.fromJson<int?>(json['year']),
       artworkPath: serializer.fromJson<String?>(json['artworkPath']),
+      driveArtworkFingerprint: serializer.fromJson<String?>(
+        json['driveArtworkFingerprint'],
+      ),
       trackCount: serializer.fromJson<int>(json['trackCount']),
       totalDurationMs: serializer.fromJson<int>(json['totalDurationMs']),
     );
@@ -2061,6 +2099,9 @@ class AlbumRow extends DataClass implements Insertable<AlbumRow> {
       'artistName': serializer.toJson<String?>(artistName),
       'year': serializer.toJson<int?>(year),
       'artworkPath': serializer.toJson<String?>(artworkPath),
+      'driveArtworkFingerprint': serializer.toJson<String?>(
+        driveArtworkFingerprint,
+      ),
       'trackCount': serializer.toJson<int>(trackCount),
       'totalDurationMs': serializer.toJson<int>(totalDurationMs),
     };
@@ -2075,6 +2116,7 @@ class AlbumRow extends DataClass implements Insertable<AlbumRow> {
     Value<String?> artistName = const Value.absent(),
     Value<int?> year = const Value.absent(),
     Value<String?> artworkPath = const Value.absent(),
+    Value<String?> driveArtworkFingerprint = const Value.absent(),
     int? trackCount,
     int? totalDurationMs,
   }) => AlbumRow(
@@ -2086,6 +2128,9 @@ class AlbumRow extends DataClass implements Insertable<AlbumRow> {
     artistName: artistName.present ? artistName.value : this.artistName,
     year: year.present ? year.value : this.year,
     artworkPath: artworkPath.present ? artworkPath.value : this.artworkPath,
+    driveArtworkFingerprint: driveArtworkFingerprint.present
+        ? driveArtworkFingerprint.value
+        : this.driveArtworkFingerprint,
     trackCount: trackCount ?? this.trackCount,
     totalDurationMs: totalDurationMs ?? this.totalDurationMs,
   );
@@ -2105,6 +2150,9 @@ class AlbumRow extends DataClass implements Insertable<AlbumRow> {
       artworkPath: data.artworkPath.present
           ? data.artworkPath.value
           : this.artworkPath,
+      driveArtworkFingerprint: data.driveArtworkFingerprint.present
+          ? data.driveArtworkFingerprint.value
+          : this.driveArtworkFingerprint,
       trackCount: data.trackCount.present
           ? data.trackCount.value
           : this.trackCount,
@@ -2125,6 +2173,7 @@ class AlbumRow extends DataClass implements Insertable<AlbumRow> {
           ..write('artistName: $artistName, ')
           ..write('year: $year, ')
           ..write('artworkPath: $artworkPath, ')
+          ..write('driveArtworkFingerprint: $driveArtworkFingerprint, ')
           ..write('trackCount: $trackCount, ')
           ..write('totalDurationMs: $totalDurationMs')
           ..write(')'))
@@ -2141,6 +2190,7 @@ class AlbumRow extends DataClass implements Insertable<AlbumRow> {
     artistName,
     year,
     artworkPath,
+    driveArtworkFingerprint,
     trackCount,
     totalDurationMs,
   );
@@ -2156,6 +2206,7 @@ class AlbumRow extends DataClass implements Insertable<AlbumRow> {
           other.artistName == this.artistName &&
           other.year == this.year &&
           other.artworkPath == this.artworkPath &&
+          other.driveArtworkFingerprint == this.driveArtworkFingerprint &&
           other.trackCount == this.trackCount &&
           other.totalDurationMs == this.totalDurationMs);
 }
@@ -2169,6 +2220,7 @@ class AlbumsCompanion extends UpdateCompanion<AlbumRow> {
   final Value<String?> artistName;
   final Value<int?> year;
   final Value<String?> artworkPath;
+  final Value<String?> driveArtworkFingerprint;
   final Value<int> trackCount;
   final Value<int> totalDurationMs;
   final Value<int> rowid;
@@ -2181,6 +2233,7 @@ class AlbumsCompanion extends UpdateCompanion<AlbumRow> {
     this.artistName = const Value.absent(),
     this.year = const Value.absent(),
     this.artworkPath = const Value.absent(),
+    this.driveArtworkFingerprint = const Value.absent(),
     this.trackCount = const Value.absent(),
     this.totalDurationMs = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -2194,6 +2247,7 @@ class AlbumsCompanion extends UpdateCompanion<AlbumRow> {
     this.artistName = const Value.absent(),
     this.year = const Value.absent(),
     this.artworkPath = const Value.absent(),
+    this.driveArtworkFingerprint = const Value.absent(),
     this.trackCount = const Value.absent(),
     this.totalDurationMs = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -2210,6 +2264,7 @@ class AlbumsCompanion extends UpdateCompanion<AlbumRow> {
     Expression<String>? artistName,
     Expression<int>? year,
     Expression<String>? artworkPath,
+    Expression<String>? driveArtworkFingerprint,
     Expression<int>? trackCount,
     Expression<int>? totalDurationMs,
     Expression<int>? rowid,
@@ -2223,6 +2278,8 @@ class AlbumsCompanion extends UpdateCompanion<AlbumRow> {
       if (artistName != null) 'artist_name': artistName,
       if (year != null) 'year': year,
       if (artworkPath != null) 'artwork_path': artworkPath,
+      if (driveArtworkFingerprint != null)
+        'drive_artwork_fingerprint': driveArtworkFingerprint,
       if (trackCount != null) 'track_count': trackCount,
       if (totalDurationMs != null) 'total_duration_ms': totalDurationMs,
       if (rowid != null) 'rowid': rowid,
@@ -2238,6 +2295,7 @@ class AlbumsCompanion extends UpdateCompanion<AlbumRow> {
     Value<String?>? artistName,
     Value<int?>? year,
     Value<String?>? artworkPath,
+    Value<String?>? driveArtworkFingerprint,
     Value<int>? trackCount,
     Value<int>? totalDurationMs,
     Value<int>? rowid,
@@ -2251,6 +2309,8 @@ class AlbumsCompanion extends UpdateCompanion<AlbumRow> {
       artistName: artistName ?? this.artistName,
       year: year ?? this.year,
       artworkPath: artworkPath ?? this.artworkPath,
+      driveArtworkFingerprint:
+          driveArtworkFingerprint ?? this.driveArtworkFingerprint,
       trackCount: trackCount ?? this.trackCount,
       totalDurationMs: totalDurationMs ?? this.totalDurationMs,
       rowid: rowid ?? this.rowid,
@@ -2284,6 +2344,11 @@ class AlbumsCompanion extends UpdateCompanion<AlbumRow> {
     if (artworkPath.present) {
       map['artwork_path'] = Variable<String>(artworkPath.value);
     }
+    if (driveArtworkFingerprint.present) {
+      map['drive_artwork_fingerprint'] = Variable<String>(
+        driveArtworkFingerprint.value,
+      );
+    }
     if (trackCount.present) {
       map['track_count'] = Variable<int>(trackCount.value);
     }
@@ -2307,6 +2372,7 @@ class AlbumsCompanion extends UpdateCompanion<AlbumRow> {
           ..write('artistName: $artistName, ')
           ..write('year: $year, ')
           ..write('artworkPath: $artworkPath, ')
+          ..write('driveArtworkFingerprint: $driveArtworkFingerprint, ')
           ..write('trackCount: $trackCount, ')
           ..write('totalDurationMs: $totalDurationMs, ')
           ..write('rowid: $rowid')
@@ -2863,6 +2929,28 @@ class $TracksTable extends Tracks with TableInfo<$TracksTable, TrackRow> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _embeddedArtworkPathMeta =
+      const VerificationMeta('embeddedArtworkPath');
+  @override
+  late final GeneratedColumn<String> embeddedArtworkPath =
+      GeneratedColumn<String>(
+        'embedded_artwork_path',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _sidecarFingerprintMeta =
+      const VerificationMeta('sidecarFingerprint');
+  @override
+  late final GeneratedColumn<String> sidecarFingerprint =
+      GeneratedColumn<String>(
+        'sidecar_fingerprint',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _isCachedMeta = const VerificationMeta(
     'isCached',
   );
@@ -2954,6 +3042,8 @@ class $TracksTable extends Tracks with TableInfo<$TracksTable, TrackRow> {
     driveMd5Checksum,
     localPath,
     artworkPath,
+    embeddedArtworkPath,
+    sidecarFingerprint,
     isCached,
     isPinnedOffline,
     rawMetadataJson,
@@ -3156,6 +3246,24 @@ class $TracksTable extends Tracks with TableInfo<$TracksTable, TrackRow> {
         ),
       );
     }
+    if (data.containsKey('embedded_artwork_path')) {
+      context.handle(
+        _embeddedArtworkPathMeta,
+        embeddedArtworkPath.isAcceptableOrUnknown(
+          data['embedded_artwork_path']!,
+          _embeddedArtworkPathMeta,
+        ),
+      );
+    }
+    if (data.containsKey('sidecar_fingerprint')) {
+      context.handle(
+        _sidecarFingerprintMeta,
+        sidecarFingerprint.isAcceptableOrUnknown(
+          data['sidecar_fingerprint']!,
+          _sidecarFingerprintMeta,
+        ),
+      );
+    }
     if (data.containsKey('is_cached')) {
       context.handle(
         _isCachedMeta,
@@ -3309,6 +3417,14 @@ class $TracksTable extends Tracks with TableInfo<$TracksTable, TrackRow> {
         DriftSqlType.string,
         data['${effectivePrefix}artwork_path'],
       ),
+      embeddedArtworkPath: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}embedded_artwork_path'],
+      ),
+      sidecarFingerprint: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sidecar_fingerprint'],
+      ),
       isCached: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}is_cached'],
@@ -3365,6 +3481,8 @@ class TrackRow extends DataClass implements Insertable<TrackRow> {
   final String? driveMd5Checksum;
   final String? localPath;
   final String? artworkPath;
+  final String? embeddedArtworkPath;
+  final String? sidecarFingerprint;
   final bool isCached;
   final bool isPinnedOffline;
   final String? rawMetadataJson;
@@ -3397,6 +3515,8 @@ class TrackRow extends DataClass implements Insertable<TrackRow> {
     this.driveMd5Checksum,
     this.localPath,
     this.artworkPath,
+    this.embeddedArtworkPath,
+    this.sidecarFingerprint,
     required this.isCached,
     required this.isPinnedOffline,
     this.rawMetadataJson,
@@ -3469,6 +3589,12 @@ class TrackRow extends DataClass implements Insertable<TrackRow> {
     }
     if (!nullToAbsent || artworkPath != null) {
       map['artwork_path'] = Variable<String>(artworkPath);
+    }
+    if (!nullToAbsent || embeddedArtworkPath != null) {
+      map['embedded_artwork_path'] = Variable<String>(embeddedArtworkPath);
+    }
+    if (!nullToAbsent || sidecarFingerprint != null) {
+      map['sidecar_fingerprint'] = Variable<String>(sidecarFingerprint);
     }
     map['is_cached'] = Variable<bool>(isCached);
     map['is_pinned_offline'] = Variable<bool>(isPinnedOffline);
@@ -3544,6 +3670,12 @@ class TrackRow extends DataClass implements Insertable<TrackRow> {
       artworkPath: artworkPath == null && nullToAbsent
           ? const Value.absent()
           : Value(artworkPath),
+      embeddedArtworkPath: embeddedArtworkPath == null && nullToAbsent
+          ? const Value.absent()
+          : Value(embeddedArtworkPath),
+      sidecarFingerprint: sidecarFingerprint == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sidecarFingerprint),
       isCached: Value(isCached),
       isPinnedOffline: Value(isPinnedOffline),
       rawMetadataJson: rawMetadataJson == null && nullToAbsent
@@ -3586,6 +3718,12 @@ class TrackRow extends DataClass implements Insertable<TrackRow> {
       driveMd5Checksum: serializer.fromJson<String?>(json['driveMd5Checksum']),
       localPath: serializer.fromJson<String?>(json['localPath']),
       artworkPath: serializer.fromJson<String?>(json['artworkPath']),
+      embeddedArtworkPath: serializer.fromJson<String?>(
+        json['embeddedArtworkPath'],
+      ),
+      sidecarFingerprint: serializer.fromJson<String?>(
+        json['sidecarFingerprint'],
+      ),
       isCached: serializer.fromJson<bool>(json['isCached']),
       isPinnedOffline: serializer.fromJson<bool>(json['isPinnedOffline']),
       rawMetadataJson: serializer.fromJson<String?>(json['rawMetadataJson']),
@@ -3623,6 +3761,8 @@ class TrackRow extends DataClass implements Insertable<TrackRow> {
       'driveMd5Checksum': serializer.toJson<String?>(driveMd5Checksum),
       'localPath': serializer.toJson<String?>(localPath),
       'artworkPath': serializer.toJson<String?>(artworkPath),
+      'embeddedArtworkPath': serializer.toJson<String?>(embeddedArtworkPath),
+      'sidecarFingerprint': serializer.toJson<String?>(sidecarFingerprint),
       'isCached': serializer.toJson<bool>(isCached),
       'isPinnedOffline': serializer.toJson<bool>(isPinnedOffline),
       'rawMetadataJson': serializer.toJson<String?>(rawMetadataJson),
@@ -3658,6 +3798,8 @@ class TrackRow extends DataClass implements Insertable<TrackRow> {
     Value<String?> driveMd5Checksum = const Value.absent(),
     Value<String?> localPath = const Value.absent(),
     Value<String?> artworkPath = const Value.absent(),
+    Value<String?> embeddedArtworkPath = const Value.absent(),
+    Value<String?> sidecarFingerprint = const Value.absent(),
     bool? isCached,
     bool? isPinnedOffline,
     Value<String?> rawMetadataJson = const Value.absent(),
@@ -3694,6 +3836,12 @@ class TrackRow extends DataClass implements Insertable<TrackRow> {
         : this.driveMd5Checksum,
     localPath: localPath.present ? localPath.value : this.localPath,
     artworkPath: artworkPath.present ? artworkPath.value : this.artworkPath,
+    embeddedArtworkPath: embeddedArtworkPath.present
+        ? embeddedArtworkPath.value
+        : this.embeddedArtworkPath,
+    sidecarFingerprint: sidecarFingerprint.present
+        ? sidecarFingerprint.value
+        : this.sidecarFingerprint,
     isCached: isCached ?? this.isCached,
     isPinnedOffline: isPinnedOffline ?? this.isPinnedOffline,
     rawMetadataJson: rawMetadataJson.present
@@ -3752,6 +3900,12 @@ class TrackRow extends DataClass implements Insertable<TrackRow> {
       artworkPath: data.artworkPath.present
           ? data.artworkPath.value
           : this.artworkPath,
+      embeddedArtworkPath: data.embeddedArtworkPath.present
+          ? data.embeddedArtworkPath.value
+          : this.embeddedArtworkPath,
+      sidecarFingerprint: data.sidecarFingerprint.present
+          ? data.sidecarFingerprint.value
+          : this.sidecarFingerprint,
       isCached: data.isCached.present ? data.isCached.value : this.isCached,
       isPinnedOffline: data.isPinnedOffline.present
           ? data.isPinnedOffline.value
@@ -3793,6 +3947,8 @@ class TrackRow extends DataClass implements Insertable<TrackRow> {
           ..write('driveMd5Checksum: $driveMd5Checksum, ')
           ..write('localPath: $localPath, ')
           ..write('artworkPath: $artworkPath, ')
+          ..write('embeddedArtworkPath: $embeddedArtworkPath, ')
+          ..write('sidecarFingerprint: $sidecarFingerprint, ')
           ..write('isCached: $isCached, ')
           ..write('isPinnedOffline: $isPinnedOffline, ')
           ..write('rawMetadataJson: $rawMetadataJson, ')
@@ -3830,6 +3986,8 @@ class TrackRow extends DataClass implements Insertable<TrackRow> {
     driveMd5Checksum,
     localPath,
     artworkPath,
+    embeddedArtworkPath,
+    sidecarFingerprint,
     isCached,
     isPinnedOffline,
     rawMetadataJson,
@@ -3866,6 +4024,8 @@ class TrackRow extends DataClass implements Insertable<TrackRow> {
           other.driveMd5Checksum == this.driveMd5Checksum &&
           other.localPath == this.localPath &&
           other.artworkPath == this.artworkPath &&
+          other.embeddedArtworkPath == this.embeddedArtworkPath &&
+          other.sidecarFingerprint == this.sidecarFingerprint &&
           other.isCached == this.isCached &&
           other.isPinnedOffline == this.isPinnedOffline &&
           other.rawMetadataJson == this.rawMetadataJson &&
@@ -3900,6 +4060,8 @@ class TracksCompanion extends UpdateCompanion<TrackRow> {
   final Value<String?> driveMd5Checksum;
   final Value<String?> localPath;
   final Value<String?> artworkPath;
+  final Value<String?> embeddedArtworkPath;
+  final Value<String?> sidecarFingerprint;
   final Value<bool> isCached;
   final Value<bool> isPinnedOffline;
   final Value<String?> rawMetadataJson;
@@ -3933,6 +4095,8 @@ class TracksCompanion extends UpdateCompanion<TrackRow> {
     this.driveMd5Checksum = const Value.absent(),
     this.localPath = const Value.absent(),
     this.artworkPath = const Value.absent(),
+    this.embeddedArtworkPath = const Value.absent(),
+    this.sidecarFingerprint = const Value.absent(),
     this.isCached = const Value.absent(),
     this.isPinnedOffline = const Value.absent(),
     this.rawMetadataJson = const Value.absent(),
@@ -3967,6 +4131,8 @@ class TracksCompanion extends UpdateCompanion<TrackRow> {
     this.driveMd5Checksum = const Value.absent(),
     this.localPath = const Value.absent(),
     this.artworkPath = const Value.absent(),
+    this.embeddedArtworkPath = const Value.absent(),
+    this.sidecarFingerprint = const Value.absent(),
     this.isCached = const Value.absent(),
     this.isPinnedOffline = const Value.absent(),
     this.rawMetadataJson = const Value.absent(),
@@ -4007,6 +4173,8 @@ class TracksCompanion extends UpdateCompanion<TrackRow> {
     Expression<String>? driveMd5Checksum,
     Expression<String>? localPath,
     Expression<String>? artworkPath,
+    Expression<String>? embeddedArtworkPath,
+    Expression<String>? sidecarFingerprint,
     Expression<bool>? isCached,
     Expression<bool>? isPinnedOffline,
     Expression<String>? rawMetadataJson,
@@ -4041,6 +4209,9 @@ class TracksCompanion extends UpdateCompanion<TrackRow> {
       if (driveMd5Checksum != null) 'drive_md5_checksum': driveMd5Checksum,
       if (localPath != null) 'local_path': localPath,
       if (artworkPath != null) 'artwork_path': artworkPath,
+      if (embeddedArtworkPath != null)
+        'embedded_artwork_path': embeddedArtworkPath,
+      if (sidecarFingerprint != null) 'sidecar_fingerprint': sidecarFingerprint,
       if (isCached != null) 'is_cached': isCached,
       if (isPinnedOffline != null) 'is_pinned_offline': isPinnedOffline,
       if (rawMetadataJson != null) 'raw_metadata_json': rawMetadataJson,
@@ -4077,6 +4248,8 @@ class TracksCompanion extends UpdateCompanion<TrackRow> {
     Value<String?>? driveMd5Checksum,
     Value<String?>? localPath,
     Value<String?>? artworkPath,
+    Value<String?>? embeddedArtworkPath,
+    Value<String?>? sidecarFingerprint,
     Value<bool>? isCached,
     Value<bool>? isPinnedOffline,
     Value<String?>? rawMetadataJson,
@@ -4111,6 +4284,8 @@ class TracksCompanion extends UpdateCompanion<TrackRow> {
       driveMd5Checksum: driveMd5Checksum ?? this.driveMd5Checksum,
       localPath: localPath ?? this.localPath,
       artworkPath: artworkPath ?? this.artworkPath,
+      embeddedArtworkPath: embeddedArtworkPath ?? this.embeddedArtworkPath,
+      sidecarFingerprint: sidecarFingerprint ?? this.sidecarFingerprint,
       isCached: isCached ?? this.isCached,
       isPinnedOffline: isPinnedOffline ?? this.isPinnedOffline,
       rawMetadataJson: rawMetadataJson ?? this.rawMetadataJson,
@@ -4201,6 +4376,14 @@ class TracksCompanion extends UpdateCompanion<TrackRow> {
     if (artworkPath.present) {
       map['artwork_path'] = Variable<String>(artworkPath.value);
     }
+    if (embeddedArtworkPath.present) {
+      map['embedded_artwork_path'] = Variable<String>(
+        embeddedArtworkPath.value,
+      );
+    }
+    if (sidecarFingerprint.present) {
+      map['sidecar_fingerprint'] = Variable<String>(sidecarFingerprint.value);
+    }
     if (isCached.present) {
       map['is_cached'] = Variable<bool>(isCached.value);
     }
@@ -4251,6 +4434,8 @@ class TracksCompanion extends UpdateCompanion<TrackRow> {
           ..write('driveMd5Checksum: $driveMd5Checksum, ')
           ..write('localPath: $localPath, ')
           ..write('artworkPath: $artworkPath, ')
+          ..write('embeddedArtworkPath: $embeddedArtworkPath, ')
+          ..write('sidecarFingerprint: $sidecarFingerprint, ')
           ..write('isCached: $isCached, ')
           ..write('isPinnedOffline: $isPinnedOffline, ')
           ..write('rawMetadataJson: $rawMetadataJson, ')
@@ -6943,6 +7128,21 @@ class $SyncRunsTable extends SyncRuns
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
   );
+  static const VerificationMeta _forceSyncMeta = const VerificationMeta(
+    'forceSync',
+  );
+  @override
+  late final GeneratedColumn<bool> forceSync = GeneratedColumn<bool>(
+    'force_sync',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("force_sync" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   static const VerificationMeta _discoveryCompletedMeta =
       const VerificationMeta('discoveryCompleted');
   @override
@@ -7000,6 +7200,7 @@ class $SyncRunsTable extends SyncRuns
     filesUpdated,
     filesRemoved,
     errorsCount,
+    forceSync,
     discoveryCompleted,
     pendingFoldersJson,
     visitedFoldersJson,
@@ -7171,6 +7372,12 @@ class $SyncRunsTable extends SyncRuns
         ),
       );
     }
+    if (data.containsKey('force_sync')) {
+      context.handle(
+        _forceSyncMeta,
+        forceSync.isAcceptableOrUnknown(data['force_sync']!, _forceSyncMeta),
+      );
+    }
     if (data.containsKey('discovery_completed')) {
       context.handle(
         _discoveryCompletedMeta,
@@ -7283,6 +7490,10 @@ class $SyncRunsTable extends SyncRuns
         DriftSqlType.int,
         data['${effectivePrefix}errors_count'],
       )!,
+      forceSync: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}force_sync'],
+      )!,
       discoveryCompleted: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}discovery_completed'],
@@ -7324,6 +7535,7 @@ class SyncRunRow extends DataClass implements Insertable<SyncRunRow> {
   final int filesUpdated;
   final int filesRemoved;
   final int errorsCount;
+  final bool forceSync;
   final bool discoveryCompleted;
   final String? pendingFoldersJson;
   final String? visitedFoldersJson;
@@ -7347,6 +7559,7 @@ class SyncRunRow extends DataClass implements Insertable<SyncRunRow> {
     required this.filesUpdated,
     required this.filesRemoved,
     required this.errorsCount,
+    required this.forceSync,
     required this.discoveryCompleted,
     this.pendingFoldersJson,
     this.visitedFoldersJson,
@@ -7389,6 +7602,7 @@ class SyncRunRow extends DataClass implements Insertable<SyncRunRow> {
     map['files_updated'] = Variable<int>(filesUpdated);
     map['files_removed'] = Variable<int>(filesRemoved);
     map['errors_count'] = Variable<int>(errorsCount);
+    map['force_sync'] = Variable<bool>(forceSync);
     map['discovery_completed'] = Variable<bool>(discoveryCompleted);
     if (!nullToAbsent || pendingFoldersJson != null) {
       map['pending_folders_json'] = Variable<String>(pendingFoldersJson);
@@ -7436,6 +7650,7 @@ class SyncRunRow extends DataClass implements Insertable<SyncRunRow> {
       filesUpdated: Value(filesUpdated),
       filesRemoved: Value(filesRemoved),
       errorsCount: Value(errorsCount),
+      forceSync: Value(forceSync),
       discoveryCompleted: Value(discoveryCompleted),
       pendingFoldersJson: pendingFoldersJson == null && nullToAbsent
           ? const Value.absent()
@@ -7473,6 +7688,7 @@ class SyncRunRow extends DataClass implements Insertable<SyncRunRow> {
       filesUpdated: serializer.fromJson<int>(json['filesUpdated']),
       filesRemoved: serializer.fromJson<int>(json['filesRemoved']),
       errorsCount: serializer.fromJson<int>(json['errorsCount']),
+      forceSync: serializer.fromJson<bool>(json['forceSync']),
       discoveryCompleted: serializer.fromJson<bool>(json['discoveryCompleted']),
       pendingFoldersJson: serializer.fromJson<String?>(
         json['pendingFoldersJson'],
@@ -7505,6 +7721,7 @@ class SyncRunRow extends DataClass implements Insertable<SyncRunRow> {
       'filesUpdated': serializer.toJson<int>(filesUpdated),
       'filesRemoved': serializer.toJson<int>(filesRemoved),
       'errorsCount': serializer.toJson<int>(errorsCount),
+      'forceSync': serializer.toJson<bool>(forceSync),
       'discoveryCompleted': serializer.toJson<bool>(discoveryCompleted),
       'pendingFoldersJson': serializer.toJson<String?>(pendingFoldersJson),
       'visitedFoldersJson': serializer.toJson<String?>(visitedFoldersJson),
@@ -7531,6 +7748,7 @@ class SyncRunRow extends DataClass implements Insertable<SyncRunRow> {
     int? filesUpdated,
     int? filesRemoved,
     int? errorsCount,
+    bool? forceSync,
     bool? discoveryCompleted,
     Value<String?> pendingFoldersJson = const Value.absent(),
     Value<String?> visitedFoldersJson = const Value.absent(),
@@ -7558,6 +7776,7 @@ class SyncRunRow extends DataClass implements Insertable<SyncRunRow> {
     filesUpdated: filesUpdated ?? this.filesUpdated,
     filesRemoved: filesRemoved ?? this.filesRemoved,
     errorsCount: errorsCount ?? this.errorsCount,
+    forceSync: forceSync ?? this.forceSync,
     discoveryCompleted: discoveryCompleted ?? this.discoveryCompleted,
     pendingFoldersJson: pendingFoldersJson.present
         ? pendingFoldersJson.value
@@ -7613,6 +7832,7 @@ class SyncRunRow extends DataClass implements Insertable<SyncRunRow> {
       errorsCount: data.errorsCount.present
           ? data.errorsCount.value
           : this.errorsCount,
+      forceSync: data.forceSync.present ? data.forceSync.value : this.forceSync,
       discoveryCompleted: data.discoveryCompleted.present
           ? data.discoveryCompleted.value
           : this.discoveryCompleted,
@@ -7647,6 +7867,7 @@ class SyncRunRow extends DataClass implements Insertable<SyncRunRow> {
           ..write('filesUpdated: $filesUpdated, ')
           ..write('filesRemoved: $filesRemoved, ')
           ..write('errorsCount: $errorsCount, ')
+          ..write('forceSync: $forceSync, ')
           ..write('discoveryCompleted: $discoveryCompleted, ')
           ..write('pendingFoldersJson: $pendingFoldersJson, ')
           ..write('visitedFoldersJson: $visitedFoldersJson')
@@ -7675,6 +7896,7 @@ class SyncRunRow extends DataClass implements Insertable<SyncRunRow> {
     filesUpdated,
     filesRemoved,
     errorsCount,
+    forceSync,
     discoveryCompleted,
     pendingFoldersJson,
     visitedFoldersJson,
@@ -7702,6 +7924,7 @@ class SyncRunRow extends DataClass implements Insertable<SyncRunRow> {
           other.filesUpdated == this.filesUpdated &&
           other.filesRemoved == this.filesRemoved &&
           other.errorsCount == this.errorsCount &&
+          other.forceSync == this.forceSync &&
           other.discoveryCompleted == this.discoveryCompleted &&
           other.pendingFoldersJson == this.pendingFoldersJson &&
           other.visitedFoldersJson == this.visitedFoldersJson);
@@ -7727,6 +7950,7 @@ class SyncRunsCompanion extends UpdateCompanion<SyncRunRow> {
   final Value<int> filesUpdated;
   final Value<int> filesRemoved;
   final Value<int> errorsCount;
+  final Value<bool> forceSync;
   final Value<bool> discoveryCompleted;
   final Value<String?> pendingFoldersJson;
   final Value<String?> visitedFoldersJson;
@@ -7751,6 +7975,7 @@ class SyncRunsCompanion extends UpdateCompanion<SyncRunRow> {
     this.filesUpdated = const Value.absent(),
     this.filesRemoved = const Value.absent(),
     this.errorsCount = const Value.absent(),
+    this.forceSync = const Value.absent(),
     this.discoveryCompleted = const Value.absent(),
     this.pendingFoldersJson = const Value.absent(),
     this.visitedFoldersJson = const Value.absent(),
@@ -7776,6 +8001,7 @@ class SyncRunsCompanion extends UpdateCompanion<SyncRunRow> {
     this.filesUpdated = const Value.absent(),
     this.filesRemoved = const Value.absent(),
     this.errorsCount = const Value.absent(),
+    this.forceSync = const Value.absent(),
     this.discoveryCompleted = const Value.absent(),
     this.pendingFoldersJson = const Value.absent(),
     this.visitedFoldersJson = const Value.absent(),
@@ -7804,6 +8030,7 @@ class SyncRunsCompanion extends UpdateCompanion<SyncRunRow> {
     Expression<int>? filesUpdated,
     Expression<int>? filesRemoved,
     Expression<int>? errorsCount,
+    Expression<bool>? forceSync,
     Expression<bool>? discoveryCompleted,
     Expression<String>? pendingFoldersJson,
     Expression<String>? visitedFoldersJson,
@@ -7829,6 +8056,7 @@ class SyncRunsCompanion extends UpdateCompanion<SyncRunRow> {
       if (filesUpdated != null) 'files_updated': filesUpdated,
       if (filesRemoved != null) 'files_removed': filesRemoved,
       if (errorsCount != null) 'errors_count': errorsCount,
+      if (forceSync != null) 'force_sync': forceSync,
       if (discoveryCompleted != null) 'discovery_completed': discoveryCompleted,
       if (pendingFoldersJson != null)
         'pending_folders_json': pendingFoldersJson,
@@ -7858,6 +8086,7 @@ class SyncRunsCompanion extends UpdateCompanion<SyncRunRow> {
     Value<int>? filesUpdated,
     Value<int>? filesRemoved,
     Value<int>? errorsCount,
+    Value<bool>? forceSync,
     Value<bool>? discoveryCompleted,
     Value<String?>? pendingFoldersJson,
     Value<String?>? visitedFoldersJson,
@@ -7883,6 +8112,7 @@ class SyncRunsCompanion extends UpdateCompanion<SyncRunRow> {
       filesUpdated: filesUpdated ?? this.filesUpdated,
       filesRemoved: filesRemoved ?? this.filesRemoved,
       errorsCount: errorsCount ?? this.errorsCount,
+      forceSync: forceSync ?? this.forceSync,
       discoveryCompleted: discoveryCompleted ?? this.discoveryCompleted,
       pendingFoldersJson: pendingFoldersJson ?? this.pendingFoldersJson,
       visitedFoldersJson: visitedFoldersJson ?? this.visitedFoldersJson,
@@ -7950,6 +8180,9 @@ class SyncRunsCompanion extends UpdateCompanion<SyncRunRow> {
     if (errorsCount.present) {
       map['errors_count'] = Variable<int>(errorsCount.value);
     }
+    if (forceSync.present) {
+      map['force_sync'] = Variable<bool>(forceSync.value);
+    }
     if (discoveryCompleted.present) {
       map['discovery_completed'] = Variable<bool>(discoveryCompleted.value);
     }
@@ -7987,6 +8220,7 @@ class SyncRunsCompanion extends UpdateCompanion<SyncRunRow> {
           ..write('filesUpdated: $filesUpdated, ')
           ..write('filesRemoved: $filesRemoved, ')
           ..write('errorsCount: $errorsCount, ')
+          ..write('forceSync: $forceSync, ')
           ..write('discoveryCompleted: $discoveryCompleted, ')
           ..write('pendingFoldersJson: $pendingFoldersJson, ')
           ..write('visitedFoldersJson: $visitedFoldersJson, ')
@@ -14712,6 +14946,7 @@ typedef $$AlbumsTableCreateCompanionBuilder = AlbumsCompanion Function({
   Value<String?> artistName,
   Value<int?> year,
   Value<String?> artworkPath,
+  Value<String?> driveArtworkFingerprint,
   Value<int> trackCount,
   Value<int> totalDurationMs,
   Value<int> rowid,
@@ -14725,6 +14960,7 @@ typedef $$AlbumsTableUpdateCompanionBuilder = AlbumsCompanion Function({
   Value<String?> artistName,
   Value<int?> year,
   Value<String?> artworkPath,
+  Value<String?> driveArtworkFingerprint,
   Value<int> trackCount,
   Value<int> totalDurationMs,
   Value<int> rowid,
@@ -14776,6 +15012,11 @@ class $$AlbumsTableFilterComposer
 
   ColumnFilters<String> get artworkPath => $composableBuilder(
     column: $table.artworkPath,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get driveArtworkFingerprint => $composableBuilder(
+    column: $table.driveArtworkFingerprint,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -14839,6 +15080,11 @@ class $$AlbumsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get driveArtworkFingerprint => $composableBuilder(
+    column: $table.driveArtworkFingerprint,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get trackCount => $composableBuilder(
     column: $table.trackCount,
     builder: (column) => ColumnOrderings(column),
@@ -14889,6 +15135,11 @@ class $$AlbumsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get driveArtworkFingerprint => $composableBuilder(
+    column: $table.driveArtworkFingerprint,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<int> get trackCount => $composableBuilder(
     column: $table.trackCount,
     builder: (column) => column,
@@ -14936,6 +15187,7 @@ class $$AlbumsTableTableManager
                 Value<String?> artistName = const Value.absent(),
                 Value<int?> year = const Value.absent(),
                 Value<String?> artworkPath = const Value.absent(),
+                Value<String?> driveArtworkFingerprint = const Value.absent(),
                 Value<int> trackCount = const Value.absent(),
                 Value<int> totalDurationMs = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -14948,6 +15200,7 @@ class $$AlbumsTableTableManager
                 artistName: artistName,
                 year: year,
                 artworkPath: artworkPath,
+                driveArtworkFingerprint: driveArtworkFingerprint,
                 trackCount: trackCount,
                 totalDurationMs: totalDurationMs,
                 rowid: rowid,
@@ -14962,6 +15215,7 @@ class $$AlbumsTableTableManager
                 Value<String?> artistName = const Value.absent(),
                 Value<int?> year = const Value.absent(),
                 Value<String?> artworkPath = const Value.absent(),
+                Value<String?> driveArtworkFingerprint = const Value.absent(),
                 Value<int> trackCount = const Value.absent(),
                 Value<int> totalDurationMs = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -14974,6 +15228,7 @@ class $$AlbumsTableTableManager
                 artistName: artistName,
                 year: year,
                 artworkPath: artworkPath,
+                driveArtworkFingerprint: driveArtworkFingerprint,
                 trackCount: trackCount,
                 totalDurationMs: totalDurationMs,
                 rowid: rowid,
@@ -15201,6 +15456,8 @@ typedef $$TracksTableCreateCompanionBuilder = TracksCompanion Function({
   Value<String?> driveMd5Checksum,
   Value<String?> localPath,
   Value<String?> artworkPath,
+  Value<String?> embeddedArtworkPath,
+  Value<String?> sidecarFingerprint,
   Value<bool> isCached,
   Value<bool> isPinnedOffline,
   Value<String?> rawMetadataJson,
@@ -15235,6 +15492,8 @@ typedef $$TracksTableUpdateCompanionBuilder = TracksCompanion Function({
   Value<String?> driveMd5Checksum,
   Value<String?> localPath,
   Value<String?> artworkPath,
+  Value<String?> embeddedArtworkPath,
+  Value<String?> sidecarFingerprint,
   Value<bool> isCached,
   Value<bool> isPinnedOffline,
   Value<String?> rawMetadataJson,
@@ -15379,6 +15638,16 @@ class $$TracksTableFilterComposer
 
   ColumnFilters<String> get artworkPath => $composableBuilder(
     column: $table.artworkPath,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get embeddedArtworkPath => $composableBuilder(
+    column: $table.embeddedArtworkPath,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sidecarFingerprint => $composableBuilder(
+    column: $table.sidecarFingerprint,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -15547,6 +15816,16 @@ class $$TracksTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get embeddedArtworkPath => $composableBuilder(
+    column: $table.embeddedArtworkPath,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sidecarFingerprint => $composableBuilder(
+    column: $table.sidecarFingerprint,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<bool> get isCached => $composableBuilder(
     column: $table.isCached,
     builder: (column) => ColumnOrderings(column),
@@ -15682,6 +15961,16 @@ class $$TracksTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get embeddedArtworkPath => $composableBuilder(
+    column: $table.embeddedArtworkPath,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get sidecarFingerprint => $composableBuilder(
+    column: $table.sidecarFingerprint,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<bool> get isCached =>
       $composableBuilder(column: $table.isCached, builder: (column) => column);
 
@@ -15756,6 +16045,8 @@ class $$TracksTableTableManager
                 Value<String?> driveMd5Checksum = const Value.absent(),
                 Value<String?> localPath = const Value.absent(),
                 Value<String?> artworkPath = const Value.absent(),
+                Value<String?> embeddedArtworkPath = const Value.absent(),
+                Value<String?> sidecarFingerprint = const Value.absent(),
                 Value<bool> isCached = const Value.absent(),
                 Value<bool> isPinnedOffline = const Value.absent(),
                 Value<String?> rawMetadataJson = const Value.absent(),
@@ -15789,6 +16080,8 @@ class $$TracksTableTableManager
                 driveMd5Checksum: driveMd5Checksum,
                 localPath: localPath,
                 artworkPath: artworkPath,
+                embeddedArtworkPath: embeddedArtworkPath,
+                sidecarFingerprint: sidecarFingerprint,
                 isCached: isCached,
                 isPinnedOffline: isPinnedOffline,
                 rawMetadataJson: rawMetadataJson,
@@ -15824,6 +16117,8 @@ class $$TracksTableTableManager
                 Value<String?> driveMd5Checksum = const Value.absent(),
                 Value<String?> localPath = const Value.absent(),
                 Value<String?> artworkPath = const Value.absent(),
+                Value<String?> embeddedArtworkPath = const Value.absent(),
+                Value<String?> sidecarFingerprint = const Value.absent(),
                 Value<bool> isCached = const Value.absent(),
                 Value<bool> isPinnedOffline = const Value.absent(),
                 Value<String?> rawMetadataJson = const Value.absent(),
@@ -15857,6 +16152,8 @@ class $$TracksTableTableManager
                 driveMd5Checksum: driveMd5Checksum,
                 localPath: localPath,
                 artworkPath: artworkPath,
+                embeddedArtworkPath: embeddedArtworkPath,
+                sidecarFingerprint: sidecarFingerprint,
                 isCached: isCached,
                 isPinnedOffline: isPinnedOffline,
                 rawMetadataJson: rawMetadataJson,
@@ -17286,6 +17583,7 @@ typedef $$SyncRunsTableCreateCompanionBuilder = SyncRunsCompanion Function({
   Value<int> filesUpdated,
   Value<int> filesRemoved,
   Value<int> errorsCount,
+  Value<bool> forceSync,
   Value<bool> discoveryCompleted,
   Value<String?> pendingFoldersJson,
   Value<String?> visitedFoldersJson,
@@ -17311,6 +17609,7 @@ typedef $$SyncRunsTableUpdateCompanionBuilder = SyncRunsCompanion Function({
   Value<int> filesUpdated,
   Value<int> filesRemoved,
   Value<int> errorsCount,
+  Value<bool> forceSync,
   Value<bool> discoveryCompleted,
   Value<String?> pendingFoldersJson,
   Value<String?> visitedFoldersJson,
@@ -17418,6 +17717,11 @@ class $$SyncRunsTableFilterComposer
 
   ColumnFilters<int> get errorsCount => $composableBuilder(
     column: $table.errorsCount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get forceSync => $composableBuilder(
+    column: $table.forceSync,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -17541,6 +17845,11 @@ class $$SyncRunsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get forceSync => $composableBuilder(
+    column: $table.forceSync,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<bool> get discoveryCompleted => $composableBuilder(
     column: $table.discoveryCompleted,
     builder: (column) => ColumnOrderings(column),
@@ -17649,6 +17958,9 @@ class $$SyncRunsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<bool> get forceSync =>
+      $composableBuilder(column: $table.forceSync, builder: (column) => column);
+
   GeneratedColumn<bool> get discoveryCompleted => $composableBuilder(
     column: $table.discoveryCompleted,
     builder: (column) => column,
@@ -17715,6 +18027,7 @@ class $$SyncRunsTableTableManager
                 Value<int> filesUpdated = const Value.absent(),
                 Value<int> filesRemoved = const Value.absent(),
                 Value<int> errorsCount = const Value.absent(),
+                Value<bool> forceSync = const Value.absent(),
                 Value<bool> discoveryCompleted = const Value.absent(),
                 Value<String?> pendingFoldersJson = const Value.absent(),
                 Value<String?> visitedFoldersJson = const Value.absent(),
@@ -17739,6 +18052,7 @@ class $$SyncRunsTableTableManager
                 filesUpdated: filesUpdated,
                 filesRemoved: filesRemoved,
                 errorsCount: errorsCount,
+                forceSync: forceSync,
                 discoveryCompleted: discoveryCompleted,
                 pendingFoldersJson: pendingFoldersJson,
                 visitedFoldersJson: visitedFoldersJson,
@@ -17765,6 +18079,7 @@ class $$SyncRunsTableTableManager
                 Value<int> filesUpdated = const Value.absent(),
                 Value<int> filesRemoved = const Value.absent(),
                 Value<int> errorsCount = const Value.absent(),
+                Value<bool> forceSync = const Value.absent(),
                 Value<bool> discoveryCompleted = const Value.absent(),
                 Value<String?> pendingFoldersJson = const Value.absent(),
                 Value<String?> visitedFoldersJson = const Value.absent(),
@@ -17789,6 +18104,7 @@ class $$SyncRunsTableTableManager
                 filesUpdated: filesUpdated,
                 filesRemoved: filesRemoved,
                 errorsCount: errorsCount,
+                forceSync: forceSync,
                 discoveryCompleted: discoveryCompleted,
                 pendingFoldersJson: pendingFoldersJson,
                 visitedFoldersJson: visitedFoldersJson,

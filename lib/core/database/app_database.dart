@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
@@ -9,6 +10,15 @@ import 'tables.dart';
 import '../../features/metadata/domain/services/metadata_normalization_service.dart';
 
 part 'app_database.g.dart';
+
+extension TrackAudioVersion on TrackRow {
+  String get driveAudioVersion => jsonEncode([
+    driveFileId,
+    driveMd5Checksum,
+    driveModifiedAt?.millisecondsSinceEpoch,
+    fileSize,
+  ]);
+}
 
 @DriftDatabase(
   tables: [
@@ -43,7 +53,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? e]) : super(e ?? _openConnection());
 
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 11;
 
   @override
   MigrationStrategy get migration {
@@ -127,6 +137,12 @@ class AppDatabase extends _$AppDatabase {
             'CREATE INDEX IF NOT EXISTS idx_discovered_files_sync ON discovered_files(sync_run_id);',
           );
         }
+        if (from < 7) {
+          await _addColumnSafely(m, albums, albums.driveArtworkFingerprint);
+          await _addColumnSafely(m, tracks, tracks.artworkPath);
+          await _addColumnSafely(m, tracks, tracks.embeddedArtworkPath);
+          await _addColumnSafely(m, tracks, tracks.sidecarFingerprint);
+        }
         if (from < 6) {
           if (!await _columnExists('albums', 'album_key')) {
             await m.alterTable(
@@ -180,6 +196,44 @@ class AppDatabase extends _$AppDatabase {
             )
             WHERE tracks.album_id IS NOT NULL;
           ''');
+        }
+        if (from < 11) {
+          await _addColumnSafely(m, syncRuns, syncRuns.forceSync);
+          await _addColumnSafely(m, tracks, tracks.embeddedArtworkPath);
+          await _addColumnSafely(m, tracks, tracks.sidecarFingerprint);
+          await _addColumnSafely(m, albums, albums.driveArtworkFingerprint);
+          // The old 'primary' placeholder cannot establish account ownership.
+          const knownOwner = """
+            SELECT users.id FROM users JOIN music_sources
+              ON users.email = music_sources.account_email
+            WHERE music_sources.id = 'source_gdrive'
+          """;
+          await customStatement("""
+            UPDATE tracks SET source_id = 'source_gdrive_' || ($knownOwner)
+            WHERE source_id = 'source_gdrive' AND (SELECT COUNT(*) FROM ($knownOwner)) = 1
+          """);
+          await customStatement("""
+            UPDATE sync_runs SET source_id = 'source_gdrive_' || ($knownOwner)
+            WHERE source_id = 'source_gdrive' AND (SELECT COUNT(*) FROM ($knownOwner)) = 1
+          """);
+          await customStatement("""
+            UPDATE music_sources SET id = 'source_gdrive_' || ($knownOwner)
+            WHERE id = 'source_gdrive' AND (SELECT COUNT(*) FROM ($knownOwner)) = 1
+          """);
+          // Older discovery snapshots could be incomplete even with a completion marker.
+          await customStatement("""
+            DELETE FROM discovered_files WHERE sync_run_id IN (
+              SELECT id FROM sync_runs WHERE status != 'completed'
+            )
+          """);
+          await customStatement("""
+            UPDATE sync_runs
+            SET discovery_completed = 0, pending_folders_json = NULL,
+                visited_folders_json = NULL, files_discovered = 0,
+                files_processed = 0, files_added = 0, files_updated = 0,
+                files_removed = 0, errors_count = 0, progress_percent = 0
+            WHERE status != 'completed'
+          """);
         }
       },
       beforeOpen: (details) async {
