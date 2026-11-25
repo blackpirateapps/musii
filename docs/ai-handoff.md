@@ -82,8 +82,7 @@ Located in `lib/features/library/presentation/pages/home_page.dart` and `lib/fea
 ### 2. Now Playing Experience (Visual Authority)
 Located in `lib/features/playback/presentation/pages/now_playing_page.dart`:
 - **Cupertino Top Bar**: Features a centered "Now Playing" title, left dismiss chevron (`chevron_down`), and right top queue access button (`text_badge_plus`), perfectly matching the Now Playing visual authority screenshot.
-- **Interactive Pull-Down Gesture**: Dragging down anywhere on the screen (artwork, metadata, empty background) smoothly translates the modal downward with real-time tactile tracking, popping when pulled past the threshold (>120px) or flicked downwards (>300 px/s), and snapping gracefully back to top on early release.
-- **Swipe-Up for Queue**: Swiping up when at top offset opens the Cupertino queue modal sheet.
+- **Vertical gestures** dismiss Now Playing or open the queue when the content fits. Pulling down updates a transform through one controller listener. On compact screens, vertical scrolling keeps the controls reachable.
 - **Vibrant Blurred Artwork Aesthetic**: Real-time blurred album artwork backdrop with a lighter translucent gradient overlay (`0x40`/`0x80`/`0xB3` opacity) so album art colors bleed through vividly.
 - **Proportional Artwork Presentation**: Floating artwork sized responsively (`min(width * 0.64, height * 0.33)`) with rounded corners (22px) and subtle drop shadow.
 - **Left-Aligned Track Metadata**: Song title, artist name, and album name with Cupertino typography and ellipsis truncation.

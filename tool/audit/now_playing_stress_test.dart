@@ -536,6 +536,37 @@ void main() {
     expect(tester.getCenter(title).dy, startY);
   });
 
+  testWidgets('repeated short pulls do not rebuild the whole player', (
+    tester,
+  ) async {
+    final a = _track('a');
+    final fixture = _Fixture(tester);
+    await fixture.mount(a, lyrics: {});
+    await tester.pumpAndSettle();
+    final title = find.text('Now Playing');
+    final titleY = tester.getCenter(title).dy;
+    var pageBuilds = 0;
+    final previous = debugOnRebuildDirtyWidget;
+    debugOnRebuildDirtyWidget = (element, builtOnce) {
+      if (element.widget is NowPlayingPage) pageBuilds++;
+      previous?.call(element, builtOnce);
+    };
+    try {
+      for (var cycle = 0; cycle < 20; cycle++) {
+        await tester.timedDrag(
+          find.byType(NowPlayingPage),
+          const Offset(0, 70),
+          const Duration(milliseconds: 500),
+        );
+        await tester.pumpAndSettle();
+        expect(tester.getCenter(title).dy, titleY);
+      }
+    } finally {
+      debugOnRebuildDirtyWidget = previous;
+    }
+    expect(pageBuilds, 0);
+  });
+
   for (final enabled in [false, true]) {
     testWidgets('64 track changes with inline lyrics enabled=$enabled', (
       tester,

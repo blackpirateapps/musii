@@ -18,6 +18,7 @@ Audited commit `920feaf098d6e2fd79fd1c29aa324468ebe9b124` on 2026-11-26. The Red
 | 10. Lyric streams retained across tracks | Inline lyrics subscribe only when visible. Per-track providers dispose after the last viewer leaves. |
 | 11. Lyrics handle ignores downward drags | The panel follows downward movement from the handle and dismisses after a long pull or fast downward flick. |
 | Playback load feedback and cancellation | Initial loads are cancellable through the transport control. Failed loads show a retry message, and late results from cancelled requests cannot start playback. |
+| Dismiss animation listener accumulation | One controller listener updates a transform around the existing player content. Twenty short pulls return to the resting position with zero full page rebuilds in the widget probe. |
 
 ## Android stress runs
 

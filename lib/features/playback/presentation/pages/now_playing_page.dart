@@ -39,9 +39,9 @@ class NowPlayingPage extends ConsumerStatefulWidget {
 
 class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
     with SingleTickerProviderStateMixin {
-  AnimationController? _dismissController;
-  Animation<double>? _dismissAnimation;
-  double _dragOffset = 0.0;
+  late final AnimationController _dismissController;
+  final _dragOffset = ValueNotifier(0.0);
+  double _dismissStart = 0.0;
 
   @override
   void initState() {
@@ -49,37 +49,35 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
     _dismissController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 250),
-    );
+    )..addListener(_updateDismissOffset);
   }
 
   @override
   void dispose() {
-    _dismissController?.dispose();
+    _dismissController.dispose();
+    _dragOffset.dispose();
     super.dispose();
   }
 
   void _onVerticalDragStart(DragStartDetails details) {
-    _dismissController?.stop();
+    _dismissController.stop();
   }
 
   void _onVerticalDragUpdate(DragUpdateDetails details) {
-    if (details.primaryDelta == null) return;
-    setState(() {
-      _dragOffset = max(0.0, _dragOffset + details.primaryDelta!);
-    });
+    _dragOffset.value = max(0.0, _dragOffset.value + details.delta.dy);
   }
 
   void _onVerticalDragEnd(DragEndDetails details) {
     final velocity = details.primaryVelocity ?? 0.0;
 
     // Swipe up to open queue when at top
-    if (_dragOffset == 0.0 && velocity < -300) {
+    if (_dragOffset.value == 0.0 && velocity < -300) {
       showQueueSheet(context);
       return;
     }
 
     // Dismiss if pulled down past 120px or flicked downwards
-    if (velocity > 300 || _dragOffset > 120) {
+    if (velocity > 300 || _dragOffset.value > 120) {
       Navigator.of(context).pop();
     } else {
       _animateBack();
@@ -87,27 +85,14 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
   }
 
   void _animateBack() {
-    final start = _dragOffset;
-    if (start == 0.0) return;
-    _dismissController?.reset();
-    _dismissAnimation =
-        Tween<double>(begin: start, end: 0.0).animate(
-          CurvedAnimation(
-            parent: _dismissController!,
-            curve: Curves.easeOutCubic,
-          ),
-        )..addListener(() {
-          setState(() {
-            _dragOffset = _dismissAnimation!.value;
-          });
-        });
-    _dismissController?.forward().then((_) {
-      if (mounted) {
-        setState(() {
-          _dragOffset = 0.0;
-        });
-      }
-    });
+    _dismissStart = _dragOffset.value;
+    if (_dismissStart == 0.0) return;
+    _dismissController.forward(from: 0);
+  }
+
+  void _updateDismissOffset() {
+    final progress = Curves.easeOutCubic.transform(_dismissController.value);
+    _dragOffset.value = _dismissStart * (1 - progress);
   }
 
   @override
@@ -158,8 +143,10 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
         onVerticalDragUpdate: _onVerticalDragUpdate,
         onVerticalDragEnd: _onVerticalDragEnd,
         onVerticalDragCancel: _animateBack,
-        child: Transform.translate(
-          offset: Offset(0, _dragOffset),
+        child: ValueListenableBuilder<double>(
+          valueListenable: _dragOffset,
+          builder: (context, offset, child) =>
+              Transform.translate(offset: Offset(0, offset), child: child),
           child: Stack(
             children: [
               const Positioned.fill(
