@@ -132,17 +132,14 @@ Located in `lib/features/lyrics/`:
   - `LyricLine.findActiveWordIndex(Duration position)`: Returns the active word index for word-synced lines.
   - `LyricWord.progressAt(Duration position)`: Computes normalized `[0.0, 1.0]` progress for in-place highlighting.
 - **Word-Level Highlight Renderer (`WordSyncedLyricText`, `LyricLineWidget`)**:
-  - **Apple Music-Style Vsync-Driven Progressive Highlighting**: Sub-millisecond continuous 60/120 FPS position extrapolation via an isolated `AnimationController` in `LyricLineWidget`. Completed words remain 100% active, current word progressively reveals active text with a soft 8px feathered gradient mask (`ShaderMask(blendMode: BlendMode.srcIn)`), and future words remain muted (38% opacity).
+  - **Word-level sweep** uses a bounded ticker on an active row when playback is advancing. Paused and buffering states use the reported audio position directly. A partially revealed word keeps the feathered mask.
   - **Subtle Luminescence & Contrast Accent**: Active words sung in real-time gain an ethereal glow shadow (`blurRadius: 8.0`) that settles into crisp solid white upon completion.
   - **Simulated Line-Wide Sweep for Standard LRC**: Standard LRC lines without word timestamps render a continuous 14px feathered horizontal light sweep across their estimated duration, keeping non-word-synced lyrics dynamic and fluid.
-  - **High-Frequency Stream & Repaint Boundary Isolation**: `LyricsSheet` is completely decoupled from high-frequency position ticks; each active `LyricLineWidget` is wrapped in `RepaintBoundary`, ensuring 60/120 FPS vsync repainting is strictly scoped to the active line canvas with zero parent rebuilds or sibling repaints.
-  - **Symmetric Active/Inactive Line Transitions**: 280ms `Curves.easeOutCubic` animations via `AnimatedScale` (1.0 vs 0.97) and `AnimatedDefaultTextStyle`.
+  - **Repaint boundaries** isolate active row paint from the rest of the sheet.
 - **Cupertino Lyrics Sheet (`LyricsSheet`)**:
-  - **45% Viewport Focal Alignment**: Uses dynamic sheet geometry (`LayoutBuilder`) with top padding (40% viewport height) and bottom padding (55% viewport height).
-  - **Exact Item Geometry Positioning**: Calculates target scroll offsets via `RenderBox.localToGlobal` relative to the lyrics viewport.
-  - **Cold Start & Mid-Playback Initial Positioning**: Immediate zero-duration frame jump to current line upon sheet opening part-way through playback.
-  - **Smooth Viewport Movement**: 300ms `Curves.easeOutCubic` animated scrolling triggered on `activeIndex` changes.
-  - **Manual Scroll Recovery & Tap-to-Seek**: User drag notifications pause auto-scroll and animate in the floating "Current line" button. Tapping "Current line" or tapping any lyric line seeks playback, snaps to the 45% focal position, and restores auto-following.
+  - Now Playing follows the live track. A library preview stays on the selected track and uses playback controls when that track is current.
+  - The lazy timed list anchors directly at off-screen rows and aligns their measured center near 45% of the viewport. Adjacent lines can animate. Seeks and dense updates can jump directly.
+  - Manual scrolling pauses auto-follow. **Current line** restores following without seeking. Tapping a timed line seeks when its track is playing.
 
 ### 5. Google Drive integration and sync
 

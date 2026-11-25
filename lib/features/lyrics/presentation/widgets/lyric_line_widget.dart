@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/bootstrap/providers.dart';
@@ -43,145 +44,59 @@ class LyricLineWidget extends ConsumerStatefulWidget {
 
 class _LyricLineWidgetState extends ConsumerState<LyricLineWidget>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _extrapolationController;
-  double _anchorPositionMs = 0.0;
-  Duration _smoothPosition = Duration.zero;
-  bool _isPlaying = false;
-  double _speed = 1.0;
+  static const _maxExtrapolation = Duration(milliseconds: 500);
 
-  @override
-  void initState() {
-    super.initState();
-    _extrapolationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 500),
-    )..addListener(_onExtrapolationTick);
+  Ticker? _clock;
+  Duration? _positionAtAnchor;
+  Duration _elapsed = Duration.zero;
+  bool _advancing = false;
 
-    if (widget.isActive) {
-      _initClock();
+  void _tick(Duration elapsed) {
+    if (elapsed >= _maxExtrapolation) {
+      elapsed = _maxExtrapolation;
+      _clock?.stop();
     }
+    if (_elapsed != elapsed) setState(() => _elapsed = elapsed);
   }
 
-  void _initClock() {
-    final Duration pos = widget.position ?? ref.read(playbackPositionProvider);
-    final posMs = pos.inMilliseconds.toDouble();
-    _anchorPositionMs = posMs;
-    _smoothPosition = Duration(milliseconds: posMs.round());
+  Duration _positionForFrame() {
+    final needsClock =
+        widget.isActive &&
+        (widget.line.hasWords || widget.enableSimulatedLineSweep);
+    if (!needsClock) {
+      _clock?.stop();
+      _positionAtAnchor = null;
+      _advancing = false;
+      return widget.position ?? Duration.zero;
+    }
 
-    final isPlaying = ref.read(
-      playerStateProvider.select((s) => s.value?.isPlaying ?? false),
+    final Duration position =
+        widget.position ?? ref.watch(playbackPositionProvider);
+    final advancing = ref.watch(
+      playerStateProvider.select((state) {
+        final playback = state.value;
+        return playback != null && playback.isPlaying && !playback.isBuffering;
+      }),
     );
-    _isPlaying = isPlaying;
-    _speed = 1.0;
-
-    final bool needsVsync =
-        widget.line.hasWords || widget.enableSimulatedLineSweep;
-    if (_isPlaying && needsVsync) {
-      _extrapolationController.forward(from: 0.0);
+    if (_positionAtAnchor != position || _advancing != advancing) {
+      _clock?.stop();
+      _positionAtAnchor = position;
+      _advancing = advancing;
+      _elapsed = Duration.zero;
+      if (advancing) (_clock ??= createTicker(_tick)).start();
     }
-  }
-
-  void _onExtrapolationTick() {
-    if (!mounted || !widget.isActive) {
-      _extrapolationController.stop();
-      return;
-    }
-    if (!_isPlaying) {
-      _extrapolationController.stop();
-      return;
-    }
-
-    final elapsedMs = _extrapolationController.value * 500.0 * _speed;
-    final extrapolatedMs = _anchorPositionMs + elapsedMs;
-    final nextPos = Duration(milliseconds: extrapolatedMs.round());
-
-    if (nextPos != _smoothPosition) {
-      setState(() {
-        _smoothPosition = nextPos;
-      });
-    }
-  }
-
-  @override
-  void didUpdateWidget(LyricLineWidget oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.isActive != widget.isActive) {
-      if (widget.isActive) {
-        _initClock();
-      } else {
-        _extrapolationController.stop();
-        _smoothPosition = Duration.zero;
-      }
-    } else if (widget.isActive &&
-        widget.position != null &&
-        widget.position != oldWidget.position) {
-      _onPositionUpdated(widget.position!.inMilliseconds.toDouble());
-    }
-  }
-
-  void _onPositionUpdated(double rawMs) {
-    if (!mounted || !widget.isActive) return;
-
-    final currentCalcMs =
-        _anchorPositionMs + (_extrapolationController.value * 500.0 * _speed);
-    final diff = (rawMs - currentCalcMs).abs();
-
-    final bool needsVsync =
-        widget.line.hasWords || widget.enableSimulatedLineSweep;
-    if (diff > 300) {
-      // Seek or jump: snap immediately
-      _anchorPositionMs = rawMs;
-      _smoothPosition = Duration(milliseconds: rawMs.round());
-      if (_isPlaying && needsVsync) {
-        _extrapolationController.forward(from: 0.0);
-      }
-    } else {
-      // Minor audio clock drift: blend anchor smoothly
-      _anchorPositionMs = (currentCalcMs + rawMs) / 2.0;
-      if (_isPlaying && needsVsync) {
-        _extrapolationController.forward(from: 0.0);
-      }
-    }
+    return position + _elapsed;
   }
 
   @override
   void dispose() {
-    _extrapolationController.dispose();
+    _clock?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    Duration effectivePosition;
-
-    if (widget.isActive) {
-      final Duration rawPos =
-          widget.position ?? ref.watch(playbackPositionProvider);
-      final isPlaying = ref.watch(
-        playerStateProvider.select((s) => s.value?.isPlaying ?? false),
-      );
-
-      final isPlayingChanged = (isPlaying != _isPlaying);
-      _isPlaying = isPlaying;
-      _speed = 1.0;
-
-      final bool needsVsync =
-          widget.line.hasWords || widget.enableSimulatedLineSweep;
-      final rawMs = rawPos.inMilliseconds.toDouble();
-      if ((rawMs - _anchorPositionMs).abs() > 0.001) {
-        _onPositionUpdated(rawMs);
-      } else if (isPlayingChanged) {
-        if (_isPlaying && needsVsync) {
-          _extrapolationController.forward(from: 0.0);
-        } else {
-          _extrapolationController.stop();
-        }
-      }
-
-      effectivePosition = _smoothPosition;
-    } else {
-      effectivePosition = widget.position ?? Duration.zero;
-    }
+    final effectivePosition = _positionForFrame();
 
     final activeColor = widget.isDark
         ? CupertinoColors.white

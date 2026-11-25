@@ -319,10 +319,7 @@ void main() {
       await fixture.position(position);
       samples.add(progress());
     }
-    expect(samples, everyElement(500));
-    debugPrint(
-      'paused lyric: audio=[500,600,700,800,900,1000] rendered=$samples',
-    );
+    expect(samples, [500, 600, 700, 800, 900, 1000]);
   });
 
   testWidgets('dense feed of two hundred timed lyric updates', (tester) async {
@@ -354,35 +351,42 @@ void main() {
     expect(active.hitTestable(), findsOneWidget);
   });
 
-  testWidgets('lyric clock runs through a stalled buffering snapshot', (
-    tester,
-  ) async {
-    final a = _track('a');
-    final fixture = _Fixture(tester);
-    await fixture.mount(
-      a,
-      lyrics: {a.id: _lyrics(a, _lines(4, interval: 4000))},
-      child: LyricsSheet(track: a),
-      playing: true,
-      buffering: true,
-      position: 1000,
-    );
-    final progress = find.descendant(
-      of: _activeSheetLine(),
-      matching: find.byType(WordSyncedLyricText),
-    );
-    var maxRendered = 1000;
-    for (var frame = 0; frame < 15; frame++) {
-      await tester.pump(const Duration(milliseconds: 16));
-      final position = tester
-          .widget<WordSyncedLyricText>(progress)
-          .position
-          .inMilliseconds;
-      if (position > maxRendered) maxRendered = position;
-    }
-    expect(maxRendered, greaterThan(1000));
-    debugPrint('buffering: audio=1000, maximum rendered=$maxRendered');
-  });
+  testWidgets(
+    'lyric clock holds during buffering and restarts with the audio',
+    (tester) async {
+      final a = _track('a');
+      final fixture = _Fixture(tester);
+      await fixture.mount(
+        a,
+        lyrics: {a.id: _lyrics(a, _lines(4, interval: 4000))},
+        child: LyricsSheet(track: a),
+        playing: true,
+        buffering: true,
+        position: 1000,
+      );
+      final progress = find.descendant(
+        of: _activeSheetLine(),
+        matching: find.byType(WordSyncedLyricText),
+      );
+      var maxRendered = 1000;
+      for (var frame = 0; frame < 15; frame++) {
+        await tester.pump(const Duration(milliseconds: 16));
+        final position = tester
+            .widget<WordSyncedLyricText>(progress)
+            .position
+            .inMilliseconds;
+        if (position > maxRendered) maxRendered = position;
+      }
+      expect(maxRendered, 1000);
+      await fixture.position(1100, buffering: false);
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(
+        tester.widget<WordSyncedLyricText>(progress).position.inMilliseconds,
+        greaterThan(1100),
+      );
+    },
+  );
 
   testWidgets('seek control stays interactive when duration is unknown', (
     tester,

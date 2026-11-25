@@ -47,3 +47,5 @@ Schema version 2 introduced two dedicated tables in `lib/core/database/tables.da
 - Tap-to-seek: Tapping any lyric line immediately seeks playback to that line's timestamp.
 - User scroll detection: If the user scrolls away, auto-scroll pauses and a floating "Return to current line" button appears.
 - Supports plain lyrics mode and empty states when no lyrics are available.
+
+The karaoke sweep renders paused seeks directly from the audio position. It holds at the audio clock during buffering and extrapolates only while playback advances.
