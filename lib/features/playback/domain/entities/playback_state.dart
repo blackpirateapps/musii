@@ -56,6 +56,8 @@ class PlayerStateSnapshot {
   final Duration duration;
   final bool isPlaying;
   final bool isBuffering;
+  final bool isLoadingTrack;
+  final bool hasLoadError;
   final bool shuffleMode;
   final AudioRepeatMode repeatMode;
   final List<Track> _queue;
@@ -68,6 +70,8 @@ class PlayerStateSnapshot {
     this.duration = Duration.zero,
     this.isPlaying = false,
     this.isBuffering = false,
+    this.isLoadingTrack = false,
+    this.hasLoadError = false,
     this.shuffleMode = false,
     this.repeatMode = AudioRepeatMode.off,
     List<Track> queue = const [],
@@ -115,6 +119,8 @@ class PlayerStateSnapshot {
     Duration? duration,
     bool? isPlaying,
     bool? isBuffering,
+    bool? isLoadingTrack,
+    bool? hasLoadError,
     bool? shuffleMode,
     AudioRepeatMode? repeatMode,
     List<Track>? queue,
@@ -143,6 +149,8 @@ class PlayerStateSnapshot {
       duration: duration ?? this.duration,
       isPlaying: isPlaying ?? this.isPlaying,
       isBuffering: isBuffering ?? this.isBuffering,
+      isLoadingTrack: isLoadingTrack ?? this.isLoadingTrack,
+      hasLoadError: hasLoadError ?? this.hasLoadError,
       shuffleMode: shuffleMode ?? this.shuffleMode,
       repeatMode: repeatMode ?? this.repeatMode,
       queue: nextQueue ?? _queue,
@@ -161,6 +169,8 @@ class PlayerStateSnapshot {
           duration == other.duration &&
           isPlaying == other.isPlaying &&
           isBuffering == other.isBuffering &&
+          isLoadingTrack == other.isLoadingTrack &&
+          hasLoadError == other.hasLoadError &&
           shuffleMode == other.shuffleMode &&
           repeatMode == other.repeatMode &&
           queueIndex == other.queueIndex &&
@@ -173,6 +183,8 @@ class PlayerStateSnapshot {
     duration,
     isPlaying,
     isBuffering,
+    isLoadingTrack,
+    hasLoadError,
     shuffleMode,
     repeatMode,
     queueIndex,

@@ -121,3 +121,5 @@ The scrubber displays the release position while a seek is in flight. A matching
 Now Playing fills the safe area on tall phones and scrolls when controls need more vertical space. A compact height hides the inline reel, while the full lyrics panel remains available from the lyrics button.
 
 When the audio duration is unavailable, the slider is disabled and the remaining time displays a dash. The elapsed label still uses the audio position.
+
+During an initial load, the center control cancels the playback request and keeps the queue. An existing shared cache download can finish independently. If loading fails, Now Playing shows a retry message and Play starts a new request.

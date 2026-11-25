@@ -134,7 +134,7 @@ class MusiiAudioHandler extends BaseAudioHandler
     bool jumpStart = false,
   }) {
     if (_loadingTrackId != null) return;
-    final isPlaying = jumpStart ? true : _player.playing;
+    final isPlaying = !_snapshot.hasLoadError && (jumpStart || _player.playing);
     final processing = _player.processingState;
 
     final audioProcessing = switch (processing) {
@@ -163,7 +163,12 @@ class MusiiAudioHandler extends BaseAudioHandler
           MediaAction.skipToQueueItem,
         },
         androidCompactActionIndices: const [0, 1, 2],
-        processingState: audioProcessing,
+        processingState: _snapshot.hasLoadError
+            ? AudioProcessingState.error
+            : audioProcessing,
+        errorMessage: _snapshot.hasLoadError
+            ? 'Unable to start playback'
+            : null,
         playing: isPlaying,
         updatePosition: isRestore ? _snapshot.position : _player.position,
         bufferedPosition: _player.bufferedPosition,
@@ -326,13 +331,17 @@ class MusiiAudioHandler extends BaseAudioHandler
     unawaited(_persistQueue());
     unawaited(_persistState());
 
+    final currentGen = ++_loadGeneration;
     _loadingTrackId = targetTrack.id;
+    _loadedTrackId = null;
 
     // Emit loading state immediately
     _emitSnapshot(
       _snapshot.copyWith(
         currentTrack: targetTrack,
         isBuffering: true,
+        isLoadingTrack: true,
+        hasLoadError: false,
         isPlaying: false,
         queueItems: _currentQueue,
         queueIndex: _currentIndex,
@@ -372,12 +381,11 @@ class MusiiAudioHandler extends BaseAudioHandler
       ),
     );
 
-    final currentGen = ++_loadGeneration;
-
-    // Pause audio without dropping the Android foreground service
-    await _player.pause();
-
     try {
+      // Pause audio without dropping the Android foreground service.
+      await _player.pause();
+      if (currentGen != _loadGeneration) return;
+
       AppLogger.info(
         LogCategory.playback,
         'Fetching audio for: ${targetTrack.title}',
@@ -398,8 +406,7 @@ class MusiiAudioHandler extends BaseAudioHandler
           LogCategory.playback,
           'Failed to obtain audio file: ${fileResult.failureOrNull?.message}',
         );
-        _loadingTrackId = null;
-        _emitSnapshot(_snapshot.copyWith(isBuffering: false, isPlaying: false));
+        _publishLoadFailure();
         return;
       }
 
@@ -411,8 +418,16 @@ class MusiiAudioHandler extends BaseAudioHandler
 
       _loadedTrackId = targetTrack.id;
       _loadingTrackId = null;
+      _emitSnapshot(
+        _snapshot.copyWith(
+          isLoadingTrack: false,
+          isBuffering: _player.processingState == ProcessingState.buffering,
+          duration: _player.duration,
+        ),
+      );
 
       await _player.play();
+      if (currentGen != _loadGeneration) return;
 
       _lastFmCoordinator?.onTrackStarted(targetTrack);
 
@@ -429,10 +444,24 @@ class MusiiAudioHandler extends BaseAudioHandler
           e,
           st,
         );
-        _loadingTrackId = null;
-        _emitSnapshot(_snapshot.copyWith(isBuffering: false, isPlaying: false));
+        _publishLoadFailure();
       }
     }
+  }
+
+  void _publishLoadFailure() {
+    _loadingTrackId = null;
+    _loadedTrackId = null;
+    _cacheRepository.setCurrentlyPlayingTrackId(null);
+    _emitSnapshot(
+      _snapshot.copyWith(
+        isLoadingTrack: false,
+        isBuffering: false,
+        isPlaying: false,
+        hasLoadError: true,
+      ),
+    );
+    _broadcastPlaybackState();
   }
 
   Future<void> _precacheUpcomingWifiTracks() async {
@@ -489,6 +518,29 @@ class MusiiAudioHandler extends BaseAudioHandler
 
   @override
   Future<void> pause() async {
+    if (_loadingTrackId != null) {
+      final cancelledGeneration = ++_loadGeneration;
+      _loadingTrackId = null;
+      _loadedTrackId = null;
+      _cacheRepository.setCurrentlyPlayingTrackId(null);
+      _emitSnapshot(
+        _snapshot.copyWith(
+          isLoadingTrack: false,
+          isBuffering: false,
+          isPlaying: false,
+        ),
+      );
+
+      // The cache may finish a shared download, but this request can no longer
+      // start playback or publish a load result.
+      await _player.pause();
+      if (cancelledGeneration == _loadGeneration) {
+        _broadcastPlaybackState(isRestore: true);
+        await _persistState();
+      }
+      return;
+    }
+
     await _player.pause();
     _broadcastPlaybackState();
     final current = _snapshot.currentTrack;
@@ -504,12 +556,21 @@ class MusiiAudioHandler extends BaseAudioHandler
 
   @override
   Future<void> stop() async {
-    await _player.stop();
+    final stoppedGeneration = ++_loadGeneration;
     _loadedTrackId = null;
     _loadingTrackId = null;
     _cacheRepository.setCurrentlyPlayingTrackId(null);
+    await _player.stop();
+    if (stoppedGeneration != _loadGeneration) return;
+    _emitSnapshot(
+      _snapshot.copyWith(
+        isPlaying: false,
+        isBuffering: false,
+        isLoadingTrack: false,
+        hasLoadError: false,
+      ),
+    );
     _broadcastPlaybackState();
-    _emitSnapshot(_snapshot.copyWith(isPlaying: false, isBuffering: false));
     await _persistState();
   }
 

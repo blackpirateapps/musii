@@ -122,6 +122,12 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
     final isBuffering = ref.watch(
       playerStateProvider.select((s) => s.value?.isBuffering ?? false),
     );
+    final isLoadingTrack = ref.watch(
+      playerStateProvider.select((s) => s.value?.isLoadingTrack ?? false),
+    );
+    final hasLoadError = ref.watch(
+      playerStateProvider.select((s) => s.value?.hasLoadError ?? false),
+    );
     final shuffleMode = ref.watch(
       playerStateProvider.select((s) => s.value?.shuffleMode ?? false),
     );
@@ -494,6 +500,27 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
 
                                 const SizedBox(height: AppSpacing.md),
 
+                                if (isLoadingTrack || hasLoadError)
+                                  Padding(
+                                    padding: const EdgeInsets.fromLTRB(
+                                      AppSpacing.xl,
+                                      0,
+                                      AppSpacing.xl,
+                                      AppSpacing.sm,
+                                    ),
+                                    child: Semantics(
+                                      liveRegion: true,
+                                      child: Text(
+                                        isLoadingTrack ? 'Loading audio…' : 'Couldn’t start playback. Tap Play to retry.',
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(
+                                          color: CupertinoColors.white,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+
                                 // Primary Playback Controls Row (Shuffle, Prev, Play/Pause, Next, Repeat)
                                 Padding(
                                   padding: const EdgeInsets.symmetric(
@@ -538,7 +565,7 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
                                       CupertinoButton(
                                         padding: EdgeInsets.zero,
                                         onPressed: () {
-                                          if (isPlaying) {
+                                          if (isPlaying || isLoadingTrack) {
                                             ref
                                                 .read(
                                                   playbackRepositoryProvider,
@@ -561,7 +588,14 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
                                                 .withOpacity(0.24),
                                           ),
                                           child: Center(
-                                            child: isBuffering
+                                            child: isLoadingTrack
+                                                ? const Icon(
+                                                    CupertinoIcons.stop_fill,
+                                                    size: 28,
+                                                    color:
+                                                        CupertinoColors.white,
+                                                  )
+                                                : isBuffering
                                                 ? const CupertinoActivityIndicator(
                                                     color:
                                                         CupertinoColors.white,

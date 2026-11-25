@@ -441,6 +441,30 @@ void main() {
     expect(find.byType(NowPlayingPage), findsOneWidget);
   });
 
+  testWidgets('the center button cancels loading and retries a failure', (
+    tester,
+  ) async {
+    final a = _track('a');
+    final fixture = _Fixture(tester);
+    await fixture.mount(a, lyrics: {});
+    when(() => fixture.repository.pause()).thenAnswer((_) async {});
+    when(() => fixture.repository.resume()).thenAnswer((_) async {});
+
+    fixture.updates.add(
+      fixture.snapshot.copyWith(isBuffering: true, isLoadingTrack: true),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Loading audio…'), findsOneWidget);
+    await tester.tap(find.byIcon(CupertinoIcons.stop_fill));
+    verify(() => fixture.repository.pause()).called(1);
+
+    fixture.updates.add(fixture.snapshot.copyWith(hasLoadError: true));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Tap Play to retry.'), findsOneWidget);
+    await tester.tap(find.byIcon(CupertinoIcons.play_fill));
+    verify(() => fixture.repository.resume()).called(1);
+  });
+
   testWidgets('twenty-five sequential lyrics panel opens and closes', (
     tester,
   ) async {

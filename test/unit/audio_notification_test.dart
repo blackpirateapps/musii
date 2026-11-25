@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:audio_service/audio_service.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -167,6 +170,54 @@ void main() {
         );
         verify(() => mockCache.setCurrentlyPlayingTrackId('track_1')).called(1);
         verify(() => mockCache.getOrDownloadTrack(any())).called(1);
+      },
+    );
+
+    test(
+      'pausing a pending load preserves the queue and ignores its late result',
+      () async {
+        const track = Track(
+          id: 'pending',
+          driveFileId: 'pending',
+          sourceId: 'source',
+          title: 'Pending track',
+          normalizedTitle: 'pending track',
+          durationMs: 180000,
+        );
+        final requested = Completer<void>();
+        final heldDownload = Completer<Result<File, AppFailure>>();
+        when(() => mockCache.getOrDownloadTrack(track)).thenAnswer((_) {
+          requested.complete();
+          return heldDownload.future;
+        });
+
+        final load = handler.loadAndPlayTrack(track);
+        await requested.future;
+        expect(handler.currentSnapshot.isLoadingTrack, isTrue);
+
+        await handler.pause();
+        expect(handler.currentSnapshot.isLoadingTrack, isFalse);
+        expect(handler.currentSnapshot.isBuffering, isFalse);
+        expect(handler.currentSnapshot.currentTrack?.id, track.id);
+        expect(handler.currentSnapshot.queue, [track]);
+
+        heldDownload.complete(
+          const Result.failure(CacheFailure('late failure')),
+        );
+        await load;
+        expect(handler.currentSnapshot.hasLoadError, isFalse);
+        expect(handler.currentSnapshot.isPlaying, isFalse);
+
+        when(() => mockCache.getOrDownloadTrack(track)).thenAnswer(
+          (_) async => const Result.failure(CacheFailure('retry failure')),
+        );
+        await handler.play();
+        expect(handler.currentSnapshot.hasLoadError, isTrue);
+        expect(handler.currentSnapshot.isLoadingTrack, isFalse);
+        expect(
+          handler.playbackState.value.processingState,
+          AudioProcessingState.error,
+        );
       },
     );
 
