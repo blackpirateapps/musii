@@ -41,7 +41,7 @@ Schema version 2 introduced two dedicated tables in `lib/core/database/tables.da
   - `sequence`: Ordering integer
 
 ## 5. UI Presentation (`LyricsSheet`)
-- Cupertino modal sheet opened from Now Playing bottom bar or track overflow menu.
+- The Now Playing lyrics popup follows the current track as the queue advances. Library track menus open a preview of the selected track, with synchronization and seeking available while that track is current.
 - Displays track title and artist header with dismiss handle.
 - Synchronized auto-scrolling highlighting current line in active white/pink with translucent inactive lines.
 - Tap-to-seek: Tapping any lyric line immediately seeks playback to that line's timestamp.

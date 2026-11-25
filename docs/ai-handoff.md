@@ -56,6 +56,8 @@ The codebase strictly adheres to standard four-layer Clean Architecture:
 
 ## 3. Subsystems & Features
 
+The [Now Playing and lyrics audit](now-playing-audit.md) tracks playback UI fixes and the Android performance baseline.
+
 ### 1. Home Screen Experience (Visual Authority)
 Located in `lib/features/library/presentation/pages/home_page.dart` and `lib/features/library/presentation/widgets/`:
 - **Atmospheric Twilight Backdrop**: Rich twilight and warm sunset gradient glow (`RadialGradient`) with 90px Gaussian blur, giving Cupertino dark mode depth and warmth without visual noise.

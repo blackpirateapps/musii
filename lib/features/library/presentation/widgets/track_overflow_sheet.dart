@@ -195,7 +195,11 @@ Future<void> showTrackActionSheet({
           onPressed: () {
             Navigator.pop(ctx);
             HapticFeedback.lightImpact();
-            showLyricsSheet(context, track);
+            showLyricsSheet(
+              context,
+              track,
+              followPlayback: trackContext == TrackActionContext.nowPlaying,
+            );
           },
           child: const Text('Lyrics'),
         ),

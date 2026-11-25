@@ -381,7 +381,11 @@ class _NowPlayingInlineLyricsState
                   behavior: HitTestBehavior.opaque,
                   onTap: () {
                     if (widget.track != null) {
-                      showLyricsSheet(context, widget.track!);
+                      showLyricsSheet(
+                        context,
+                        widget.track!,
+                        followPlayback: true,
+                      );
                     }
                   },
                   child: SizedBox(
@@ -394,7 +398,11 @@ class _NowPlayingInlineLyricsState
                       disableAnimations: disableAnimations,
                       onTap: () {
                         if (widget.track != null) {
-                          showLyricsSheet(context, widget.track!);
+                          showLyricsSheet(
+                            context,
+                            widget.track!,
+                            followPlayback: true,
+                          );
                         }
                       },
                     ),

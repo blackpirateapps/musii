@@ -633,7 +633,11 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
                                     padding: EdgeInsets.zero,
                                     onPressed: () {
                                       if (track != null) {
-                                        showLyricsSheet(context, track);
+                                        showLyricsSheet(
+                                          context,
+                                          track,
+                                          followPlayback: true,
+                                        );
                                       }
                                     },
                                     child: Container(

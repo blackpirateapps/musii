@@ -10,7 +10,7 @@ class LyricLineWidget extends ConsumerStatefulWidget {
   final Duration? position;
   final bool isActive;
   final bool isDark;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   final int? nextLineTimestampMs;
   final TextAlign textAlign;
   final Alignment alignment;

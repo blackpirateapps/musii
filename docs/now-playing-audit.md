@@ -2,6 +2,12 @@
 
 Audited commit `920feaf098d6e2fd79fd1c29aa324468ebe9b124` on 2026-11-26. The Redmi K20 Pro reproduced the reported low-contrast inline lyrics. In two runs per workload, roughly 25% of displayed-frame intervals exceeded 25 ms with the full lyrics panel open, including when it was following playback without touch input. The corresponding rate was 0.35% during steady Now Playing playback and 0.72% during the scrubber workload. The delayed-seek fixture independently reproduced a visible thumb rebound.
 
+## Remediation
+
+| Finding | Change |
+| --- | --- |
+| 1. Stale track in the lyrics panel | The Now Playing panel follows the current track and resets its lyric view on track change. Library previews stay on the selected track and only enable timed playback controls when that track is playing. |
+
 ## Android stress runs
 
 The phone ran Android 16 (API 36), with a nominal 60 Hz display mode and a 1080 × 2340 physical viewport. The installed release APK, version 1.0.0+1, matched the CI artifact byte for byte. Runs used the same artwork-backed FLAC track with synchronized lyrics as the report screenshot, with the app in its Light theme. [CI build for the audited commit](https://github.com/blackpirateapps/musii/actions/runs/45668797015)
@@ -56,7 +62,7 @@ The samples use actual presentation timestamps from the Musii `SurfaceView` BLAS
 
 ## Reproducing the audit
 
-Run the repository baseline and the separate audit probes. The probes characterize the audited commit and assert the observed failures alongside a 25-cycle modal lifecycle control. They live outside the default test suite, so a successful audit run means the findings reproduced.
+Run the repository baseline and the separate audit probes. The probes preserve the audit scenarios and include a 25-cycle modal lifecycle control. Each remediated scenario checks the corrected behavior. The remaining scenarios still characterize the audited baseline.
 
 ```sh
 flutter analyze --no-pub

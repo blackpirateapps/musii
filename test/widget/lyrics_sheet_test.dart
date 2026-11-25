@@ -149,6 +149,7 @@ void main() {
             playerStateProvider.overrideWith(
               (ref) => Stream.value(
                 const PlayerStateSnapshot(
+                  currentTrack: testTrack,
                   position: Duration(milliseconds: 6000),
                 ),
               ),
@@ -189,6 +190,7 @@ void main() {
             playerStateProvider.overrideWith(
               (ref) => Stream.value(
                 const PlayerStateSnapshot(
+                  currentTrack: testTrack,
                   position: Duration(milliseconds: 21000),
                 ),
               ),
@@ -229,7 +231,10 @@ void main() {
 
       // Initial tick at 2 seconds (Line 0 active)
       playerController.add(
-        const PlayerStateSnapshot(position: Duration(milliseconds: 2000)),
+        const PlayerStateSnapshot(
+          currentTrack: testTrack,
+          position: Duration(milliseconds: 2000),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -239,7 +244,10 @@ void main() {
 
       // Advance playback to 7 seconds (Line 1 active)
       playerController.add(
-        const PlayerStateSnapshot(position: Duration(milliseconds: 7000)),
+        const PlayerStateSnapshot(
+          currentTrack: testTrack,
+          position: Duration(milliseconds: 7000),
+        ),
       );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
@@ -278,6 +286,7 @@ v1:<00:20.282>Searching <00:20.554>is <00:20.802>so <00:21.119>wrong <00:21.748>
             playerStateProvider.overrideWith(
               (ref) => Stream.value(
                 const PlayerStateSnapshot(
+                  currentTrack: testTrack,
                   position: Duration(
                     milliseconds: 19100,
                   ), // Inside word 1 ("in")
@@ -328,7 +337,10 @@ v1:<00:20.282>Searching <00:20.554>is <00:20.802>so <00:21.119>wrong <00:21.748>
       );
 
       playerController.add(
-        const PlayerStateSnapshot(position: Duration(milliseconds: 1000)),
+        const PlayerStateSnapshot(
+          currentTrack: testTrack,
+          position: Duration(milliseconds: 1000),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -344,7 +356,10 @@ v1:<00:20.282>Searching <00:20.554>is <00:20.802>so <00:21.119>wrong <00:21.748>
 
       // Advance playback to line 2 while user is scrolled away
       playerController.add(
-        const PlayerStateSnapshot(position: Duration(milliseconds: 11000)),
+        const PlayerStateSnapshot(
+          currentTrack: testTrack,
+          position: Duration(milliseconds: 11000),
+        ),
       );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
@@ -382,7 +397,10 @@ v1:<00:20.282>Searching <00:20.554>is <00:20.802>so <00:21.119>wrong <00:21.748>
               .overrideWith((ref) => Stream.value(testLyrics)),
           playerStateProvider.overrideWith(
             (ref) => Stream.value(
-              const PlayerStateSnapshot(position: Duration(milliseconds: 0)),
+              const PlayerStateSnapshot(
+                currentTrack: testTrack,
+                position: Duration(milliseconds: 0),
+              ),
             ),
           ),
           playbackRepositoryProvider.overrideWithValue(fakePlayback),
@@ -401,6 +419,38 @@ v1:<00:20.282>Searching <00:20.554>is <00:20.802>so <00:21.119>wrong <00:21.748>
       fakePlayback.lastSeekPosition,
       equals(const Duration(milliseconds: 10000)),
     );
+  });
+
+  testWidgets('A lyric preview cannot seek another song', (tester) async {
+    final playback = FakePlaybackRepository();
+    final otherTrack = testTrack.copyWith(id: 'other');
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          trackLyricsProvider(testTrack.id)
+              .overrideWith((ref) => Stream.value(testLyrics)),
+          playerStateProvider.overrideWith(
+            (ref) => Stream.value(
+              PlayerStateSnapshot(
+                currentTrack: otherTrack,
+                position: const Duration(seconds: 11),
+              ),
+            ),
+          ),
+          playbackRepositoryProvider.overrideWithValue(playback),
+        ],
+        child: const CupertinoApp(home: LyricsSheet(track: testTrack)),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      tester.widgetList<LyricLineWidget>(find.byType(LyricLineWidget)),
+      everyElement(
+        isA<LyricLineWidget>().having((row) => row.isActive, 'active', false),
+      ),
+    );
+    await tester.tap(find.text('First intro line'));
+    expect(playback.lastSeekPosition, isNull);
   });
 
   testWidgets('LyricsSheet renders plain unsynchronized lyrics correctly', (
@@ -484,6 +534,7 @@ v1:<00:20.282>Searching <00:20.554>is <00:20.802>so <00:21.119>wrong <00:21.748>
       // Playback active at 5.5 seconds (line 1 active)
       playerController.add(
         const PlayerStateSnapshot(
+          currentTrack: testTrack,
           isPlaying: true,
           position: Duration(milliseconds: 5500),
         ),
@@ -496,6 +547,7 @@ v1:<00:20.282>Searching <00:20.554>is <00:20.802>so <00:21.119>wrong <00:21.748>
       // Playback paused at 5.5 seconds (line 1 remains active)
       playerController.add(
         const PlayerStateSnapshot(
+          currentTrack: testTrack,
           isPlaying: false,
           position: Duration(milliseconds: 5500),
         ),
@@ -508,6 +560,7 @@ v1:<00:20.282>Searching <00:20.554>is <00:20.802>so <00:21.119>wrong <00:21.748>
       // Playback resumed and advances to 10.5 seconds (line 2 active)
       playerController.add(
         const PlayerStateSnapshot(
+          currentTrack: testTrack,
           isPlaying: true,
           position: Duration(milliseconds: 10500),
         ),

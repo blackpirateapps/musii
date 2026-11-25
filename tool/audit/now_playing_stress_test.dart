@@ -226,19 +226,13 @@ void main() {
     await fixture.position(4000, track: b);
     await tester.pumpAndSettle();
     final sheet = tester.widget<LyricsSheet>(find.byType(LyricsSheet));
-    debugPrint(
-      'track transition: sheet=${sheet.track.id}, '
-      'active=${tester.widget<LyricLineWidget>(_activeSheetLine()).line.sequence}',
+    expect(sheet.track.id, b.id);
+    expect(find.text('Old line 4'), findsNothing);
+    expect(
+      tester.widget<LyricLineWidget>(_activeSheetLine()).line.text,
+      'New line 4',
     );
-    expect(sheet.track.id, a.id);
-    expect(fixture.snapshot.currentTrack?.id, b.id);
-    final oldRow = find.descendant(
-      of: find.byType(LyricsSheet),
-      matching: find.byWidgetPredicate(
-        (widget) => widget is LyricLineWidget && widget.line.sequence == 3,
-      ),
-    );
-    await tester.tap(oldRow.hitTestable());
+    await tester.tap(find.text('New line 3').hitTestable());
     expect(fixture.seeks, [const Duration(seconds: 3)]);
   });
 

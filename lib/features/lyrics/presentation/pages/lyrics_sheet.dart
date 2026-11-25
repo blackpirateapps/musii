@@ -11,10 +11,27 @@ import '../../../library/domain/entities/music_entities.dart';
 import '../../domain/entities/lyric_model.dart';
 import '../widgets/lyric_line_widget.dart';
 
-void showLyricsSheet(BuildContext context, Track track) {
+void showLyricsSheet(
+  BuildContext context,
+  Track track, {
+  bool followPlayback = false,
+}) {
   showCupertinoModalPopup<void>(
     context: context,
-    builder: (ctx) => LyricsSheet(track: track),
+    builder: (context) => Consumer(
+      builder: (context, ref, child) {
+        final displayedTrack = followPlayback
+            ? ref.watch(
+                    playerStateProvider.select((s) => s.value?.currentTrack),
+                  ) ??
+                  track
+            : track;
+        return LyricsSheet(
+          key: ValueKey(displayedTrack.id),
+          track: displayedTrack,
+        );
+      },
+    ),
   );
 }
 
@@ -148,12 +165,24 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet> {
     final lyrics = lyricsAsync.value;
 
     final isDark = CupertinoTheme.brightnessOf(context) == Brightness.dark;
+    final isCurrentTrack = ref.watch(
+      playerStateProvider.select((s) => s.value?.currentTrack?.id == track.id),
+    );
+
+    if (!isCurrentTrack) {
+      _activeIndex = -1;
+      _hasPerformedInitialScroll = false;
+    }
 
     // Listen to playback position changes and update active line
     ref.listen<Duration>(playbackPositionProvider, (prev, next) {
       final currentPos = next;
       final currentLines = lyrics?.lines ?? const [];
-      if (lyrics?.isSynchronized != true || currentLines.isEmpty) return;
+      if (ref.read(playerStateProvider).value?.currentTrack?.id != track.id ||
+          lyrics?.isSynchronized != true ||
+          currentLines.isEmpty) {
+        return;
+      }
 
       final newActiveIndex = TrackLyrics.calculateActiveIndex(
         currentLines,
@@ -175,7 +204,10 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet> {
     });
 
     // Initial positioning when lyrics data first becomes available
-    if (lyrics != null && lyrics.isSynchronized && lyrics.lines.isNotEmpty) {
+    if (isCurrentTrack &&
+        lyrics != null &&
+        lyrics.isSynchronized &&
+        lyrics.lines.isNotEmpty) {
       final currentPos = ref.read(playbackPositionProvider);
       final currentActive = TrackLyrics.calculateActiveIndex(
         lyrics.lines,
@@ -441,28 +473,39 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet> {
                                   isActive: isActive,
                                   isDark: isDark,
                                   nextLineTimestampMs: nextLineTimestampMs,
-                                  onTap: () {
-                                    ref
-                                        .read(playbackRepositoryProvider)
-                                        .seek(
-                                          Duration(
-                                            milliseconds: line.timestampMs,
-                                          ),
-                                        );
-                                    setState(() {
-                                      _userScrolledManually = false;
-                                      _activeIndex = i;
-                                    });
-                                    WidgetsBinding.instance
-                                        .addPostFrameCallback((_) {
-                                          if (mounted) {
-                                            _scrollToActiveLine(
-                                              i,
-                                              animate: true,
-                                            );
+                                  onTap: !isCurrentTrack
+                                      ? null
+                                      : () {
+                                          if (ref
+                                                  .read(playerStateProvider)
+                                                  .value
+                                                  ?.currentTrack
+                                                  ?.id !=
+                                              track.id) {
+                                            return;
                                           }
-                                        });
-                                  },
+                                          ref
+                                              .read(playbackRepositoryProvider)
+                                              .seek(
+                                                Duration(
+                                                  milliseconds:
+                                                      line.timestampMs,
+                                                ),
+                                              );
+                                          setState(() {
+                                            _userScrolledManually = false;
+                                            _activeIndex = i;
+                                          });
+                                          WidgetsBinding.instance
+                                              .addPostFrameCallback((_) {
+                                                if (mounted) {
+                                                  _scrollToActiveLine(
+                                                    i,
+                                                    animate: true,
+                                                  );
+                                                }
+                                              });
+                                        },
                                 );
                               },
                             ),
@@ -477,7 +520,9 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet> {
           ),
 
           // 3. Floating "Return to current line" button when manually scrolled
-          if (_userScrolledManually && lyrics?.isSynchronized == true)
+          if (isCurrentTrack &&
+              _userScrolledManually &&
+              lyrics?.isSynchronized == true)
             Positioned(
               bottom: 24,
               right: 24,
