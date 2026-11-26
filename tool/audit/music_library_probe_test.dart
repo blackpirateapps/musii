@@ -337,6 +337,28 @@ void main() {
     },
   );
 
+  test('artist counts use the actual library even when stored aggregates are stale', () async {
+    listing = [audio('a'), audio('b')];
+    await sync();
+    await db
+        .update(db.artists)
+        .write(
+          const ArtistsCompanion(trackCount: Value(0), albumCount: Value(0)),
+        );
+    final artist = (await library.watchAllArtists().first).single;
+    expect(artist.trackCount, 2);
+    expect(artist.albumCount, 1);
+    expect((await library.watchArtist(artist.id).first)!.artist.trackCount, 2);
+    expect(
+      (await search.search('Test Artist'))
+          .dataOrNull!
+          .artists
+          .single
+          .trackCount,
+      2,
+    );
+  });
+
   test('a track-only change updates an open album and artist', () async {
     listing = [audio('a')];
     await sync();

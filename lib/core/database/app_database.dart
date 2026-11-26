@@ -293,6 +293,29 @@ class AppDatabase extends _$AppDatabase {
     }
   }
 
+  Selectable<ArtistRow> selectArtistsWithCounts({
+    String? pattern,
+    String escape = '!',
+  }) => customSelect(
+    """
+        SELECT artist.id, artist.name, artist.normalized_name, artist.artwork_path,
+          (SELECT COUNT(*) FROM tracks WHERE artist_id = artist.id) AS track_count,
+          (SELECT COUNT(*) FROM albums WHERE artist_id = artist.id) AS album_count
+        FROM artists AS artist
+        ${pattern == null ? '' : 'WHERE artist.normalized_name LIKE ? ESCAPE ? OR artist.name LIKE ? ESCAPE ?'}
+        ORDER BY artist.normalized_name
+        """,
+    variables: [
+      if (pattern != null) ...[
+        Variable.withString(pattern),
+        Variable.withString(escape),
+        Variable.withString(pattern),
+        Variable.withString(escape),
+      ],
+    ],
+    readsFrom: {artists, tracks, albums},
+  ).map((row) => artists.map(row.data));
+
   Future<void> reconcileDuplicateAlbums() async {
     final hasArtworkCol = await _columnExists('tracks', 'artwork_path');
     final allAlbums = await select(albums).get();

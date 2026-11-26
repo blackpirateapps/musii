@@ -525,10 +525,9 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
 
   @override
   Stream<List<Artist>> watchAllArtists() {
-    return (_database.select(_database.artists)
-          ..orderBy([(tbl) => OrderingTerm.asc(tbl.normalizedName)]))
-        .watch()
-        .map((rows) => rows.map(_mapDbArtistToEntity).toList());
+    return _database.selectArtistsWithCounts().watch().map(
+      (rows) => rows.map(_mapDbArtistToEntity).toList(),
+    );
   }
 
   @override
@@ -580,7 +579,8 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
       tracks,
     ) {
       if (artistData == null) return null;
-      var artistEntity = _mapDbArtistToEntity(artistData);
+      var artistEntity = _mapDbArtistToEntity(artistData)
+          .copyWith(trackCount: tracks.length, albumCount: albums.length);
       if (artistEntity.artworkPath == null && albums.isNotEmpty) {
         final albumArt = albums
             .map(

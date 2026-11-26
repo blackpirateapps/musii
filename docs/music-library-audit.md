@@ -15,7 +15,7 @@ Audited on 26 November 2026 at commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09`
 | LIB-07 | Medium | Album and artist details retain stale track download state | SQLite stream subscriptions · Fixed |
 | LIB-08 | Medium | Search retains results after library changes | Android and Riverpod with SQLite · Fixed |
 | LIB-09 | Medium | Home's See All buttons do nothing | Android and source review |
-| LIB-10 | Medium | Artists show “0 songs” while their details list songs | Android |
+| LIB-10 | Medium | Artists show “0 songs” while their details list songs | Android · Fixed |
 | LIB-11 | Medium | Replaying a song repeatedly hides other recently played songs | SQLite · Fixed |
 | LIB-12 | Medium | A playlist can contain repeated additions with no way to remove an individual song | Android and SQLite |
 | LIB-13 | Low | Concurrent favorite toggles fail and lose updates | SQLite · Fixed |
@@ -107,6 +107,8 @@ Audited on 26 November 2026 at commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09`
 **Observed and expected.** Each tap left the same Home screen visible. The controls should open the corresponding collection. Source inspection shows the same empty callbacks for Favorites, Artists, and Playlists. [Home section callbacks](../lib/features/library/presentation/pages/home_page.dart#L275)
 
 ### LIB-10 · Artist cards and details report zero songs for populated artists
+
+**Resolution.** Artist cards and search derive displayed totals from indexed relations. Artist details use their loaded songs and albums, so stale stored totals no longer show an incorrect zero.
 
 **Reproduce.** Open Library → Artists on the audited device. Open an artist with a `0 songs` badge and tracks under Popular.
 

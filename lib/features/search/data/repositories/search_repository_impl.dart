@@ -177,12 +177,9 @@ class SearchRepositoryImpl implements SearchRepository {
             });
 
       // 3. Search Artists
-      final artistRows =
-          await (_database.select(_database.artists)..where(
-                (tbl) =>
-                    tbl.normalizedName.like(keyPattern, escapeChar: escape),
-              ))
-              .get();
+      final artistRows = await _database
+          .selectArtistsWithCounts(pattern: keyPattern, escape: escape)
+          .get();
 
       final artists = artistRows
           .map(
