@@ -430,7 +430,6 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                 );
               },
             ),
-            _ => const SliverToBoxAdapter(child: SizedBox.shrink()),
           },
 
           // Bottom padding for mini-player

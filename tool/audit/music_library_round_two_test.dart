@@ -42,7 +42,7 @@ import '../../test/integration/library_sync_optimization_and_recovery_test.dart'
 import '../../test/unit/google_drive_repository_impl_test.dart'
     show MockAuthRepository;
 
-// Audit probes assert the behavior observed on the audited revision.
+// Regression coverage for the second music library audit.
 void main() {
   late Directory directory;
   late AppDatabase db;

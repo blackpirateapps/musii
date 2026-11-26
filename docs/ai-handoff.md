@@ -57,7 +57,9 @@ The codebase strictly adheres to standard four-layer Clean Architecture:
 ## 3. Subsystems & Features
 
 The [Now Playing and lyrics audit](now-playing-audit.md) tracks playback UI fixes and the Android performance baseline.
-The [music library audit](music-library-audit.md) records open findings from Android browsing and SQLite stress tests.
+Both rounds of the music library audit are resolved. The reports retain the original reproductions and record the fix for each of the 25 findings. [Round 1](music-library-audit.md) · [Round 2](music-library-audit-round-2.md)
+
+The music library regressions cover Unicode identity repair on incremental sync, literal search and live search refresh, shared-account membership, resumed deletion checks, verified offline audio, and precise playlist entry removal. Static analysis reported zero issues and all 356 tests passed with `flutter test --no-pub test tool/audit`.
 
 ### 1. Home Screen Experience (Visual Authority)
 Located in `lib/features/library/presentation/pages/home_page.dart` and `lib/features/library/presentation/widgets/`:

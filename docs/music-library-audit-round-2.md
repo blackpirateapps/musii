@@ -27,7 +27,7 @@ Audited commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09` on 26 November 2026. T
 
 **Observed.** Resume performed zero Drive listing requests and reported one removal. B disappeared along with its pin, cached audio, favorite, and playlist membership. A new sync found B but did not restore those relationships.
 
-**Expected.** A completed discovery snapshot can seed recovery. Removal should also establish that an absent track is still absent when recovery may have outlived the listing. This differs from the earlier stop-during-pagination bug, since all pages completed successfully before Stop. [Saved discovery handling](../lib/features/library/data/repositories/music_library_repository_impl.dart#L873) · [Reconciliation](../lib/features/library/data/repositories/music_library_repository_impl.dart#L1510)
+**Expected.** A completed discovery snapshot can seed recovery. Removal should also establish that an absent track is still absent when recovery may have outlived the listing. This differs from the earlier stop-during-pagination bug, since all pages completed successfully before Stop. [Saved discovery handling](https://github.com/blackpirateapps/musii/blob/af3c7e300a0b6fb2b0bd671590c3262a5a035c09/lib/features/library/data/repositories/music_library_repository_impl.dart#L873) · [Reconciliation](https://github.com/blackpirateapps/musii/blob/af3c7e300a0b6fb2b0bd671590c3262a5a035c09/lib/features/library/data/repositories/music_library_repository_impl.dart#L1510)
 
 ### LIB-15 · One account can remove a shared file another account still indexes
 
@@ -37,7 +37,7 @@ Audited commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09` on 26 November 2026. T
 
 **Observed.** The first sync assigned the only track record to A. B's sync completed with the same track visible. A's next sync removed the record and favorite. B's saved run still reported complete, even though local browsing no longer showed the track. Resyncing B restored the file with no favorite.
 
-**Expected.** A shared file still indexed through B should remain in the library after A stops listing it. A single unique file ID and one `sourceId` cannot record both roots' membership. The subsequent sync preserves the original owner, and reconciliation prunes by that owner. [Track schema](../lib/core/database/tables.dart#L75) · [Source assignment](../lib/features/library/data/repositories/music_library_repository_impl.dart#L1351) · [Reconciliation](../lib/features/library/data/repositories/music_library_repository_impl.dart#L1510)
+**Expected.** A shared file still indexed through B should remain in the library after A stops listing it. A single unique file ID and one `sourceId` cannot record both roots' membership. The subsequent sync preserves the original owner, and reconciliation prunes by that owner. [Track schema](https://github.com/blackpirateapps/musii/blob/af3c7e300a0b6fb2b0bd671590c3262a5a035c09/lib/core/database/tables.dart#L75) · [Source assignment](https://github.com/blackpirateapps/musii/blob/af3c7e300a0b6fb2b0bd671590c3262a5a035c09/lib/features/library/data/repositories/music_library_repository_impl.dart#L1351) · [Reconciliation](https://github.com/blackpirateapps/musii/blob/af3c7e300a0b6fb2b0bd671590c3262a5a035c09/lib/features/library/data/repositories/music_library_repository_impl.dart#L1510)
 
 ### LIB-16 · Failed folder change replaces the last working saved root
 
@@ -47,7 +47,7 @@ Audited commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09` on 26 November 2026. T
 
 **Observed.** After the failed attempt, the saved root is B, the last successful timestamp still belongs to A, and the indexed tracks still come from A. An ordinary saved-folder sync requests B again.
 
-**Expected.** Keep the working root associated with its successful timestamp and index until a replacement succeeds, or represent the failed selection separately from the active library. A failed run can still be retried from its own checkpoint. [Saved-folder lookup](../lib/features/library/data/repositories/music_library_repository_impl.dart#L383) · [Source write before discovery](../lib/features/library/data/repositories/music_library_repository_impl.dart#L851)
+**Expected.** Keep the working root associated with its successful timestamp and index until a replacement succeeds, or represent the failed selection separately from the active library. A failed run can still be retried from its own checkpoint. [Saved-folder lookup](https://github.com/blackpirateapps/musii/blob/af3c7e300a0b6fb2b0bd671590c3262a5a035c09/lib/features/library/data/repositories/music_library_repository_impl.dart#L383) · [Source write before discovery](https://github.com/blackpirateapps/musii/blob/af3c7e300a0b6fb2b0bd671590c3262a5a035c09/lib/features/library/data/repositories/music_library_repository_impl.dart#L851)
 
 ### LIB-17 · Removing embedded artwork leaves a blank album despite available folder art
 
@@ -57,7 +57,7 @@ Audited commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09` on 26 November 2026. T
 
 **Observed.** The first sync removed A, made zero artwork requests, and left the album and surviving track with no artwork. The second sync requested the cover and restored artwork.
 
-**Expected.** The first completed sync should pick the available folder cover when the last track with embedded art disappears. Artwork preparation checks the old track set before reconciliation removes A. [Artwork preparation](../lib/features/library/data/repositories/music_library_repository_impl.dart#L2102) · [Artwork selection](../lib/features/library/data/repositories/music_library_repository_impl.dart#L2199)
+**Expected.** The first completed sync should pick the available folder cover when the last track with embedded art disappears. Artwork preparation checks the old track set before reconciliation removes A. [Artwork preparation](https://github.com/blackpirateapps/musii/blob/af3c7e300a0b6fb2b0bd671590c3262a5a035c09/lib/features/library/data/repositories/music_library_repository_impl.dart#L2102) · [Artwork selection](https://github.com/blackpirateapps/musii/blob/af3c7e300a0b6fb2b0bd671590c3262a5a035c09/lib/features/library/data/repositories/music_library_repository_impl.dart#L2199)
 
 ### LIB-18 · Superseded folder covers accumulate outside cache management
 
@@ -67,7 +67,7 @@ Audited commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09` on 26 November 2026. T
 
 **Observed.** The current album correctly lost its removed cover, but all 12 obsolete artwork files stayed on disk. The cache size reported zero, and both maintenance operations left all 12 files in place.
 
-**Expected.** Obsolete artwork needs reclamation or a separate storage limit. Folder artwork is stored under a versioned filename, while the current cache inventory and eviction manage audio paths. [Versioned cover writes](../lib/features/library/data/repositories/music_library_repository_impl.dart#L2132) · [Audio cache scope](../lib/core/filesystem/app_file_system.dart#L153)
+**Expected.** Obsolete artwork needs reclamation or a separate storage limit. Folder artwork is stored under a versioned filename, while the current cache inventory and eviction manage audio paths. [Versioned cover writes](https://github.com/blackpirateapps/musii/blob/af3c7e300a0b6fb2b0bd671590c3262a5a035c09/lib/features/library/data/repositories/music_library_repository_impl.dart#L2132) · [Audio cache scope](https://github.com/blackpirateapps/musii/blob/af3c7e300a0b6fb2b0bd671590c3262a5a035c09/lib/core/filesystem/app_file_system.dart#L153)
 
 ### LIB-19 · Normal downloads can exceed both saved and displayed cache limits
 
@@ -77,7 +77,7 @@ Audited commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09` on 26 November 2026. T
 
 **Observed.** The settings repository returned the saved minimum. Neither file was evicted. The final cache size was two bytes above the 5 GiB default. On Android, the Automatic Cache Limit row displayed the default and tapping it opened no control.
 
-**Expected.** Apply the saved limit to normal download and eviction decisions. A completed download should make room for new audio when enough cached bytes are evictable. The repository evicts before downloading with a fixed default and does not budget for the incoming payload. [Download entry point](../lib/features/cache/data/repositories/cache_repository_impl.dart#L106) · [LRU limit](../lib/features/cache/data/repositories/cache_repository_impl.dart#L310) · [Settings row](../lib/features/settings/presentation/pages/settings_page.dart#L450)
+**Expected.** Apply the saved limit to normal download and eviction decisions. A completed download should make room for new audio when enough cached bytes are evictable. The repository evicts before downloading with a fixed default and does not budget for the incoming payload. [Download entry point](https://github.com/blackpirateapps/musii/blob/af3c7e300a0b6fb2b0bd671590c3262a5a035c09/lib/features/cache/data/repositories/cache_repository_impl.dart#L106) · [LRU limit](https://github.com/blackpirateapps/musii/blob/af3c7e300a0b6fb2b0bd671590c3262a5a035c09/lib/features/cache/data/repositories/cache_repository_impl.dart#L310) · [Settings row](https://github.com/blackpirateapps/musii/blob/af3c7e300a0b6fb2b0bd671590c3262a5a035c09/lib/features/settings/presentation/pages/settings_page.dart#L450)
 
 ### LIB-20 · Failed cache clear leaves the database claiming deleted audio is cached
 
@@ -87,7 +87,7 @@ Audited commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09` on 26 November 2026. T
 
 **Observed.** The operation returned failure and SQLite retained both cached rows and flags. One of the two files had already been deleted. Its cache lookup returned no file.
 
-**Expected.** A partial failure should leave the database and disk consistent. The SQLite rollback cannot undo the filesystem deletion, which happens before the database writes. The LRU eviction loop uses the same ordering. [Clear implementation](../lib/features/cache/data/repositories/cache_repository_impl.dart#L378) · [LRU deletion](../lib/features/cache/data/repositories/cache_repository_impl.dart#L339)
+**Expected.** A partial failure should leave the database and disk consistent. The SQLite rollback cannot undo the filesystem deletion, which happens before the database writes. The LRU eviction loop uses the same ordering. [Clear implementation](https://github.com/blackpirateapps/musii/blob/af3c7e300a0b6fb2b0bd671590c3262a5a035c09/lib/features/cache/data/repositories/cache_repository_impl.dart#L378) · [LRU deletion](https://github.com/blackpirateapps/musii/blob/af3c7e300a0b6fb2b0bd671590c3262a5a035c09/lib/features/cache/data/repositories/cache_repository_impl.dart#L339)
 
 ### LIB-21 · A menu action labeled Favorite can remove an existing favorite
 
@@ -97,7 +97,7 @@ Audited commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09` on 26 November 2026. T
 
 **Observed.** On Android, the menu said Favorite for the already-favorited track. The text stayed unchanged after one second and after closing and reopening the menu. Tapping the displayed Favorite action removed the track from Favorites. The temporary favorite was removed as part of the repro, restoring the initial state.
 
-**Expected.** An existing favorite should offer Remove from Favorites, or the action should wait for the current state. The menu reads a stream value once and uses a false fallback. The action then toggles the actual database state. [Overflow state and action](../lib/features/library/presentation/widgets/track_overflow_sheet.dart#L23)
+**Expected.** An existing favorite should offer Remove from Favorites, or the action should wait for the current state. The menu reads a stream value once and uses a false fallback. The action then toggles the actual database state. [Overflow state and action](https://github.com/blackpirateapps/musii/blob/af3c7e300a0b6fb2b0bd671590c3262a5a035c09/lib/features/library/presentation/widgets/track_overflow_sheet.dart#L23)
 
 ### LIB-22 · Extensionless audio downloads on every incremental sync
 
@@ -107,7 +107,7 @@ Audited commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09` on 26 November 2026. T
 
 **Observed.** Both tracks indexed. The production metadata extractor stored an empty format for the extensionless file. Each of the three unchanged syncs downloaded only that file again.
 
-**Expected.** Supported audio discovered by MIME type should acquire a usable format from the bytes or MIME type and skip redundant downloads when unchanged. The extractor derives the persisted format from the filename suffix, and sync treats an empty value as incomplete. [Metadata format](../lib/features/metadata/data/repositories/metadata_extractor_impl.dart#L18) · [Repair classification](../lib/features/library/data/repositories/music_library_repository_impl.dart#L630)
+**Expected.** Supported audio discovered by MIME type should acquire a usable format from the bytes or MIME type and skip redundant downloads when unchanged. The extractor derives the persisted format from the filename suffix, and sync treats an empty value as incomplete. [Metadata format](https://github.com/blackpirateapps/musii/blob/af3c7e300a0b6fb2b0bd671590c3262a5a035c09/lib/features/metadata/data/repositories/metadata_extractor_impl.dart#L18) · [Repair classification](https://github.com/blackpirateapps/musii/blob/af3c7e300a0b6fb2b0bd671590c3262a5a035c09/lib/features/library/data/repositories/music_library_repository_impl.dart#L630)
 
 ### LIB-23 · Artist detail has no full track list
 
@@ -117,7 +117,7 @@ Audited commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09` on 26 November 2026. T
 
 **Observed.** The page showed seven songs in its header and rendered five rows under Popular. It exposed no action to view the remaining two songs. The Play action uses the full queue, so the songs are present but cannot be individually opened from that page.
 
-**Expected.** The artist page should offer access to the rest of its track list. A featured artist with no credited album cards has no alternate route from this screen. [Artist songs](../lib/features/library/presentation/pages/artist_detail_page.dart#L160)
+**Expected.** The artist page should offer access to the rest of its track list. A featured artist with no credited album cards has no alternate route from this screen. [Artist songs](https://github.com/blackpirateapps/musii/blob/af3c7e300a0b6fb2b0bd671590c3262a5a035c09/lib/features/library/presentation/pages/artist_detail_page.dart#L160)
 
 ### LIB-24 · Search database errors appear as No Results
 
@@ -127,7 +127,7 @@ Audited commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09` on 26 November 2026. T
 
 **Observed.** The repository returned a database failure. The provider returned a successful empty result, leading to the No Results branch rather than the page's Search Error branch.
 
-**Expected.** Surface the error so users can distinguish a failed search from a genuine empty result. [Search provider](../lib/app/bootstrap/providers.dart#L335) · [Search UI](../lib/features/search/presentation/pages/search_page.dart#L80)
+**Expected.** Surface the error so users can distinguish a failed search from a genuine empty result. [Search provider](https://github.com/blackpirateapps/musii/blob/af3c7e300a0b6fb2b0bd671590c3262a5a035c09/lib/app/bootstrap/providers.dart#L335) · [Search UI](https://github.com/blackpirateapps/musii/blob/af3c7e300a0b6fb2b0bd671590c3262a5a035c09/lib/features/search/presentation/pages/search_page.dart#L80)
 
 ### LIB-25 · Song overflow controls have no accessible label
 
@@ -137,9 +137,9 @@ Audited commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09` on 26 November 2026. T
 
 **Observed.** The overflow was a clickable node with empty text and content description. The corresponding widget supplies an icon with no semantic label. The track row itself has text, so this finding concerns the separate overflow control.
 
-**Expected.** Each overflow button should expose an accessible name that identifies its action and track. [Song row button](../lib/features/library/presentation/widgets/song_row.dart#L163)
+**Expected.** Each overflow button should expose an accessible name that identifies its action and track. [Song row button](https://github.com/blackpirateapps/musii/blob/af3c7e300a0b6fb2b0bd671590c3262a5a035c09/lib/features/library/presentation/widgets/song_row.dart#L163)
 
-## Verification
+## Audit baseline
 
 - Static analysis was clean and the existing Flutter suite passed all 331 tests. The [round 2 audit probes](../tool/audit/music_library_round_two_test.dart) cover 11 scenarios, including one control where 30 simultaneous requests for the same song coalesced into one download and eviction preserved pinned and currently playing songs. Both rounds' probes passed together in a 22-scenario run.
 - The device checks used the existing signed-in library. Account changes, remote deletions, HTTP faults, and the simulated 5 GiB cache ran against isolated fixtures. The sparse test file used logical length to test cache accounting.

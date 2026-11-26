@@ -281,8 +281,9 @@ class CacheRepositoryImpl implements CacheRepository {
           fileSize: row.fileSize,
         ),
       );
-      if (downloaded.isFailure)
+      if (downloaded.isFailure) {
         return Result.failure(downloaded.failureOrNull!);
+      }
       return await _database.transaction(() async {
         if (await _cachedAudioFile(trackId, touch: false) == null) {
           return const Result.failure(

@@ -28,7 +28,7 @@ Audited on 26 November 2026 at commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09`
 
 **Observed and expected.** Both Japanese tracks get empty normalized titles and share artist ID `artist_` and album ID `album_::`. With the control there are three tracks, two artist records, and two album records. Every distinct artist and album should retain its own identity. Display tags on the individual tracks survive, while the grouped views combine unrelated releases.
 
-**Cause.** The ASCII-style word filter strips these names before they become artist IDs and album keys. [Metadata normalization](../lib/features/metadata/domain/services/metadata_normalization_service.dart#L217) · [Library ingestion](../lib/features/library/data/repositories/music_library_repository_impl.dart#L1814)
+**Cause.** The ASCII-style word filter strips these names before they become artist IDs and album keys. [Metadata normalization](https://github.com/blackpirateapps/musii/blob/af3c7e300a0b6fb2b0bd671590c3262a5a035c09/lib/features/metadata/domain/services/metadata_normalization_service.dart#L217) · [Library ingestion](https://github.com/blackpirateapps/musii/blob/af3c7e300a0b6fb2b0bd671590c3262a5a035c09/lib/features/library/data/repositories/music_library_repository_impl.dart#L1814)
 
 ### LIB-02 · Similar artist names merge distinct releases
 
@@ -38,7 +38,7 @@ Audited on 26 November 2026 at commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09`
 
 **Observed and expected.** The albums query returns one release containing both artists' tracks. The fixture represents two different releases and should produce two album cards. Users browsing an album or playing its track list get songs from a different release.
 
-**Cause.** When there is no album-artist tag, the same-title candidate lookup accepts a raw prefix or substring match without an artist-name boundary. [Album candidate lookup](../lib/features/library/data/repositories/music_library_repository_impl.dart#L1851)
+**Cause.** When there is no album-artist tag, the same-title candidate lookup accepts a raw prefix or substring match without an artist-name boundary. [Album candidate lookup](https://github.com/blackpirateapps/musii/blob/af3c7e300a0b6fb2b0bd671590c3262a5a035c09/lib/features/library/data/repositories/music_library_repository_impl.dart#L1851)
 
 ### LIB-03 · Failed offline download leaves a pinned track without audio
 
@@ -48,7 +48,7 @@ Audited on 26 November 2026 at commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09`
 
 **Observed and expected.** Pinning returns success. The cache entry later becomes `failed`, the song remains pinned, and the local cache lookup returns no audio. The action sheet uses the pin flag to offer Remove Offline Download. A failure should be surfaced and the track should have a way to retry downloading. The probe simulated the media failure without changing the device's network settings.
 
-**Cause.** The cache marks the track pinned before launching an unawaited download. The overflow action closes the sheet and has no failure feedback. [Pin operation](../lib/features/cache/data/repositories/cache_repository_impl.dart#L252) · [Overflow action](../lib/features/library/presentation/widgets/track_overflow_sheet.dart#L152)
+**Cause.** The cache marks the track pinned before launching an unawaited download. The overflow action closes the sheet and has no failure feedback. [Pin operation](https://github.com/blackpirateapps/musii/blob/af3c7e300a0b6fb2b0bd671590c3262a5a035c09/lib/features/cache/data/repositories/cache_repository_impl.dart#L252) · [Overflow action](https://github.com/blackpirateapps/musii/blob/af3c7e300a0b6fb2b0bd671590c3262a5a035c09/lib/features/library/presentation/widgets/track_overflow_sheet.dart#L152)
 
 ### LIB-04 · Offline cache commits audio with the wrong checksum
 
@@ -58,7 +58,7 @@ Audited on 26 November 2026 at commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09`
 
 **Observed and expected.** The repository succeeds, the final file contains `abc`, and the cache reports the song cached. With a known Drive checksum, the cache should reject mismatched bytes and preserve any prior valid copy. The same-size response demonstrates that a size check alone would miss this case.
 
-**Cause.** The cache validates that the indexed version still matches its reservation, records the staged byte count, and renames the file without verifying the bytes against the remote checksum. [Download and commit](../lib/features/cache/data/repositories/cache_repository_impl.dart#L142)
+**Cause.** The cache validates that the indexed version still matches its reservation, records the staged byte count, and renames the file without verifying the bytes against the remote checksum. [Download and commit](https://github.com/blackpirateapps/musii/blob/af3c7e300a0b6fb2b0bd671590c3262a5a035c09/lib/features/cache/data/repositories/cache_repository_impl.dart#L142)
 
 ### LIB-05 · Exact title and artist searches miss indexed music
 
@@ -68,7 +68,7 @@ Audited on 26 November 2026 at commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09`
 
 **Observed and expected.** Android displayed No Results for the visible title. The fixture returned no song hit for either exact title, no artist hit for `青葉市子`, and no album hit for `檻髪`. The punctuation-free control `Dont Stop` found the same fixture track. The artist and album queries can still find song rows through their display tags. Searching a display title should find the indexed entity.
 
-**Cause.** Search normalizes query case and whitespace at the ends. The indexed title and artist keys also strip punctuation and non-Latin letters, so the stored text and the query use different representations. [Search predicates](../lib/features/search/data/repositories/search_repository_impl.dart#L88) · [Search key generation](../lib/features/metadata/domain/services/metadata_normalization_service.dart#L217)
+**Cause.** Search normalizes query case and whitespace at the ends. The indexed title and artist keys also strip punctuation and non-Latin letters, so the stored text and the query use different representations. [Search predicates](https://github.com/blackpirateapps/musii/blob/af3c7e300a0b6fb2b0bd671590c3262a5a035c09/lib/features/search/data/repositories/search_repository_impl.dart#L88) · [Search key generation](https://github.com/blackpirateapps/musii/blob/af3c7e300a0b6fb2b0bd671590c3262a5a035c09/lib/features/metadata/domain/services/metadata_normalization_service.dart#L217)
 
 ### LIB-06 · Percent and underscore act as search wildcards
 
@@ -78,7 +78,7 @@ Audited on 26 November 2026 at commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09`
 
 **Observed and expected.** Android showed unrelated songs. The fixture returned all 10,000 tracks for each query. An ordinary text search should match literal punctuation only where it appears. An accidental punctuation query also forces the broadest result set.
 
-**Cause.** The user query is interpolated into a bound SQLite `LIKE` pattern without escaping its wildcard characters. [Search predicates](../lib/features/search/data/repositories/search_repository_impl.dart#L96)
+**Cause.** The user query is interpolated into a bound SQLite `LIKE` pattern without escaping its wildcard characters. [Search predicates](https://github.com/blackpirateapps/musii/blob/af3c7e300a0b6fb2b0bd671590c3262a5a035c09/lib/features/search/data/repositories/search_repository_impl.dart#L96)
 
 ### LIB-07 · Open album and artist details miss track-only updates
 
@@ -88,7 +88,7 @@ Audited on 26 November 2026 at commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09`
 
 **Observed and expected.** The full-library stream reflects the pin. Neither open detail stream emits another snapshot during the 150 ms observation window. A new subscription reads the new value immediately. Open details should update when their own track data changes so context actions use current download state.
 
-**Cause.** Each detail stream listens to its parent row and reads the child queries once per parent emission. Track-only writes leave the parent query untouched. [Album and artist streams](../lib/features/library/data/repositories/music_library_repository_impl.dart#L534)
+**Cause.** Each detail stream listens to its parent row and reads the child queries once per parent emission. Track-only writes leave the parent query untouched. [Album and artist streams](https://github.com/blackpirateapps/musii/blob/af3c7e300a0b6fb2b0bd671590c3262a5a035c09/lib/features/library/data/repositories/music_library_repository_impl.dart#L534)
 
 ### LIB-08 · A search query stays stale after a playlist changes
 
@@ -98,7 +98,7 @@ Audited on 26 November 2026 at commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09`
 
 **Observed and expected.** The retained query shows the old snapshot. A repository search made directly after either mutation returns the current playlist list. Changing the query refreshes the results. An unchanged query should reflect library changes so users can find newly added items and avoid opening deleted ones.
 
-**Cause.** The future provider depends on the query and repository instance. Library writes do not invalidate the completed future. [Search provider](../lib/app/bootstrap/providers.dart#L335)
+**Cause.** The future provider depends on the query and repository instance. Library writes do not invalidate the completed future. [Search provider](https://github.com/blackpirateapps/musii/blob/af3c7e300a0b6fb2b0bd671590c3262a5a035c09/lib/app/bootstrap/providers.dart#L335)
 
 ### LIB-09 · Home's See All controls leave the user on Home
 
@@ -106,7 +106,7 @@ Audited on 26 November 2026 at commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09`
 
 **Reproduce.** From Home with an indexed library, tap See All next to Recently Played, Recently Added, or Albums.
 
-**Observed and expected.** Each tap left the same Home screen visible. The controls should open the corresponding collection. Source inspection shows the same empty callbacks for Favorites, Artists, and Playlists. [Home section callbacks](../lib/features/library/presentation/pages/home_page.dart#L275)
+**Observed and expected.** Each tap left the same Home screen visible. The controls should open the corresponding collection. Source inspection shows the same empty callbacks for Favorites, Artists, and Playlists. [Home section callbacks](https://github.com/blackpirateapps/musii/blob/af3c7e300a0b6fb2b0bd671590c3262a5a035c09/lib/features/library/presentation/pages/home_page.dart#L275)
 
 ### LIB-10 · Artist cards and details report zero songs for populated artists
 
@@ -114,7 +114,7 @@ Audited on 26 November 2026 at commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09`
 
 **Reproduce.** Open Library → Artists on the audited device. Open an artist with a `0 songs` badge and tracks under Popular.
 
-**Observed and expected.** Multiple cards read `0 songs`. One detail page also read `0 songs` and showed a numbered song under Popular. The count should include the visible song. The app reads the displayed total from the stored artist aggregate and fetches the artist's tracks separately. Fresh sync and recovery calculated the correct count in the 1,205-track fixture. The cause of the stale aggregate in this device's database was not established. [Artist mapper and queries](../lib/features/library/data/repositories/music_library_repository_impl.dart#L471) · [Artist detail](../lib/features/library/presentation/pages/artist_detail_page.dart#L104)
+**Observed and expected.** Multiple cards read `0 songs`. One detail page also read `0 songs` and showed a numbered song under Popular. The count should include the visible song. The app reads the displayed total from the stored artist aggregate and fetches the artist's tracks separately. Fresh sync and recovery calculated the correct count in the 1,205-track fixture. The cause of the stale aggregate in this device's database was not established. [Artist mapper and queries](https://github.com/blackpirateapps/musii/blob/af3c7e300a0b6fb2b0bd671590c3262a5a035c09/lib/features/library/data/repositories/music_library_repository_impl.dart#L471) · [Artist detail](https://github.com/blackpirateapps/musii/blob/af3c7e300a0b6fb2b0bd671590c3262a5a035c09/lib/features/library/presentation/pages/artist_detail_page.dart#L104)
 
 ### LIB-11 · Replays crowd older songs out of Recently Played
 
@@ -124,7 +124,7 @@ Audited on 26 November 2026 at commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09`
 
 **Observed and expected.** The list contains only the twelfth song. Raising the query limit to 41 returns all 12 distinct songs. The 30-song list should include up to 30 distinct tracks in last-played order, including the 11 earlier songs in this fixture.
 
-**Cause.** SQLite limits the number of play events to 30 before Dart removes repeat track IDs. [Recently Played query](../lib/features/recently_played/data/repositories/recently_played_repository_impl.dart#L71)
+**Cause.** SQLite limits the number of play events to 30 before Dart removes repeat track IDs. [Recently Played query](https://github.com/blackpirateapps/musii/blob/af3c7e300a0b6fb2b0bd671590c3262a5a035c09/lib/features/recently_played/data/repositories/recently_played_repository_impl.dart#L71)
 
 ### LIB-12 · Playlist duplicates accumulate with no per-song removal control
 
@@ -134,7 +134,7 @@ Audited on 26 November 2026 at commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09`
 
 **Observed and expected.** On Android, the scratch playlist displayed two numbered rows for the same song. The menu showed Add to Playlist and had no removal action. The repository accepted 24 copies and removed all 24 in one call. If repeat entries are supported, a user should be able to remove just the selected occurrence. If entries are unique, repeated adds should leave the playlist unchanged.
 
-**Cause.** Membership insertions accept repeat track IDs. The detail page delegates to the standard track menu, while the removal API accepts a track ID and deletes every matching membership. [Membership writes](../lib/features/playlists/data/repositories/playlist_repository_impl.dart#L174) · [Playlist row menu](../lib/features/playlists/presentation/pages/playlist_detail_page.dart#L297)
+**Cause.** Membership insertions accept repeat track IDs. The detail page delegates to the standard track menu, while the removal API accepts a track ID and deletes every matching membership. [Membership writes](https://github.com/blackpirateapps/musii/blob/af3c7e300a0b6fb2b0bd671590c3262a5a035c09/lib/features/playlists/data/repositories/playlist_repository_impl.dart#L174) · [Playlist row menu](https://github.com/blackpirateapps/musii/blob/af3c7e300a0b6fb2b0bd671590c3262a5a035c09/lib/features/playlists/presentation/pages/playlist_detail_page.dart#L297)
 
 ### LIB-13 · Concurrent favorite toggles lose updates
 
@@ -144,9 +144,9 @@ Audited on 26 November 2026 at commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09`
 
 **Observed and expected.** One call succeeds, 19 return database failures, and the track ends favorited. Sequentially applying 20 toggles would leave it unfavorited. The result confirms a repository race. A device gesture sequence producing the same degree of concurrency was not established.
 
-**Cause.** The read and write are separate operations. Concurrent calls observe the same absent favorite before competing to insert a row constrained to one per track. [Favorite mutation](../lib/features/favorites/data/repositories/favorite_repository_impl.dart#L94) · [Favorite uniqueness](../lib/core/database/tables.dart#L146)
+**Cause.** The read and write are separate operations. Concurrent calls observe the same absent favorite before competing to insert a row constrained to one per track. [Favorite mutation](https://github.com/blackpirateapps/musii/blob/af3c7e300a0b6fb2b0bd671590c3262a5a035c09/lib/features/favorites/data/repositories/favorite_repository_impl.dart#L94) · [Favorite uniqueness](https://github.com/blackpirateapps/musii/blob/af3c7e300a0b6fb2b0bd671590c3262a5a035c09/lib/core/database/tables.dart#L146)
 
-## Verification
+## Audit baseline
 
 | Check | Result |
 | --- | --- |
