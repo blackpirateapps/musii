@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:crypto/crypto.dart';
 
 import 'package:drift/drift.dart';
+import 'package:rxdart/rxdart.dart';
 
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/database/app_database.dart';
@@ -546,9 +547,8 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
               ]))
             .watch();
 
-    return albumStream.asyncMap((albumData) async {
+    return Rx.combineLatest2(albumStream, tracksStream, (albumData, tracks) {
       if (albumData == null) return null;
-      final tracks = await tracksStream.first;
       return AlbumWithTracks(
         album: _mapDbAlbumToEntity(albumData),
         tracks: tracks.map(_mapDbTrackToEntity).toList(),
@@ -574,10 +574,12 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
               ..orderBy([(tbl) => OrderingTerm.asc(tbl.normalizedTitle)]))
             .watch();
 
-    return artistStream.asyncMap((artistData) async {
+    return Rx.combineLatest3(artistStream, albumsStream, tracksStream, (
+      artistData,
+      albums,
+      tracks,
+    ) {
       if (artistData == null) return null;
-      final albums = await albumsStream.first;
-      final tracks = await tracksStream.first;
       var artistEntity = _mapDbArtistToEntity(artistData);
       if (artistEntity.artworkPath == null && albums.isNotEmpty) {
         final albumArt = albums

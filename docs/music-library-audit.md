@@ -12,7 +12,7 @@ Audited on 26 November 2026 at commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09`
 | LIB-04 | High | The audio cache accepts a payload with the wrong Drive checksum | SQLite and simulated Drive · Fixed |
 | LIB-05 | Medium | Exact searches miss titles with apostrophes and non-Latin text | Android and SQLite · Fixed |
 | LIB-06 | Medium | Searching for punctuation can match the entire library | Android and SQLite · Fixed |
-| LIB-07 | Medium | Album and artist details retain stale track download state | SQLite stream subscriptions |
+| LIB-07 | Medium | Album and artist details retain stale track download state | SQLite stream subscriptions · Fixed |
 | LIB-08 | Medium | Search retains results after library changes | Android and Riverpod with SQLite |
 | LIB-09 | Medium | Home's See All buttons do nothing | Android and source review |
 | LIB-10 | Medium | Artists show “0 songs” while their details list songs | Android |
@@ -81,6 +81,8 @@ Audited on 26 November 2026 at commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09`
 **Cause.** The user query is interpolated into a bound SQLite `LIKE` pattern without escaping its wildcard characters. [Search predicates](../lib/features/search/data/repositories/search_repository_impl.dart#L96)
 
 ### LIB-07 · Open album and artist details miss track-only updates
+
+**Resolution.** Album and artist detail streams now combine live parent and child queries. A track-only pin write reaches both open detail views.
 
 **Reproduce.** Subscribe to an album and its artist, each with one unpinned track. Update only that track's `isPinnedOffline` field, as the cache does during a pin.
 

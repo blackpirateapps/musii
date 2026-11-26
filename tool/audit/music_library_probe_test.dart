@@ -337,50 +337,50 @@ void main() {
     },
   );
 
-  test(
-    'a track-only change does not re-emit an open album or artist',
-    () async {
-      listing = [audio('a')];
-      await sync();
-      final album = (await library.watchAllAlbums().first).single;
-      final artist = (await library.watchAllArtists().first).single;
-      final albumStates = <bool>[];
-      final artistStates = <bool>[];
-      final albums = library.watchAlbum(album.id).listen((data) {
-        albumStates.add(data!.tracks.single.isPinnedOffline);
-      });
-      final artists = library.watchArtist(artist.id).listen((data) {
-        artistStates.add(data!.topTracks.single.isPinnedOffline);
-      });
-      addTearDown(albums.cancel);
-      addTearDown(artists.cancel);
-      for (
-        var tries = 0;
-        tries < 100 && (albumStates.isEmpty || artistStates.isEmpty);
-        tries++
-      ) {
-        await Future<void>.delayed(const Duration(milliseconds: 5));
-      }
-      expect(albumStates, [false]);
-      expect(artistStates, [false]);
-      await (db.update(db.tracks)..where((row) => row.id.equals('track_a')))
-          .write(const TracksCompanion(isPinnedOffline: Value(true)));
-      expect(
-        (await library.watchAllTracks().first).single.isPinnedOffline,
-        isTrue,
-      );
-      await Future<void>.delayed(const Duration(milliseconds: 150));
-      expect(albumStates, [false]);
-      expect(artistStates, [false]);
-      expect(
-        (await library.watchAlbum(album.id).first)!
-            .tracks
-            .single
-            .isPinnedOffline,
-        isTrue,
-      );
-    },
-  );
+  test('a track-only change updates an open album and artist', () async {
+    listing = [audio('a')];
+    await sync();
+    final album = (await library.watchAllAlbums().first).single;
+    final artist = (await library.watchAllArtists().first).single;
+    final albumStates = <bool>[];
+    final artistStates = <bool>[];
+    final albums = library.watchAlbum(album.id).listen((data) {
+      albumStates.add(data!.tracks.single.isPinnedOffline);
+    });
+    final artists = library.watchArtist(artist.id).listen((data) {
+      artistStates.add(data!.topTracks.single.isPinnedOffline);
+    });
+    addTearDown(albums.cancel);
+    addTearDown(artists.cancel);
+    for (
+      var tries = 0;
+      tries < 100 && (albumStates.isEmpty || artistStates.isEmpty);
+      tries++
+    ) {
+      await Future<void>.delayed(const Duration(milliseconds: 5));
+    }
+    expect(albumStates, [false]);
+    expect(artistStates, [false]);
+    await (db.update(db.tracks)..where((row) => row.id.equals('track_a')))
+        .write(const TracksCompanion(isPinnedOffline: Value(true)));
+    expect(
+      (await library.watchAllTracks().first).single.isPinnedOffline,
+      isTrue,
+    );
+    for (
+      var tries = 0;
+      tries < 100 && (albumStates.length < 2 || artistStates.length < 2);
+      tries++
+    ) {
+      await Future<void>.delayed(const Duration(milliseconds: 5));
+    }
+    expect(albumStates, [false, true]);
+    expect(artistStates, [false, true]);
+    expect(
+      (await library.watchAlbum(album.id).first)!.tracks.single.isPinnedOffline,
+      isTrue,
+    );
+  });
 
   test(
     'a visited search remains stale after playlist creation and deletion',
