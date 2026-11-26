@@ -13,15 +13,20 @@ import '../widgets/track_overflow_sheet.dart';
 import 'album_detail_page.dart';
 import 'artist_detail_page.dart';
 
+enum LibraryCategory { albums, artists, songs, playlists }
+
 class LibraryPage extends ConsumerStatefulWidget {
-  const LibraryPage({super.key});
+  const LibraryPage({super.key, this.initialCategory});
+
+  final LibraryCategory? initialCategory;
 
   @override
   ConsumerState<LibraryPage> createState() => _LibraryPageState();
 }
 
 class _LibraryPageState extends ConsumerState<LibraryPage> {
-  int _selectedCategory = 0; // 0: Albums, 1: Artists, 2: Songs, 3: Playlists
+  late LibraryCategory _selectedCategory =
+      widget.initialCategory ?? LibraryCategory.albums;
 
   void _showNewPlaylistDialog() {
     final controller = TextEditingController();
@@ -58,12 +63,12 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
     );
   }
 
-  Widget _buildTab(String title, int index, bool isDark) {
-    final isSelected = _selectedCategory == index;
+  Widget _buildTab(String title, LibraryCategory category, bool isDark) {
+    final isSelected = _selectedCategory == category;
     return GestureDetector(
       onTap: () {
-        if (_selectedCategory != index) {
-          setState(() => _selectedCategory = index);
+        if (_selectedCategory != category) {
+          setState(() => _selectedCategory = category);
         }
       },
       behavior: HitTestBehavior.opaque,
@@ -117,6 +122,9 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
     );
 
     return CupertinoPageScaffold(
+      navigationBar: widget.initialCategory == null
+          ? null
+          : const CupertinoNavigationBar(previousPageTitle: 'Home'),
       child: CustomScrollView(
         physics: const BouncingScrollPhysics(),
         cacheExtent: 600.0,
@@ -150,7 +158,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                                 : CupertinoColors.black,
                           ),
                         ),
-                        if (_selectedCategory == 3)
+                        if (_selectedCategory == LibraryCategory.playlists)
                           CupertinoButton(
                             padding: EdgeInsets.zero,
                             minSize: 0,
@@ -171,10 +179,14 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                       physics: const BouncingScrollPhysics(),
                       child: Row(
                         children: [
-                          _buildTab('Albums', 0, isDark),
-                          _buildTab('Artists', 1, isDark),
-                          _buildTab('Songs', 2, isDark),
-                          _buildTab('Playlists', 3, isDark),
+                          _buildTab('Albums', LibraryCategory.albums, isDark),
+                          _buildTab('Artists', LibraryCategory.artists, isDark),
+                          _buildTab('Songs', LibraryCategory.songs, isDark),
+                          _buildTab(
+                            'Playlists',
+                            LibraryCategory.playlists,
+                            isDark,
+                          ),
                         ],
                       ),
                     ),
@@ -187,7 +199,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
           // Content based on Selected Category
           switch (_selectedCategory) {
             // 0: Albums Grid
-            0 => albumsAsync.when(
+            LibraryCategory.albums => albumsAsync.when(
               loading: () => const SliverFillRemaining(
                 child: Center(child: CupertinoActivityIndicator()),
               ),
@@ -249,7 +261,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
             ),
 
             // 1: Artists List
-            1 => artistsAsync.when(
+            LibraryCategory.artists => artistsAsync.when(
               loading: () => const SliverFillRemaining(
                 child: Center(child: CupertinoActivityIndicator()),
               ),
@@ -311,7 +323,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
             ),
 
             // 2: Songs List
-            2 => songsAsync.when(
+            LibraryCategory.songs => songsAsync.when(
               loading: () => const SliverFillRemaining(
                 child: Center(child: CupertinoActivityIndicator()),
               ),
@@ -356,7 +368,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
             ),
 
             // 3: Playlists List
-            3 => playlistsAsync.when(
+            LibraryCategory.playlists => playlistsAsync.when(
               loading: () => const SliverFillRemaining(
                 child: Center(child: CupertinoActivityIndicator()),
               ),

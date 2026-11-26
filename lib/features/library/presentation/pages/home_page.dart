@@ -16,11 +16,18 @@ import '../widgets/continue_listening_card.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/home_artwork_card.dart';
 import '../widgets/section_header.dart';
+import '../widgets/song_row.dart';
+import '../widgets/track_overflow_sheet.dart';
+import 'library_page.dart';
 import 'album_detail_page.dart';
 import 'artist_detail_page.dart';
 
 class HomePage extends ConsumerWidget {
   const HomePage({super.key});
+
+  void _openCollection(BuildContext context, Widget page) {
+    Navigator.of(context).push(CupertinoPageRoute<void>(builder: (_) => page));
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -276,9 +283,13 @@ class HomePage extends ConsumerWidget {
                     if (favorites.isNotEmpty) ...[
                       SectionHeader(
                         title: 'Favorites',
-                        onSeeAll: () {
-                          // Navigate to Library
-                        },
+                        onSeeAll: () => _openCollection(
+                          context,
+                          _HomeSongList(
+                            title: 'Favorites',
+                            tracksProvider: favoriteTracksProvider,
+                          ),
+                        ),
                       ),
                       SizedBox(
                         height: 195,
@@ -314,9 +325,13 @@ class HomePage extends ConsumerWidget {
                     if (recentlyPlayed.isNotEmpty) ...[
                       SectionHeader(
                         title: 'Recently Played',
-                        onSeeAll: () {
-                          // Navigate to Library
-                        },
+                        onSeeAll: () => _openCollection(
+                          context,
+                          _HomeSongList(
+                            title: 'Recently Played',
+                            tracksProvider: recentlyPlayedTracksProvider,
+                          ),
+                        ),
                       ),
                       SizedBox(
                         height: 195,
@@ -352,9 +367,13 @@ class HomePage extends ConsumerWidget {
                     if (recentTracks.isNotEmpty) ...[
                       SectionHeader(
                         title: 'Recently Added',
-                        onSeeAll: () {
-                          // Navigate to Library
-                        },
+                        onSeeAll: () => _openCollection(
+                          context,
+                          _HomeSongList(
+                            title: 'Recently Added',
+                            tracksProvider: allTracksProvider('recent'),
+                          ),
+                        ),
                       ),
                       SizedBox(
                         height: 195,
@@ -390,9 +409,12 @@ class HomePage extends ConsumerWidget {
                     if (albums.isNotEmpty) ...[
                       SectionHeader(
                         title: 'Albums',
-                        onSeeAll: () {
-                          // Navigate to Library Albums
-                        },
+                        onSeeAll: () => _openCollection(
+                          context,
+                          const LibraryPage(
+                            initialCategory: LibraryCategory.albums,
+                          ),
+                        ),
                       ),
                       SizedBox(
                         height: 195,
@@ -427,9 +449,12 @@ class HomePage extends ConsumerWidget {
                     if (artists.isNotEmpty) ...[
                       SectionHeader(
                         title: 'Artists',
-                        onSeeAll: () {
-                          // Navigate to Library Artists
-                        },
+                        onSeeAll: () => _openCollection(
+                          context,
+                          const LibraryPage(
+                            initialCategory: LibraryCategory.artists,
+                          ),
+                        ),
                       ),
                       SizedBox(
                         height: 135,
@@ -494,9 +519,12 @@ class HomePage extends ConsumerWidget {
                     if (playlists.isNotEmpty) ...[
                       SectionHeader(
                         title: 'Playlists',
-                        onSeeAll: () {
-                          // Navigate to Library Playlists
-                        },
+                        onSeeAll: () => _openCollection(
+                          context,
+                          const LibraryPage(
+                            initialCategory: LibraryCategory.playlists,
+                          ),
+                        ),
                       ),
                       SizedBox(
                         height: 195,
@@ -538,6 +566,55 @@ class HomePage extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _HomeSongList extends ConsumerWidget {
+  final String title;
+  final StreamProvider<List<Track>> tracksProvider;
+
+  const _HomeSongList({required this.title, required this.tracksProvider});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final currentId = ref.watch(
+      playerStateProvider.select((state) => state.value?.currentTrack?.id),
+    );
+    return CupertinoPageScaffold(
+      navigationBar: CupertinoNavigationBar(
+        middle: Text(title),
+        previousPageTitle: 'Home',
+      ),
+      child: ref
+          .watch(tracksProvider)
+          .when(
+            loading: () => const Center(child: CupertinoActivityIndicator()),
+            error: (error, _) =>
+                Center(child: Text('Could not load songs: $error')),
+            data: (tracks) => tracks.isEmpty
+                ? const Center(child: Text('No songs'))
+                : ListView.builder(
+                    padding: MediaQuery.paddingOf(context)
+                        .copyWith(bottom: 120),
+                    itemCount: tracks.length,
+                    itemBuilder: (context, index) {
+                      final track = tracks[index];
+                      return SongRow(
+                        track: track,
+                        isPlaying: track.id == currentId,
+                        onTap: () => ref
+                            .read(playbackRepositoryProvider)
+                            .playTrack(track, queue: tracks, queueIndex: index),
+                        onMore: () => showTrackActionSheet(
+                          context: context,
+                          track: track,
+                          ref: ref,
+                        ),
+                      );
+                    },
+                  ),
+          ),
     );
   }
 }

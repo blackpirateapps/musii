@@ -10,6 +10,8 @@ import 'package:musii/features/last_fm/presentation/providers/last_fm_providers.
 import 'package:musii/features/library/domain/entities/music_entities.dart';
 import 'package:musii/features/library/presentation/pages/home_page.dart';
 import 'package:musii/features/library/presentation/pages/library_page.dart';
+import 'package:musii/features/library/presentation/widgets/section_header.dart';
+import 'package:musii/features/library/presentation/widgets/song_row.dart';
 import 'package:musii/features/playback/domain/entities/playback_state.dart';
 import 'package:musii/features/playlists/domain/entities/playlist.dart';
 import 'package:musii/features/search/presentation/pages/search_page.dart';
@@ -111,6 +113,17 @@ void main() {
         expect(find.text('Recently Added'), findsOneWidget);
         expect(find.text('Albums'), findsOneWidget);
         expect(find.text('Artists'), findsOneWidget);
+
+        final favorites = find.widgetWithText(SectionHeader, 'Favorites');
+        await tester.tap(
+          find.descendant(of: favorites, matching: find.text('See All')),
+        );
+        await tester.pumpAndSettle();
+        expect(
+          find.widgetWithText(CupertinoNavigationBar, 'Favorites'),
+          findsOneWidget,
+        );
+        expect(find.byType(SongRow), findsOneWidget);
       },
     );
 

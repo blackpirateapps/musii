@@ -14,7 +14,7 @@ Audited on 26 November 2026 at commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09`
 | LIB-06 | Medium | Searching for punctuation can match the entire library | Android and SQLite · Fixed |
 | LIB-07 | Medium | Album and artist details retain stale track download state | SQLite stream subscriptions · Fixed |
 | LIB-08 | Medium | Search retains results after library changes | Android and Riverpod with SQLite · Fixed |
-| LIB-09 | Medium | Home's See All buttons do nothing | Android and source review |
+| LIB-09 | Medium | Home's See All buttons do nothing | Android and source review · Fixed |
 | LIB-10 | Medium | Artists show “0 songs” while their details list songs | Android · Fixed |
 | LIB-11 | Medium | Replaying a song repeatedly hides other recently played songs | SQLite · Fixed |
 | LIB-12 | Medium | A playlist can contain repeated additions with no way to remove an individual song | Android and SQLite · Fixed |
@@ -101,6 +101,8 @@ Audited on 26 November 2026 at commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09`
 **Cause.** The future provider depends on the query and repository instance. Library writes do not invalidate the completed future. [Search provider](../lib/app/bootstrap/providers.dart#L335)
 
 ### LIB-09 · Home's See All controls leave the user on Home
+
+**Resolution.** Home See All buttons open the corresponding reactive collection or a Library page preselected to the requested category.
 
 **Reproduce.** From Home with an indexed library, tap See All next to Recently Played, Recently Added, or Albums.
 
