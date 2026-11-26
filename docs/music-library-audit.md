@@ -8,7 +8,7 @@ Audited on 26 November 2026 at commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09`
 | --- | --- | --- | --- |
 | LIB-01 | High | Unrelated non-Latin albums and artists collapse into the same records | SQLite and simulated Drive |
 | LIB-02 | High | Distinct same-title releases merge when one artist name begins with the other | SQLite and simulated Drive |
-| LIB-03 | High | Offline download can appear pinned after the download failed | SQLite and simulated Drive |
+| LIB-03 | High | Offline download can appear pinned after the download failed | SQLite and simulated Drive · Fixed |
 | LIB-04 | High | The audio cache accepts a payload with the wrong Drive checksum | SQLite and simulated Drive · Fixed |
 | LIB-05 | Medium | Exact searches miss titles with apostrophes and non-Latin text | Android and SQLite |
 | LIB-06 | Medium | Searching for punctuation can match the entire library | Android and SQLite |
@@ -37,6 +37,8 @@ Audited on 26 November 2026 at commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09`
 **Cause.** When there is no album-artist tag, the same-title candidate lookup accepts a raw prefix or substring match without an artist-name boundary. [Album candidate lookup](../lib/features/library/data/repositories/music_library_repository_impl.dart#L1851)
 
 ### LIB-03 · Failed offline download leaves a pinned track without audio
+
+**Resolution.** A pin is published only after the file is cached. A failed download keeps an unpinned track retryable, and the overflow menu displays the failure.
 
 **Reproduce.** Index a song with no cached audio. Make its media request return HTTP 503 and select Download for Offline. Inspect the pin state after the download attempt finishes.
 

@@ -30,6 +30,7 @@ Future<void> showTrackActionSheet({
   VoidCallback? onRemovedFromQueue,
 }) async {
   final isFav = ref.read(isTrackFavoriteProvider(track.id)).value ?? false;
+  final isDownloaded = track.isPinnedOffline && track.isCached;
 
   if (!context.mounted) return;
 
@@ -152,15 +153,29 @@ Future<void> showTrackActionSheet({
           onPressed: () async {
             Navigator.pop(ctx);
             await HapticFeedback.lightImpact();
+            if (!context.mounted) return;
             final cacheRepo = ref.read(cacheRepositoryProvider);
-            if (track.isPinnedOffline) {
-              await cacheRepo.unpinTrackOffline(track.id);
-            } else {
-              await cacheRepo.pinTrackOffline(track.id);
-            }
+            final result = isDownloaded
+                ? await cacheRepo.unpinTrackOffline(track.id)
+                : await cacheRepo.pinTrackOffline(track.id);
+            final failure = result.failureOrNull;
+            if (failure == null || !context.mounted) return;
+            await showCupertinoDialog<void>(
+              context: context,
+              builder: (dialogContext) => CupertinoAlertDialog(
+                title: const Text('Could Not Update Offline Download'),
+                content: Text(failure.message),
+                actions: [
+                  CupertinoDialogAction(
+                    onPressed: () => Navigator.pop(dialogContext),
+                    child: const Text('OK'),
+                  ),
+                ],
+              ),
+            );
           },
           child: Text(
-            track.isPinnedOffline
+            isDownloaded
                 ? 'Remove Offline Download'
                 : 'Download for Offline',
           ),

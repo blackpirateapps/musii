@@ -258,35 +258,34 @@ class CacheRepositoryImpl implements CacheRepository {
   @override
   Future<Result<void, AppFailure>> pinTrackOffline(String trackId) async {
     try {
-      await (_database.update(_database.tracks)
-            ..where((tbl) => tbl.id.equals(trackId)))
-          .write(const TracksCompanion(isPinnedOffline: Value(true)));
-
-      await (_database.update(_database.cacheEntries)
-            ..where((tbl) => tbl.trackId.equals(trackId)))
-          .write(const CacheEntriesCompanion(isPinnedOffline: Value(true)));
-
-      // Trigger download if not cached
-      final isCached = await isTrackCached(trackId);
-      if (!isCached) {
-        final trackRecord = await (_database.select(
-          _database.tracks,
-        )..where((tbl) => tbl.id.equals(trackId))).getSingleOrNull();
-        if (trackRecord != null) {
-          final track = Track(
-            id: trackRecord.id,
-            driveFileId: trackRecord.driveFileId,
-            sourceId: trackRecord.sourceId,
-            title: trackRecord.title,
-            normalizedTitle: trackRecord.normalizedTitle,
-            format: trackRecord.format,
-            fileSize: trackRecord.fileSize,
-          );
-          unawaited(getOrDownloadTrack(track));
-        }
+      final row = await _findTrack(trackId);
+      if (row == null) {
+        return const Result.failure(
+          CacheFailure('Track is no longer in the library.'),
+        );
       }
-
-      return const Result.success(null);
+      final downloaded = await getOrDownloadTrack(
+        Track(
+          id: row.id,
+          driveFileId: row.driveFileId,
+          sourceId: row.sourceId,
+          title: row.title,
+          normalizedTitle: row.normalizedTitle,
+          format: row.format,
+          fileSize: row.fileSize,
+        ),
+      );
+      if (downloaded.isFailure)
+        return Result.failure(downloaded.failureOrNull!);
+      return await _database.transaction(() async {
+        if (await _cachedAudioFile(trackId, touch: false) == null) {
+          return const Result.failure(
+            CacheFailure('Offline audio is unavailable. Try again.'),
+          );
+        }
+        await _setPinned(trackId, true);
+        return const Result.success(null);
+      });
     } catch (e) {
       return Result.failure(
         CacheFailure('Failed to pin track offline', cause: e),
@@ -297,20 +296,22 @@ class CacheRepositoryImpl implements CacheRepository {
   @override
   Future<Result<void, AppFailure>> unpinTrackOffline(String trackId) async {
     try {
-      await (_database.update(_database.tracks)
-            ..where((tbl) => tbl.id.equals(trackId)))
-          .write(const TracksCompanion(isPinnedOffline: Value(false)));
-
-      await (_database.update(_database.cacheEntries)
-            ..where((tbl) => tbl.trackId.equals(trackId)))
-          .write(const CacheEntriesCompanion(isPinnedOffline: Value(false)));
-
+      await _database.transaction(() => _setPinned(trackId, false));
       return const Result.success(null);
     } catch (e) {
       return Result.failure(
         CacheFailure('Failed to unpin track offline', cause: e),
       );
     }
+  }
+
+  Future<void> _setPinned(String trackId, bool pinned) async {
+    await (_database.update(_database.tracks)
+          ..where((tbl) => tbl.id.equals(trackId)))
+        .write(TracksCompanion(isPinnedOffline: Value(pinned)));
+    await (_database.update(_database.cacheEntries)
+          ..where((tbl) => tbl.trackId.equals(trackId)))
+        .write(CacheEntriesCompanion(isPinnedOffline: Value(pinned)));
   }
 
   @override

@@ -399,24 +399,25 @@ void main() {
     },
   );
 
-  test('offline pin reports success although its download fails', () async {
+  test('offline pin reports failure and can retry the download', () async {
     listing = [audio('a')];
     await sync();
     failingMedia.add('a');
-    final failedEntry = db
-        .select(db.cacheEntries)
-        .watch()
-        .firstWhere((rows) => rows.any((row) => row.state == 'failed'));
-    expect((await cache.pinTrackOffline('track_a')).isSuccess, isTrue);
-    expect(await failedEntry.timeout(const Duration(seconds: 3)), hasLength(1));
+    expect((await cache.pinTrackOffline('track_a')).isFailure, isTrue);
+    expect((await db.select(db.cacheEntries).getSingle()).state, 'failed');
     expect(await cache.getCachedAudioFile('track_a'), isNull);
+    final failed = (await library.getTrackById('track_a')).dataOrNull!;
+    expect(failed.isPinnedOffline, isFalse);
+    expect(failed.isCached, isFalse);
+
+    failingMedia.clear();
+    expect((await cache.pinTrackOffline('track_a')).isSuccess, isTrue);
+    final pinned = (await library.getTrackById('track_a')).dataOrNull!;
+    expect(pinned.isPinnedOffline, isTrue);
+    expect(pinned.isCached, isTrue);
     expect(
-      (await library.getTrackById('track_a')).dataOrNull!.isPinnedOffline,
+      (await db.select(db.cacheEntries).getSingle()).isPinnedOffline,
       isTrue,
-    );
-    expect(
-      (await library.getTrackById('track_a')).dataOrNull!.isCached,
-      isFalse,
     );
   });
 
