@@ -627,7 +627,11 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
     }
   }
 
-  TrackSyncAction _classifyTrack(DriveFileItem remote, TrackRow? local) {
+  TrackSyncAction _classifyTrack(
+    DriveFileItem remote,
+    TrackRow? local,
+    AlbumRow? album,
+  ) {
     if (local == null) {
       return TrackSyncAction.processNew;
     }
@@ -640,6 +644,10 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
         local.format != null &&
         local.format!.isNotEmpty;
 
+    if (_needsUnicodeMetadataRepair(local, album)) {
+      return TrackSyncAction.repairIncomplete;
+    }
+
     if (!isMetadataComplete) {
       return TrackSyncAction.repairIncomplete;
     }
@@ -647,6 +655,25 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
     return _audioChanged(remote, local)
         ? TrackSyncAction.updateModified
         : TrackSyncAction.unchangedComplete;
+  }
+
+  bool _needsUnicodeMetadataRepair(TrackRow track, AlbumRow? album) {
+    bool legacyKey(String? display, String? storedKey) {
+      if (display == null) return false;
+      final key = MetadataNormalizationService.searchKey(display);
+      return key != storedKey && key.contains(RegExp(r'[^\x00-\x7F]'));
+    }
+
+    return legacyKey(track.title, track.normalizedTitle) ||
+        legacyKey(
+          track.artistName,
+          track.artistId?.replaceFirst('artist_', ''),
+        ) ||
+        legacyKey(album?.title, album?.normalizedTitle) ||
+        legacyKey(
+          album?.artistName,
+          album?.artistId?.replaceFirst('artist_', ''),
+        );
   }
 
   bool _audioChanged(DriveFileItem remote, TrackRow local) {
@@ -1140,6 +1167,11 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
         for (final track in allIndexedTracks) track.driveFileId: track,
       };
 
+      final albumsById = {
+        for (final album in await _database.select(_database.albums).get())
+          album.id: album,
+      };
+
       // 4. Classify each audio file
       final existingLyrics = {
         for (final row in await _database.select(_database.lyrics).get())
@@ -1163,7 +1195,11 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
         }
 
         final existing = existingMap[df.id];
-        final action = _classifyTrack(df, existing);
+        final action = _classifyTrack(
+          df,
+          existing,
+          albumsById[existing?.albumId],
+        );
         switch (action) {
           case TrackSyncAction.unchangedComplete:
             final sidecar = _sidecarFor(df, lrcMap);

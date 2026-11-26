@@ -192,7 +192,7 @@ void main() {
   });
 
   test(
-    'non-Latin albums and artists collapse and exact searches miss them',
+    'non-Latin albums and artists retain their identity and are searchable',
     () async {
       listing = [audio('a'), audio('b'), audio('c')];
       extractor.customMetadata.addAll({
@@ -224,14 +224,49 @@ void main() {
       await sync();
       final tracks = await library.watchAllTracks().first;
       final nonLatin = tracks.where((track) => track.id != 'track_c').toList();
-      expect(nonLatin.map((track) => track.normalizedTitle).toSet(), {''});
-      expect(nonLatin.map((track) => track.artistId).toSet(), {'artist_'});
-      expect(nonLatin.map((track) => track.albumId).toSet(), {'album_::'});
-      expect(await library.watchAllAlbums().first, hasLength(2));
-      expect(await library.watchAllArtists().first, hasLength(2));
-      expect((await search.search('夜空')).dataOrNull!.tracks, isEmpty);
-      expect((await search.search('青葉市子')).dataOrNull!.artists, isEmpty);
-      expect((await search.search('檻髪')).dataOrNull!.albums, isEmpty);
+      expect(nonLatin.map((track) => track.normalizedTitle).toSet(), {
+        '夜空',
+        '朝日',
+      });
+      expect(nonLatin.map((track) => track.artistId).toSet(), {
+        'artist_青葉市子',
+        'artist_坂本龍一',
+      });
+      expect(nonLatin.map((track) => track.albumId).toSet(), {
+        'album_檻髪::青葉市子',
+        'album_音楽図鑑::坂本龍一',
+      });
+      expect(await library.watchAllAlbums().first, hasLength(3));
+      expect(await library.watchAllArtists().first, hasLength(3));
+      expect(
+        (await search.search('夜空')).dataOrNull!.tracks.single.id,
+        'track_a',
+      );
+      expect(
+        (await search.search('青葉市子')).dataOrNull!.artists.single.name,
+        '青葉市子',
+      );
+      expect((await search.search('檻髪')).dataOrNull!.albums.single.title, '檻髪');
+
+      await (db.update(
+        db.tracks,
+      )..where((row) => row.id.equals('track_a'))).write(
+        const TracksCompanion(
+          normalizedTitle: Value(''),
+          artistId: Value('artist_'),
+        ),
+      );
+      mediaRequests.clear();
+      await sync();
+      expect(mediaRequests, ['a']);
+      expect(
+        (await library.getTrackById('track_a')).dataOrNull!.artistId,
+        'artist_青葉市子',
+      );
+      expect(
+        (await library.getTrackById('track_a')).dataOrNull!.normalizedTitle,
+        '夜空',
+      );
       expect((await search.search("Don't Stop")).dataOrNull!.tracks, isEmpty);
       expect(
         (await search.search('Dont Stop')).dataOrNull!.tracks.single.id,

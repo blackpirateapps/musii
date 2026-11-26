@@ -6,7 +6,7 @@ Audited on 26 November 2026 at commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09`
 
 | ID | Severity | Finding | Reproduction |
 | --- | --- | --- | --- |
-| LIB-01 | High | Unrelated non-Latin albums and artists collapse into the same records | SQLite and simulated Drive |
+| LIB-01 | High | Unrelated non-Latin albums and artists collapse into the same records | SQLite and simulated Drive · Fixed |
 | LIB-02 | High | Distinct same-title releases merge when one artist name begins with the other | SQLite and simulated Drive |
 | LIB-03 | High | Offline download can appear pinned after the download failed | SQLite and simulated Drive · Fixed |
 | LIB-04 | High | The audio cache accepts a payload with the wrong Drive checksum | SQLite and simulated Drive · Fixed |
@@ -21,6 +21,8 @@ Audited on 26 November 2026 at commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09`
 | LIB-13 | Low | Concurrent favorite toggles fail and lose updates | SQLite |
 
 ### LIB-01 · Non-Latin metadata merges unrelated music
+
+**Resolution.** Metadata keys preserve Unicode letters, marks, and numbers. The next sync reindexes affected legacy rows whose stored keys discarded those characters.
 
 **Reproduce.** Sync two files tagged with different Japanese titles, artists, and albums. The fixture uses `夜空 / 青葉市子 / 檻髪` and `朝日 / 坂本龍一 / 音楽図鑑`, plus an ASCII-tagged control. Inspect Library → Albums and Artists.
 

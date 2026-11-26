@@ -14,20 +14,20 @@ class MetadataNormalizationService {
     required String filenameFallback,
   }) {
     final title = _normalizeTitle(raw.title, filenameFallback);
-    final normalizedTitle = _createSearchKey(title);
+    final normalizedTitle = searchKey(title);
 
     final artist = _normalizeArtist(raw.artist);
-    final normalizedArtist = _createSearchKey(artist);
+    final normalizedArtist = searchKey(artist);
 
     final album = _normalizeAlbum(raw.album);
-    final normalizedAlbum = _createSearchKey(album);
+    final normalizedAlbum = searchKey(album);
 
     final rawAlbumArtist = raw.albumArtist?.trim();
     final albumArtist = (rawAlbumArtist != null && rawAlbumArtist.isNotEmpty)
         ? _normalizeArtist(rawAlbumArtist)
         : null;
     final genre = _normalizeGenre(raw.genre);
-    final normalizedGenre = genre != null ? _createSearchKey(genre) : null;
+    final normalizedGenre = genre != null ? searchKey(genre) : null;
 
     return NormalizedMetadata(
       title: title,
@@ -214,17 +214,19 @@ class MetadataNormalizationService {
     return 'Other';
   }
 
-  static String _createSearchKey(String text) {
+  static final _nonWord = RegExp(r'[^\p{L}\p{M}\p{N}_\s]', unicode: true);
+
+  static String searchKey(String text) {
     return text
         .toLowerCase()
-        .replaceAll(RegExp(r'[^\w\s]'), '')
+        .replaceAll(_nonWord, '')
         .replaceAll(RegExp(r'\s+'), ' ')
         .trim();
   }
 
   static String computeArtworkKey(String? album, String? artist) {
-    final normAlbum = _createSearchKey(album ?? unknownAlbum);
-    final normArtist = _createSearchKey(artist ?? unknownArtist);
+    final normAlbum = searchKey(album ?? unknownAlbum);
+    final normArtist = searchKey(artist ?? unknownArtist);
     final combined = '$normArtist:$normAlbum';
     return md5.convert(utf8.encode(combined)).toString();
   }
@@ -239,8 +241,8 @@ class MetadataNormalizationService {
         ? albumArtist
         : trackArtist;
 
-    final normAlbum = _createSearchKey(_normalizeAlbum(albumName));
-    final normArtist = _createSearchKey(_normalizeArtist(effectiveArtist));
+    final normAlbum = searchKey(_normalizeAlbum(albumName));
+    final normArtist = searchKey(_normalizeArtist(effectiveArtist));
 
     return '$normAlbum::$normArtist';
   }
