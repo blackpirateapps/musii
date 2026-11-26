@@ -337,5 +337,8 @@ final searchResultsProvider = FutureProvider<SearchResults>((ref) async {
   final repo = ref.watch(searchRepositoryProvider);
   if (query.trim().isEmpty) return const SearchResults();
   final result = await repo.search(query);
-  return result.dataOrNull ?? const SearchResults();
-});
+  return result.fold(
+    onSuccess: (results) => results,
+    onFailure: (failure) => throw failure,
+  );
+}, retry: (_, _) => null);

@@ -10,6 +10,7 @@ import 'package:http/http.dart' as http;
 import 'package:musii/app/bootstrap/providers.dart';
 import 'package:musii/core/constants/app_constants.dart';
 import 'package:musii/core/database/app_database.dart';
+import 'package:musii/core/error/failures.dart';
 import 'package:musii/core/filesystem/app_file_system.dart';
 import 'package:musii/features/cache/data/repositories/cache_repository_impl.dart';
 import 'package:musii/features/favorites/data/repositories/favorite_repository_impl.dart';
@@ -173,7 +174,7 @@ void main() {
     },
   );
 
-  test('search converts a SQLite failure into empty results', () async {
+  test('search exposes a SQLite failure to its error state', () async {
     await sync();
     final search = SearchRepositoryImpl(database: db);
     expect(
@@ -187,9 +188,9 @@ void main() {
     );
     addTearDown(container.dispose);
     container.read(searchQueryStateProvider.notifier).state = 'Test Artist';
-    expect(
-      (await container.read(searchResultsProvider.future)).isEmpty,
-      isTrue,
+    await expectLater(
+      container.read(searchResultsProvider.future),
+      throwsA(isA<DatabaseFailure>()),
     );
   });
 

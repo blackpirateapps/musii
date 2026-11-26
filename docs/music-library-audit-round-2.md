@@ -16,7 +16,7 @@ Audited commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09` on 26 November 2026. T
 | LIB-21 | Medium | A favorite can be removed by an action labeled Favorite | Android |
 | LIB-22 | Medium | Extensionless audio is downloaded during every incremental sync | Generated WAV and production metadata parser |
 | LIB-23 | Medium | Artist detail exposes only five songs and provides no full track list | Flutter widget test |
-| LIB-24 | Medium | Search reports No Results when its SQLite query fails | SQLite and Riverpod |
+| LIB-24 | Medium | Search reports No Results when its SQLite query fails | SQLite and Riverpod · Fixed |
 | LIB-25 | Medium | Song overflow buttons have no accessibility label | Android accessibility tree and source |
 
 ### LIB-14 · Resume can delete a track that is back in the selected folder
@@ -104,6 +104,8 @@ Audited commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09` on 26 November 2026. T
 **Expected.** The artist page should offer access to the rest of its track list. A featured artist with no credited album cards has no alternate route from this screen. [Artist songs](../lib/features/library/presentation/pages/artist_detail_page.dart#L160)
 
 ### LIB-24 · Search database errors appear as No Results
+
+**Resolution.** The search provider propagates repository failures, so the Search Error state appears when SQLite rejects a query.
 
 **Reproduce.** Run a query that finds two songs, then inject a SQLite schema error by dropping the tracks table in an isolated fixture. Submit the same query through the app's search provider.
 
