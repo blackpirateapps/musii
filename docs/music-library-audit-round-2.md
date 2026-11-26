@@ -13,7 +13,7 @@ Audited commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09` on 26 November 2026. T
 | LIB-18 | Medium | Superseded folder covers accumulate outside cache management | Filesystem fixture · Fixed |
 | LIB-19 | Medium | Automatic cache limit is unenforced at download time | Android settings and cache fixture · Fixed |
 | LIB-20 | Medium | Failed cache clear leaves database rows for deleted files | SQLite fault injection · Fixed |
-| LIB-21 | Medium | A favorite can be removed by an action labeled Favorite | Android |
+| LIB-21 | Medium | A favorite can be removed by an action labeled Favorite | Android · Fixed |
 | LIB-22 | Medium | Extensionless audio is downloaded during every incremental sync | Generated WAV and production metadata parser · Fixed |
 | LIB-23 | Medium | Artist detail exposes only five songs and provides no full track list | Flutter widget test · Fixed |
 | LIB-24 | Medium | Search reports No Results when its SQLite query fails | SQLite and Riverpod · Fixed |
@@ -90,6 +90,8 @@ Audited commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09` on 26 November 2026. T
 **Expected.** A partial failure should leave the database and disk consistent. The SQLite rollback cannot undo the filesystem deletion, which happens before the database writes. The LRU eviction loop uses the same ordering. [Clear implementation](../lib/features/cache/data/repositories/cache_repository_impl.dart#L378) · [LRU deletion](../lib/features/cache/data/repositories/cache_repository_impl.dart#L339)
 
 ### LIB-21 · A menu action labeled Favorite can remove an existing favorite
+
+**Resolution.** The overflow menu waits for the live favorite state. Once available it executes the specific add or remove action shown, so a stale label cannot toggle in the opposite direction.
 
 **Reproduce.** Favorite a track and verify it appears in Home → Favorites. Cold-launch the app, navigate to Library → Songs, and open that track's overflow menu.
 

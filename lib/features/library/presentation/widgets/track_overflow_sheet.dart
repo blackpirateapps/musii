@@ -30,7 +30,6 @@ Future<void> showTrackActionSheet({
   VoidCallback? onRemovedFromQueue,
   VoidCallback? onRemoveFromPlaylist,
 }) async {
-  final isFav = ref.read(isTrackFavoriteProvider(track.id)).value ?? false;
   final isDownloaded = track.isPinnedOffline && track.isCached;
 
   if (!context.mounted) return;
@@ -143,13 +142,33 @@ Future<void> showTrackActionSheet({
             },
             child: const Text('Remove from Playlist'),
           ),
-        CupertinoActionSheetAction(
-          onPressed: () async {
-            Navigator.pop(ctx);
-            await HapticFeedback.lightImpact();
-            await ref.read(favoriteRepositoryProvider).toggleFavorite(track.id);
+        Consumer(
+          builder: (_, favoriteRef, _) {
+            final favorite = favoriteRef.watch(
+              isTrackFavoriteProvider(track.id),
+            );
+            return favorite.when(
+              loading: () => const Padding(
+                padding: EdgeInsets.all(16),
+                child: Center(child: Text('Checking favorite…')),
+              ),
+              error: (_, _) => const Padding(
+                padding: EdgeInsets.all(16),
+                child: Center(child: Text('Favorite status unavailable')),
+              ),
+              data: (isFavorite) => CupertinoActionSheetAction(
+                onPressed: () async {
+                  final repository = favoriteRef.read(
+                    favoriteRepositoryProvider,
+                  );
+                  Navigator.pop(ctx);
+                  await HapticFeedback.lightImpact();
+                  await repository.setFavorite(track.id, !isFavorite);
+                },
+                child: Text(isFavorite ? 'Remove from Favorites' : 'Favorite'),
+              ),
+            );
           },
-          child: Text(isFav ? 'Remove from Favorites' : 'Favorite'),
         ),
         CupertinoActionSheetAction(
           onPressed: () {

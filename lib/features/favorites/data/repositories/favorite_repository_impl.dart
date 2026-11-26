@@ -11,6 +11,7 @@ abstract class FavoriteRepository {
   Stream<List<Track>> watchFavoriteTracks();
   Stream<bool> watchIsFavorite(String trackId);
   Future<Result<bool, AppFailure>> toggleFavorite(String trackId);
+  Future<Result<void, AppFailure>> setFavorite(String trackId, bool favorite);
 }
 
 class FavoriteRepositoryImpl implements FavoriteRepository {
@@ -98,28 +99,48 @@ class FavoriteRepositoryImpl implements FavoriteRepository {
           _database.favorites,
         )..where((tbl) => tbl.trackId.equals(trackId))).getSingleOrNull();
 
-        if (existing != null) {
-          await (_database.delete(
-            _database.favorites,
-          )..where((tbl) => tbl.trackId.equals(trackId))).go();
-          return const Result.success(false);
-        } else {
-          await _database
-              .into(_database.favorites)
-              .insert(
-                FavoritesCompanion(
-                  id: Value('fav_${DateTime.now().microsecondsSinceEpoch}'),
-                  trackId: Value(trackId),
-                  addedAt: Value(DateTime.now()),
-                ),
-              );
-          return const Result.success(true);
-        }
+        final favorite = existing == null;
+        await _writeFavorite(trackId, favorite);
+        return Result.success(favorite);
       });
     } catch (e) {
       return Result.failure(
         DatabaseFailure('Failed to toggle favorite', cause: e),
       );
     }
+  }
+
+  @override
+  Future<Result<void, AppFailure>> setFavorite(
+    String trackId,
+    bool favorite,
+  ) async {
+    try {
+      await _writeFavorite(trackId, favorite);
+      return const Result.success(null);
+    } catch (e) {
+      return Result.failure(
+        DatabaseFailure('Failed to update favorite', cause: e),
+      );
+    }
+  }
+
+  Future<void> _writeFavorite(String trackId, bool favorite) async {
+    if (!favorite) {
+      await (_database.delete(
+        _database.favorites,
+      )..where((tbl) => tbl.trackId.equals(trackId))).go();
+      return;
+    }
+    await _database
+        .into(_database.favorites)
+        .insert(
+          FavoritesCompanion.insert(
+            id: 'fav_$trackId',
+            trackId: trackId,
+            addedAt: DateTime.now(),
+          ),
+          mode: InsertMode.insertOrIgnore,
+        );
   }
 }

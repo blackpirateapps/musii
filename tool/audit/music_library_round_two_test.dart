@@ -20,6 +20,7 @@ import 'package:musii/features/library/domain/entities/music_entities.dart';
 import 'package:musii/features/library/domain/entities/sync_progress.dart';
 import 'package:musii/features/library/presentation/pages/artist_detail_page.dart';
 import 'package:musii/features/library/presentation/widgets/song_row.dart';
+import 'package:musii/features/library/presentation/widgets/track_overflow_sheet.dart';
 import 'package:musii/features/metadata/domain/entities/parsed_audio_metadata.dart';
 import 'package:musii/features/playback/domain/entities/playback_state.dart';
 import 'package:musii/features/playlists/data/repositories/playlist_repository_impl.dart';
@@ -195,6 +196,56 @@ void main() {
       container.read(searchResultsProvider.future),
       throwsA(isA<DatabaseFailure>()),
     );
+  });
+
+  testWidgets('favorite menu waits for the stored favorite state', (
+    tester,
+  ) async {
+    final favorite = StreamController<bool>();
+    addTearDown(favorite.close);
+    const track = Track(
+      id: 'a',
+      driveFileId: 'a',
+      sourceId: 'fixture',
+      title: 'Track',
+      normalizedTitle: 'track',
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          isTrackFavoriteProvider('a').overrideWith((ref) => favorite.stream),
+        ],
+        child: CupertinoApp(
+          home: CupertinoPageScaffold(
+            child: Consumer(
+              builder: (context, ref, _) => Center(
+                child: CupertinoButton(
+                  onPressed: () => showTrackActionSheet(
+                    context: context,
+                    track: track,
+                    ref: ref,
+                  ),
+                  child: const Text('Actions'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Actions'));
+    await tester.pumpAndSettle();
+    expect(find.text('Favorite'), findsNothing);
+    expect(find.text('Checking favorite…'), findsOneWidget);
+    favorite.add(true);
+    await tester.pumpAndSettle();
+    expect(find.text('Remove from Favorites'), findsOneWidget);
+    favorite.add(false);
+    await tester.pumpAndSettle();
+    expect(find.text('Favorite'), findsOneWidget);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(const SizedBox.shrink());
   });
 
   testWidgets('artist details expose all seven guest tracks', (tester) async {
