@@ -1313,6 +1313,14 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
               abortTrigger: cancellationToken.whenCancelled,
             );
             if (downloaded.isFailure) throw downloaded.failureOrNull!;
+            if (!await AppFileSystem.matchesMd5(
+              tempFile,
+              driveFile.md5Checksum,
+            )) {
+              throw const DriveApiFailure(
+                'Downloaded audio failed its checksum.',
+              );
+            }
             parsedMeta = await _metadataExtractor.extractFromFile(
               tempFile,
               fallbackName: driveFile.name,

@@ -37,7 +37,7 @@ sequenceDiagram
     Worker->>FS: getTempDownloadFile(trackId)
     FS-->>Worker: File(".../audio/trackId.partial")
     Worker->>Disk: Stream bytes into .partial file
-    Worker->>Disk: Verify downloaded byte size against Drive metadata size
+    Worker->>Disk: Check staged audio against the Drive MD5 when available
     Worker->>FS: commitTempDownload(tempFile, targetFile)
     FS->>Disk: File.renameSync(tempFile, targetFile)
     FS-->>Worker: Target File Committed

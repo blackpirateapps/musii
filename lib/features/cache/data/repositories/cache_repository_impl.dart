@@ -135,14 +135,14 @@ class CacheRepositoryImpl implements CacheRepository {
                 isPinnedOffline: Value(latest.isPinnedOffline),
               ),
             );
-        return (latest.driveFileId, target, version);
+        return (latest.driveFileId, target, version, latest.driveMd5Checksum);
       });
       if (reservation == null) {
         return const Result.failure(
           CacheFailure('Track is no longer in the library.'),
         );
       }
-      final (driveId, target, version) = reservation;
+      final (driveId, target, version, checksum) = reservation;
       final staging = File(
         '${target.path}.${DateTime.now().microsecondsSinceEpoch}.partial',
       );
@@ -158,7 +158,14 @@ class CacheRepositoryImpl implements CacheRepository {
           _emitProgress(track.id, progress);
         },
       );
-      if (download.isFailure) {
+      var failure = download.failureOrNull;
+      if (failure == null &&
+          !await AppFileSystem.matchesMd5(staging, checksum)) {
+        failure = const CacheFailure(
+          'Downloaded audio failed its checksum. Try again.',
+        );
+      }
+      if (failure != null) {
         await (_database.update(_database.cacheEntries)..where(
               (row) =>
                   row.trackId.equals(track.id) &
@@ -171,7 +178,7 @@ class CacheRepositoryImpl implements CacheRepository {
                 state: Value('failed'),
               ),
             );
-        return Result.failure(download.failureOrNull!);
+        return Result.failure(failure);
       }
 
       final committed = await _database.transaction(() async {

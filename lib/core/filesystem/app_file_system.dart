@@ -1,11 +1,20 @@
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../logging/app_logger.dart';
 
 class AppFileSystem {
+  static final _md5Pattern = RegExp(r'^[a-fA-F0-9]{32}$');
+
+  static Future<bool> matchesMd5(File file, String? expected) async {
+    if (expected == null || !_md5Pattern.hasMatch(expected)) return true;
+    return (await md5.bind(file.openRead()).first).toString() ==
+        expected.toLowerCase();
+  }
+
   static AppFileSystem? _instance;
   static AppFileSystem get instance => _instance ??= AppFileSystem._();
 

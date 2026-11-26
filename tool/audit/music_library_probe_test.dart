@@ -42,6 +42,7 @@ void main() {
   late CacheRepositoryImpl cache;
   late List<Map<String, Object>> listing;
   late Set<String> failingMedia;
+  late String mediaBody;
   late List<String> mediaRequests;
   late List<int> listingOffsets;
   final timestamp = DateTime.utc(2026, 11, 26);
@@ -70,6 +71,7 @@ void main() {
     extractor = FakeMetadataExtractor();
     listing = [];
     failingMedia = {};
+    mediaBody = "abc";
     mediaRequests = [];
     listingOffsets = [];
     final drive = GoogleDriveRepositoryImpl(
@@ -79,7 +81,7 @@ void main() {
         if (uri.queryParameters['alt'] == 'media') {
           final id = uri.pathSegments.last;
           mediaRequests.add(id);
-          return failingMedia.contains(id) ? unavailable() : content('abc');
+          return failingMedia.contains(id) ? unavailable() : content(mediaBody);
         }
         final offset = int.parse(uri.queryParameters['pageToken'] ?? '0');
         listingOffsets.add(offset);
@@ -419,15 +421,34 @@ void main() {
   });
 
   test(
-    'offline cache accepts same-size bytes with the wrong Drive checksum',
+    'offline cache rejects same-size bytes with the wrong Drive checksum',
     () async {
       listing = [audio('a', checksum: 'd16fb36f0911f878998c136191af705e')];
+      mediaBody = 'xyz';
       await sync();
       final indexed = (await library.getTrackById('track_a')).dataOrNull!;
+      mediaBody = 'abc';
+      expect((await cache.getOrDownloadTrack(indexed)).isFailure, isTrue);
+      expect(await cache.isTrackCached(indexed.id), isFalse);
+      expect((await db.select(db.cacheEntries).getSingle()).state, 'failed');
+      mediaBody = 'xyz';
       final cached = await cache.getOrDownloadTrack(indexed);
-      expect(cached.isSuccess, isTrue);
-      expect(await cached.dataOrNull!.readAsString(), 'abc');
-      expect(await cache.isTrackCached(indexed.id), isTrue);
+      expect(await cached.dataOrNull!.readAsString(), 'xyz');
+      expect((await cache.pinTrackOffline(indexed.id)).isSuccess, isTrue);
+
+      listing = [audio('a', checksum: '900150983cd24fb0d6963f7d28e17f72')];
+      final refresh = await library.syncFromSavedFolder();
+      expect(refresh.isFailure, isTrue);
+      expect(
+        await (await cache.getCachedAudioFile(indexed.id))!.readAsString(),
+        'xyz',
+      );
+      mediaBody = 'abc';
+      expect((await library.resumeSync()).isSuccess, isTrue);
+      expect(
+        await (await cache.getCachedAudioFile(indexed.id))!.readAsString(),
+        'abc',
+      );
     },
   );
 

@@ -9,7 +9,7 @@ Audited on 26 November 2026 at commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09`
 | LIB-01 | High | Unrelated non-Latin albums and artists collapse into the same records | SQLite and simulated Drive |
 | LIB-02 | High | Distinct same-title releases merge when one artist name begins with the other | SQLite and simulated Drive |
 | LIB-03 | High | Offline download can appear pinned after the download failed | SQLite and simulated Drive |
-| LIB-04 | High | The audio cache accepts a payload with the wrong Drive checksum | SQLite and simulated Drive |
+| LIB-04 | High | The audio cache accepts a payload with the wrong Drive checksum | SQLite and simulated Drive · Fixed |
 | LIB-05 | Medium | Exact searches miss titles with apostrophes and non-Latin text | Android and SQLite |
 | LIB-06 | Medium | Searching for punctuation can match the entire library | Android and SQLite |
 | LIB-07 | Medium | Album and artist details retain stale track download state | SQLite stream subscriptions |
@@ -45,6 +45,8 @@ Audited on 26 November 2026 at commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09`
 **Cause.** The cache marks the track pinned before launching an unawaited download. The overflow action closes the sheet and has no failure feedback. [Pin operation](../lib/features/cache/data/repositories/cache_repository_impl.dart#L252) · [Overflow action](../lib/features/library/presentation/widgets/track_overflow_sheet.dart#L152)
 
 ### LIB-04 · Offline cache commits audio with the wrong checksum
+
+**Resolution.** Playback caching and sync validate media against an available Drive MD5 before committing bytes. A mismatch stays retryable and leaves an existing offline copy intact.
 
 **Reproduce.** Index a three-byte fixture with the Drive MD5 of `xyz`. Return the three bytes `abc` on the media request and call the normal cache download entry point.
 
