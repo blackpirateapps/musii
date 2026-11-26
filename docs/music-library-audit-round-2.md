@@ -17,7 +17,7 @@ Audited commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09` on 26 November 2026. T
 | LIB-22 | Medium | Extensionless audio is downloaded during every incremental sync | Generated WAV and production metadata parser |
 | LIB-23 | Medium | Artist detail exposes only five songs and provides no full track list | Flutter widget test |
 | LIB-24 | Medium | Search reports No Results when its SQLite query fails | SQLite and Riverpod · Fixed |
-| LIB-25 | Medium | Song overflow buttons have no accessibility label | Android accessibility tree and source |
+| LIB-25 | Medium | Song overflow buttons have no accessibility label | Android accessibility tree and source · Fixed |
 
 ### LIB-14 · Resume can delete a track that is back in the selected folder
 
@@ -114,6 +114,8 @@ Audited commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09` on 26 November 2026. T
 **Expected.** Surface the error so users can distinguish a failed search from a genuine empty result. [Search provider](../lib/app/bootstrap/providers.dart#L335) · [Search UI](../lib/features/search/presentation/pages/search_page.dart#L80)
 
 ### LIB-25 · Song overflow controls have no accessible label
+
+**Resolution.** Song overflow buttons expose a track-specific accessible label. The widget regression verifies the label in the semantic tree.
 
 **Reproduce.** On Android, open Library → Songs and inspect the system accessibility tree for the ellipsis next to a track.
 

@@ -161,16 +161,19 @@ class SongRow extends StatelessWidget {
               ),
             ),
             if (onMore != null)
-              CupertinoButton(
-                padding: const EdgeInsets.only(left: 12.0),
-                minSize: 0,
-                onPressed: onMore,
-                child: Icon(
-                  CupertinoIcons.ellipsis,
-                  size: 20,
-                  color: isDark
-                      ? CupertinoColors.white.withOpacity(0.4)
-                      : CupertinoColors.black.withOpacity(0.4),
+              Semantics(
+                label: 'More options for ${track.title}',
+                child: CupertinoButton(
+                  padding: const EdgeInsets.only(left: 12.0),
+                  minSize: 0,
+                  onPressed: onMore,
+                  child: Icon(
+                    CupertinoIcons.ellipsis,
+                    size: 20,
+                    color: isDark
+                        ? CupertinoColors.white.withOpacity(0.4)
+                        : CupertinoColors.black.withOpacity(0.4),
+                  ),
                 ),
               ),
           ],
