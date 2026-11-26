@@ -370,34 +370,32 @@ void main() {
     expect(await library.watchAllTracks().first, hasLength(2));
   });
 
-  test('removing the last embedded cover hides available folder art until a second sync', () async {
-    files = [audio('a'), audio('b'), cover('cover')];
-    extractor.customMetadata['a.mp3'] = ParsedAudioMetadata(
-      title: 'A',
-      artist: 'Test Artist',
-      album: 'Test Album',
-      durationMs: 180000,
-      format: 'MP3',
-      fileSize: 3,
-      artworkBytes: Uint8List.fromList([1, 2, 3]),
-    );
-    await sync();
-    final initial = (await library.watchAllAlbums().first).single;
-    expect(initial.artworkPath, contains('embedded_'));
-    expect(mediaRequests, ['a', 'b']);
-    files.removeAt(0);
-    mediaRequests.clear();
-    await sync();
-    expect(mediaRequests, isEmpty);
-    expect((await library.watchAllAlbums().first).single.artworkPath, isNull);
-    expect((await track('b')).artworkPath, isNull);
-    await sync();
-    expect(mediaRequests, ['cover']);
-    expect(
-      (await library.watchAllAlbums().first).single.artworkPath,
-      contains('drive_'),
-    );
-  });
+  test(
+    'removing the last embedded cover restores folder art in the same sync',
+    () async {
+      files = [audio('a'), audio('b'), cover('cover')];
+      extractor.customMetadata['a.mp3'] = ParsedAudioMetadata(
+        title: 'A',
+        artist: 'Test Artist',
+        album: 'Test Album',
+        durationMs: 180000,
+        format: 'MP3',
+        fileSize: 3,
+        artworkBytes: Uint8List.fromList([1, 2, 3]),
+      );
+      await sync();
+      final initial = (await library.watchAllAlbums().first).single;
+      expect(initial.artworkPath, contains('embedded_'));
+      expect(mediaRequests, ['a', 'b']);
+      files.removeAt(0);
+      mediaRequests.clear();
+      await sync();
+      expect(mediaRequests, ['cover']);
+      final artwork = (await library.watchAllAlbums().first).single.artworkPath;
+      expect(artwork, contains('drive_'));
+      expect((await track('b')).artworkPath, artwork);
+    },
+  );
 
   test('successive folder cover versions accumulate outside audio cache management', () async {
     for (var version = 0; version < 12; version++) {

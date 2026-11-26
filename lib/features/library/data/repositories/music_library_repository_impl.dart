@@ -1579,22 +1579,6 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
         return Result.failure(error);
       }
 
-      // Fetch artwork before the transaction that prunes the local library.
-      final folderArtwork = await _prepareFolderArtwork(
-        driveFileMap,
-        folderImagesMap,
-        folderParentMap,
-        force: effectiveForceSync,
-        cancellation: cancellationToken,
-      );
-      _updateProgress(
-        _currentProgress.copyWith(
-          phase: SyncPhase.updatingDatabase,
-          currentFile: null,
-        ),
-      );
-      onProgress?.call(_currentProgress);
-
       await verifyAccount();
       final missingTracks = existingTracks
           .where((track) => !driveFileMap.containsKey(track.driveFileId))
@@ -1618,6 +1602,30 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
         );
         await verifyAccount();
       }
+      final removedTrackIds = missingTracks
+          .where(
+            (track) =>
+                sourcesByTrack[track.id]?.difference({sourceId}).isNotEmpty !=
+                true,
+          )
+          .map((track) => track.id)
+          .toSet();
+      final folderArtwork = await _prepareFolderArtwork(
+        driveFileMap,
+        folderImagesMap,
+        folderParentMap,
+        removedTrackIds: removedTrackIds,
+        force: effectiveForceSync,
+        cancellation: cancellationToken,
+      );
+      _updateProgress(
+        _currentProgress.copyWith(
+          phase: SyncPhase.updatingDatabase,
+          currentFile: null,
+        ),
+      );
+      onProgress?.call(_currentProgress);
+      await verifyAccount();
       final removedTracks = <TrackRow>[];
       await _database.transaction(() async {
         cancellationToken.throwIfCancelled();
@@ -2243,6 +2251,7 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
     Map<String, DriveFileItem> driveFiles,
     Map<String, List<DriveFileItem>> folderImages,
     Map<String, String?> folderParents, {
+    required Set<String> removedTrackIds,
     required bool force,
     required SyncCancellationToken cancellation,
   }) async {
@@ -2250,6 +2259,7 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
     final filesByFingerprint = <String, File>{};
     final tracksByAlbum = <String?, List<TrackRow>>{};
     for (final track in await _database.select(_database.tracks).get()) {
+      if (removedTrackIds.contains(track.id)) continue;
       tracksByAlbum.putIfAbsent(track.albumId, () => []).add(track);
     }
     for (final tracks in tracksByAlbum.values) {
