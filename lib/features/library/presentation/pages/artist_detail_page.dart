@@ -157,11 +157,9 @@ class ArtistDetailPage extends ConsumerWidget {
                 ),
               ),
 
-              // Songs List (Popular)
+              // Songs
               if (tracks.isNotEmpty) ...[
-                const SliverToBoxAdapter(
-                  child: SectionHeader(title: 'Popular'),
-                ),
+                const SliverToBoxAdapter(child: SectionHeader(title: 'Songs')),
                 SliverList(
                   delegate: SliverChildBuilderDelegate((context, index) {
                     final track = tracks[index];
@@ -179,7 +177,7 @@ class ArtistDetailPage extends ConsumerWidget {
                         ref: ref,
                       ),
                     );
-                  }, childCount: tracks.length > 5 ? 5 : tracks.length),
+                  }, childCount: tracks.length),
                 ),
                 const SliverToBoxAdapter(
                   child: SizedBox(height: AppSpacing.lg),

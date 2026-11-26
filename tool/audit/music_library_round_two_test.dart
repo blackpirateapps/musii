@@ -194,9 +194,7 @@ void main() {
     );
   });
 
-  testWidgets('artist details expose only five of seven guest tracks', (
-    tester,
-  ) async {
+  testWidgets('artist details expose all seven guest tracks', (tester) async {
     const artist = Artist(
       id: 'guest',
       name: 'Guest Artist',
@@ -237,14 +235,14 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('7 songs'), findsOneWidget);
-    expect(find.byType(SongRow), findsNWidgets(5));
+    expect(find.byType(SongRow), findsNWidgets(7));
     expect(
       find.bySemanticsLabel('More options for Guest Track 1'),
       findsOneWidget,
     );
     expect(find.text('See All'), findsNothing);
-    expect(find.text('Guest Track 6'), findsNothing);
-    expect(find.text('Guest Track 7'), findsNothing);
+    expect(find.text('Guest Track 6'), findsOneWidget);
+    expect(find.text('Guest Track 7'), findsOneWidget);
   });
 
   test(

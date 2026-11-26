@@ -15,7 +15,7 @@ Audited commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09` on 26 November 2026. T
 | LIB-20 | Medium | Failed cache clear leaves database rows for deleted files | SQLite fault injection |
 | LIB-21 | Medium | A favorite can be removed by an action labeled Favorite | Android |
 | LIB-22 | Medium | Extensionless audio is downloaded during every incremental sync | Generated WAV and production metadata parser |
-| LIB-23 | Medium | Artist detail exposes only five songs and provides no full track list | Flutter widget test |
+| LIB-23 | Medium | Artist detail exposes only five songs and provides no full track list | Flutter widget test · Fixed |
 | LIB-24 | Medium | Search reports No Results when its SQLite query fails | SQLite and Riverpod · Fixed |
 | LIB-25 | Medium | Song overflow buttons have no accessibility label | Android accessibility tree and source · Fixed |
 
@@ -96,6 +96,8 @@ Audited commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09` on 26 November 2026. T
 **Expected.** Supported audio discovered by MIME type should acquire a usable format from the bytes or MIME type and skip redundant downloads when unchanged. The extractor derives the persisted format from the filename suffix, and sync treats an empty value as incomplete. [Metadata format](../lib/features/metadata/data/repositories/metadata_extractor_impl.dart#L18) · [Repair classification](../lib/features/library/data/repositories/music_library_repository_impl.dart#L630)
 
 ### LIB-23 · Artist detail has no full track list
+
+**Resolution.** Artist details show their complete track list under Songs. The lazy list renders additional rows as users scroll and keeps each track individually actionable.
 
 **Reproduce.** Open an artist with seven indexed guest tracks and no albums credited to that artist. Scroll through the artist detail page.
 
