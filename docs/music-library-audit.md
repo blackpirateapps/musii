@@ -11,7 +11,7 @@ Audited on 26 November 2026 at commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09`
 | LIB-03 | High | Offline download can appear pinned after the download failed | SQLite and simulated Drive · Fixed |
 | LIB-04 | High | The audio cache accepts a payload with the wrong Drive checksum | SQLite and simulated Drive · Fixed |
 | LIB-05 | Medium | Exact searches miss titles with apostrophes and non-Latin text | Android and SQLite · Fixed |
-| LIB-06 | Medium | Searching for punctuation can match the entire library | Android and SQLite |
+| LIB-06 | Medium | Searching for punctuation can match the entire library | Android and SQLite · Fixed |
 | LIB-07 | Medium | Album and artist details retain stale track download state | SQLite stream subscriptions |
 | LIB-08 | Medium | Search retains results after library changes | Android and Riverpod with SQLite |
 | LIB-09 | Medium | Home's See All buttons do nothing | Android and source review |
@@ -71,6 +71,8 @@ Audited on 26 November 2026 at commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09`
 **Cause.** Search normalizes query case and whitespace at the ends. The indexed title and artist keys also strip punctuation and non-Latin letters, so the stored text and the query use different representations. [Search predicates](../lib/features/search/data/repositories/search_repository_impl.dart#L88) · [Search key generation](../lib/features/metadata/domain/services/metadata_normalization_service.dart#L217)
 
 ### LIB-06 · Percent and underscore act as search wildcards
+
+**Resolution.** Every SQLite LIKE predicate escapes user-supplied wildcard characters and the escape character itself. Literal punctuation returns only rows containing it.
 
 **Reproduce.** Enter a single `%` in Search. For an isolated check, seed 10,000 tracks, none containing a percent sign or underscore in their searchable text, and query each character.
 

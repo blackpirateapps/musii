@@ -126,8 +126,15 @@ void main() {
     final exact = (await search.search('stress song 42')).dataOrNull!;
     expect(exact.tracks.first.id, 't42');
     final exactMs = watch.elapsedMilliseconds;
-    for (final query in ['%', '_']) {
-      expect((await search.search(query)).dataOrNull!.tracks, hasLength(size));
+    for (final query in ['%', '_', '!']) {
+      expect((await search.search(query)).dataOrNull!.tracks, isEmpty);
+    }
+    await db.into(db.tracks).insert(track(size, title: '100%_Live!'));
+    for (final query in ['%', '_', '!']) {
+      expect(
+        (await search.search(query)).dataOrNull!.tracks.single.id,
+        't$size',
+      );
     }
     debugPrintSynchronously(
       '10,000 tracks, browse ${browseMs}ms, broad ${broadMs}ms, exact ${exactMs}ms',

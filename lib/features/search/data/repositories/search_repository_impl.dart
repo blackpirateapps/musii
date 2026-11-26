@@ -93,28 +93,35 @@ class SearchRepositoryImpl implements SearchRepository {
     }
 
     try {
-      final likePattern = '%$cleanQuery%';
+      const escape = '!';
+      String pattern(String term) =>
+          '%${term.replaceAll(escape, '$escape$escape').replaceAll('%', '$escape%').replaceAll('_', '${escape}_')}%';
+      final likePattern = pattern(cleanQuery);
       final normalized = MetadataNormalizationService.searchKey(cleanQuery);
       final keyQuery = normalized.isEmpty ? cleanQuery : normalized;
-      final keyPattern = '%$keyQuery%';
+      final keyPattern = pattern(keyQuery);
       final matchingArtists = _database.selectOnly(_database.artists)
         ..addColumns([_database.artists.id])
-        ..where(_database.artists.normalizedName.like(keyPattern));
+        ..where(
+          _database.artists.normalizedName.like(keyPattern, escapeChar: escape),
+        );
       final matchingAlbums = _database.selectOnly(_database.albums)
         ..addColumns([_database.albums.id])
-        ..where(_database.albums.normalizedTitle.like(keyPattern));
+        ..where(
+          _database.albums.normalizedTitle.like(keyPattern, escapeChar: escape),
+        );
 
       // 1. Search Tracks
       final trackRows =
           await (_database.select(_database.tracks)..where(
                 (tbl) =>
-                    tbl.normalizedTitle.like(keyPattern) |
-                    tbl.title.like(likePattern) |
+                    tbl.normalizedTitle.like(keyPattern, escapeChar: escape) |
+                    tbl.title.like(likePattern, escapeChar: escape) |
                     tbl.artistId.isInQuery(matchingArtists) |
                     tbl.albumId.isInQuery(matchingAlbums) |
-                    tbl.artistName.like(likePattern) |
-                    tbl.albumName.like(likePattern) |
-                    tbl.genre.like(likePattern),
+                    tbl.artistName.like(likePattern, escapeChar: escape) |
+                    tbl.albumName.like(likePattern, escapeChar: escape) |
+                    tbl.genre.like(likePattern, escapeChar: escape),
               ))
               .get();
 
@@ -136,10 +143,10 @@ class SearchRepositoryImpl implements SearchRepository {
       final albumRows =
           await (_database.select(_database.albums)..where(
                 (tbl) =>
-                    tbl.normalizedTitle.like(keyPattern) |
-                    tbl.title.like(likePattern) |
+                    tbl.normalizedTitle.like(keyPattern, escapeChar: escape) |
+                    tbl.title.like(likePattern, escapeChar: escape) |
                     tbl.artistId.isInQuery(matchingArtists) |
-                    tbl.artistName.like(likePattern),
+                    tbl.artistName.like(likePattern, escapeChar: escape),
               ))
               .get();
 
@@ -170,9 +177,12 @@ class SearchRepositoryImpl implements SearchRepository {
             });
 
       // 3. Search Artists
-      final artistRows = await (_database.select(
-        _database.artists,
-      )..where((tbl) => tbl.normalizedName.like(keyPattern))).get();
+      final artistRows =
+          await (_database.select(_database.artists)..where(
+                (tbl) =>
+                    tbl.normalizedName.like(keyPattern, escapeChar: escape),
+              ))
+              .get();
 
       final artists = artistRows
           .map(
@@ -190,7 +200,7 @@ class SearchRepositoryImpl implements SearchRepository {
       // 4. Search Playlists
       final playlistRows = await (_database.select(
         _database.playlists,
-      )..where((tbl) => tbl.name.like(likePattern))).get();
+      )..where((tbl) => tbl.name.like(likePattern, escapeChar: escape))).get();
 
       final playlists = playlistRows
           .map(
