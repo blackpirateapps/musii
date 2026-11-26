@@ -317,14 +317,14 @@ class CacheRepositoryImpl implements CacheRepository {
   @override
   Future<Result<void, AppFailure>> evictLruCache({int? targetSizeBytes}) async {
     try {
-      return await _database.transaction(() async {
+      await _database.transaction(() async {
         await _removeUnreferencedAudio();
         final maxAllowedBytes =
             targetSizeBytes ?? AppAudioConstants.defaultCacheSizeBytes;
         int currentTotal = await getTotalCacheSize();
 
         if (currentTotal <= maxAllowedBytes) {
-          return const Result.success(null);
+          return;
         }
 
         AppLogger.info(
@@ -348,9 +348,7 @@ class CacheRepositoryImpl implements CacheRepository {
 
           final file = File(entry.localPath);
           if (await file.exists()) {
-            final size = await file.length();
-            await file.delete();
-            currentTotal -= size;
+            currentTotal -= await file.length();
           }
 
           // Update database
@@ -371,9 +369,9 @@ class CacheRepositoryImpl implements CacheRepository {
             break; // Safely below watermark
           }
         }
-
-        return const Result<void, AppFailure>.success(null);
       });
+      await _removeUnreferencedAudio();
+      return const Result.success(null);
     } catch (e) {
       AppLogger.error(LogCategory.cache, 'Error during LRU eviction', e);
       return Result.failure(
@@ -387,7 +385,7 @@ class CacheRepositoryImpl implements CacheRepository {
     bool includePinned = false,
   }) async {
     try {
-      return await _database.transaction(() async {
+      await _database.transaction(() async {
         await _removeUnreferencedAudio();
         var query = _database.select(_database.cacheEntries);
         if (!includePinned) {
@@ -397,11 +395,6 @@ class CacheRepositoryImpl implements CacheRepository {
         final entries = await query.get();
         for (final entry in entries) {
           if (entry.trackId == _currentlyPlayingTrackId) continue;
-
-          final file = File(entry.localPath);
-          if (await file.exists()) {
-            await file.delete();
-          }
 
           await (_database.delete(
             _database.cacheEntries,
@@ -416,9 +409,9 @@ class CacheRepositoryImpl implements CacheRepository {
             ),
           );
         }
-
-        return const Result<void, AppFailure>.success(null);
       });
+      await _removeUnreferencedAudio();
+      return const Result.success(null);
     } catch (e) {
       return Result.failure(CacheFailure('Failed to clear cache', cause: e));
     }

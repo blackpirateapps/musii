@@ -438,27 +438,28 @@ void main() {
     },
   );
 
-  test(
-    'failed clear rolls back SQLite but cannot restore its deleted audio files',
-    () async {
-      await sync();
-      final a = (await cache.getOrDownloadTrack(await track('a'))).dataOrNull!;
-      final b = (await cache.getOrDownloadTrack(await track('b'))).dataOrNull!;
-      await db.customStatement("""
+  test('failed clear retains both cache records and files', () async {
+    await sync();
+    final a = (await cache.getOrDownloadTrack(await track('a'))).dataOrNull!;
+    final b = (await cache.getOrDownloadTrack(await track('b'))).dataOrNull!;
+    await db.customStatement("""
       CREATE TRIGGER fail_track_flag_update BEFORE UPDATE OF is_cached ON tracks
       WHEN OLD.is_cached = 1 AND NEW.is_cached = 0
       BEGIN SELECT RAISE(ABORT, 'fixture write error'); END
     """);
-      expect((await cache.clearCache()).isFailure, isTrue);
-      expect(await db.select(db.cacheEntries).get(), hasLength(2));
-      expect((await track('a')).isCached, isTrue);
-      expect((await track('b')).isCached, isTrue);
-      final filesOnDisk = [await a.exists(), await b.exists()];
-      expect(filesOnDisk, unorderedEquals([true, false]));
-      final missingTrackId = filesOnDisk.first ? 'track_b' : 'track_a';
-      expect(await cache.getCachedAudioFile(missingTrackId), isNull);
-    },
-  );
+    expect((await cache.clearCache()).isFailure, isTrue);
+    expect(await db.select(db.cacheEntries).get(), hasLength(2));
+    expect((await track('a')).isCached, isTrue);
+    expect((await track('b')).isCached, isTrue);
+    expect(await a.exists(), isTrue);
+    expect(await b.exists(), isTrue);
+    expect(await cache.getCachedAudioFile('track_a'), isNotNull);
+    expect(await cache.getCachedAudioFile('track_b'), isNotNull);
+    await db.customStatement('DROP TRIGGER fail_track_flag_update');
+    expect((await cache.clearCache()).isSuccess, isTrue);
+    expect(await a.exists(), isFalse);
+    expect(await b.exists(), isFalse);
+  });
 
   test(
     'same-track coalescing and LRU pinned and playing exclusions hold',

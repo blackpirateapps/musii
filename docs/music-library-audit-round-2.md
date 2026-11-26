@@ -12,7 +12,7 @@ Audited commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09` on 26 November 2026. T
 | LIB-17 | Medium | Deleting the last embedded cover hides available folder artwork for one sync | Sync fixture · Fixed |
 | LIB-18 | Medium | Superseded folder covers accumulate outside cache management | Filesystem fixture · Fixed |
 | LIB-19 | Medium | Automatic cache limit is unenforced at download time | Android settings and cache fixture |
-| LIB-20 | Medium | Failed cache clear leaves database rows for deleted files | SQLite fault injection |
+| LIB-20 | Medium | Failed cache clear leaves database rows for deleted files | SQLite fault injection · Fixed |
 | LIB-21 | Medium | A favorite can be removed by an action labeled Favorite | Android |
 | LIB-22 | Medium | Extensionless audio is downloaded during every incremental sync | Generated WAV and production metadata parser · Fixed |
 | LIB-23 | Medium | Artist detail exposes only five songs and provides no full track list | Flutter widget test · Fixed |
@@ -78,6 +78,8 @@ Audited commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09` on 26 November 2026. T
 **Expected.** Apply the saved limit to normal download and eviction decisions. A completed download should make room for new audio when enough cached bytes are evictable. The repository evicts before downloading with a fixed default and does not budget for the incoming payload. [Download entry point](../lib/features/cache/data/repositories/cache_repository_impl.dart#L106) · [LRU limit](../lib/features/cache/data/repositories/cache_repository_impl.dart#L310) · [Settings row](../lib/features/settings/presentation/pages/settings_page.dart#L450)
 
 ### LIB-20 · Failed cache clear leaves the database claiming deleted audio is cached
+
+**Resolution.** Cache clear and LRU eviction commit database changes before unlinking files. A failed write retains all cached bytes and a successful retry removes them.
 
 **Reproduce.** Cache two tracks. Inject a SQLite trigger that rejects changing a track's `is_cached` flag from true to false. Invoke Clear Cached Audio.
 
