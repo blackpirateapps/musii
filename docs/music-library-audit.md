@@ -17,7 +17,7 @@ Audited on 26 November 2026 at commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09`
 | LIB-09 | Medium | Home's See All buttons do nothing | Android and source review |
 | LIB-10 | Medium | Artists show “0 songs” while their details list songs | Android · Fixed |
 | LIB-11 | Medium | Replaying a song repeatedly hides other recently played songs | SQLite · Fixed |
-| LIB-12 | Medium | A playlist can contain repeated additions with no way to remove an individual song | Android and SQLite |
+| LIB-12 | Medium | A playlist can contain repeated additions with no way to remove an individual song | Android and SQLite · Fixed |
 | LIB-13 | Low | Concurrent favorite toggles fail and lose updates | SQLite · Fixed |
 
 ### LIB-01 · Non-Latin metadata merges unrelated music
@@ -125,6 +125,8 @@ Audited on 26 November 2026 at commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09`
 **Cause.** SQLite limits the number of play events to 30 before Dart removes repeat track IDs. [Recently Played query](../lib/features/recently_played/data/repositories/recently_played_repository_impl.dart#L71)
 
 ### LIB-12 · Playlist duplicates accumulate with no per-song removal control
+
+**Resolution.** Playlist details expose Remove from Playlist for each membership. The action deletes only the selected occurrence and keeps the remaining order and count intact, including playlists with pre-existing duplicates.
 
 **Reproduce.** Use a scratch playlist. Add the same library track twice through the overflow action, then open the playlist and inspect either row's menu. In the fixture, issue 24 add requests for one track and call the existing removal operation once.
 

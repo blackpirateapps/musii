@@ -28,6 +28,7 @@ Future<void> showTrackActionSheet({
   String? queueItemId,
   int? queueIndex,
   VoidCallback? onRemovedFromQueue,
+  VoidCallback? onRemoveFromPlaylist,
 }) async {
   final isFav = ref.read(isTrackFavoriteProvider(track.id)).value ?? false;
   final isDownloaded = track.isPinnedOffline && track.isCached;
@@ -133,6 +134,15 @@ Future<void> showTrackActionSheet({
             child: const Text('Add to Queue'),
           ),
         ],
+        if (onRemoveFromPlaylist != null)
+          CupertinoActionSheetAction(
+            isDestructiveAction: true,
+            onPressed: () {
+              Navigator.pop(ctx);
+              onRemoveFromPlaylist();
+            },
+            child: const Text('Remove from Playlist'),
+          ),
         CupertinoActionSheetAction(
           onPressed: () async {
             Navigator.pop(ctx);
@@ -175,9 +185,7 @@ Future<void> showTrackActionSheet({
             );
           },
           child: Text(
-            isDownloaded
-                ? 'Remove Offline Download'
-                : 'Download for Offline',
+            isDownloaded ? 'Remove Offline Download' : 'Download for Offline',
           ),
         ),
         if (track.albumId != null && trackContext != TrackActionContext.album)

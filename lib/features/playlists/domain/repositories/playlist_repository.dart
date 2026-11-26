@@ -6,6 +6,11 @@ import '../entities/playlist.dart';
 abstract class PlaylistRepository {
   Stream<List<Playlist>> watchPlaylists();
   Stream<List<Track>> watchPlaylistTracks(String playlistId);
+  Stream<List<PlaylistEntry>> watchPlaylistEntries(String playlistId);
+  Future<Result<void, AppFailure>> removePlaylistEntry(
+    String playlistId,
+    String entryId,
+  );
   Future<Result<String, AppFailure>> createPlaylist(
     String name, {
     String? description,

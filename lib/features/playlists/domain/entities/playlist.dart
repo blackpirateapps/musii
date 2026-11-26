@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 
+import '../../../library/domain/entities/music_entities.dart';
+
 @immutable
 class Playlist {
   final String id;
@@ -46,4 +48,12 @@ class Playlist {
 
   @override
   int get hashCode => id.hashCode;
+}
+
+@immutable
+class PlaylistEntry {
+  final String id;
+  final Track track;
+
+  const PlaylistEntry({required this.id, required this.track});
 }

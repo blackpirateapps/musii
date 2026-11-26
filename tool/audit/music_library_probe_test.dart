@@ -439,7 +439,7 @@ void main() {
     },
   );
 
-  test('playlist duplicate rows are all removed by a track removal', () async {
+  test('playlist row removal preserves other copies of the song', () async {
     await db.into(db.tracks).insert(track(0));
     final playlist = (await playlists.createPlaylist('Stress Playlist'))
         .dataOrNull!;
@@ -447,7 +447,18 @@ void main() {
       List.generate(24, (_) => playlists.addTrackToPlaylist(playlist, 't0')),
     );
     expect(adds.every((result) => result.isSuccess), isTrue);
-    expect(await playlists.watchPlaylistTracks(playlist).first, hasLength(24));
+    final entries = await playlists.watchPlaylistEntries(playlist).first;
+    expect(entries, hasLength(24));
+    expect(
+      (await playlists.removePlaylistEntry(playlist, entries[3].id)).isSuccess,
+      isTrue,
+    );
+    final remaining = await playlists.watchPlaylistEntries(playlist).first;
+    expect(
+      remaining.map((entry) => entry.id),
+      entries.map((entry) => entry.id).where((id) => id != entries[3].id),
+    );
+    expect((await playlists.watchPlaylists().first).single.trackCount, 23);
     expect(
       (await playlists.removeTrackFromPlaylist(playlist, 't0')).isSuccess,
       isTrue,

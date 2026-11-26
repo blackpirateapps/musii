@@ -84,7 +84,12 @@ class PlaylistRepositoryImpl implements PlaylistRepository {
   }
 
   @override
-  Stream<List<Track>> watchPlaylistTracks(String playlistId) {
+  Stream<List<Track>> watchPlaylistTracks(String playlistId) =>
+      watchPlaylistEntries(playlistId)
+          .map((entries) => entries.map((entry) => entry.track).toList());
+
+  @override
+  Stream<List<PlaylistEntry>> watchPlaylistEntries(String playlistId) {
     final query =
         _database.select(_database.playlistTracks).join([
             innerJoin(
@@ -97,7 +102,12 @@ class PlaylistRepositoryImpl implements PlaylistRepository {
 
     return query.watch().map((rows) {
       return rows
-          .map((r) => _mapDbTrackToEntity(r.readTable(_database.tracks)))
+          .map(
+            (r) => PlaylistEntry(
+              id: r.readTable(_database.playlistTracks).id,
+              track: _mapDbTrackToEntity(r.readTable(_database.tracks)),
+            ),
+          )
           .toList();
     });
   }
@@ -216,13 +226,25 @@ class PlaylistRepositoryImpl implements PlaylistRepository {
   Future<Result<void, AppFailure>> removeTrackFromPlaylist(
     String playlistId,
     String trackId,
-  ) async {
+  ) => _removePlaylistRows(playlistId, trackId, byEntry: false);
+
+  @override
+  Future<Result<void, AppFailure>> removePlaylistEntry(
+    String playlistId,
+    String entryId,
+  ) => _removePlaylistRows(playlistId, entryId, byEntry: true);
+
+  Future<Result<void, AppFailure>> _removePlaylistRows(
+    String playlistId,
+    String id, {
+    required bool byEntry,
+  }) async {
     try {
       await _database.transaction(() async {
         await (_database.delete(_database.playlistTracks)..where(
               (tbl) =>
                   tbl.playlistId.equals(playlistId) &
-                  tbl.trackId.equals(trackId),
+                  (byEntry ? tbl.id : tbl.trackId).equals(id),
             ))
             .go();
 

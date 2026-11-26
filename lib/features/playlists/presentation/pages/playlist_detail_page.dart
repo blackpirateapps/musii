@@ -48,7 +48,7 @@ class PlaylistDetailPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final playlistsAsync = ref.watch(playlistsProvider);
-    final tracksAsync = ref.watch(playlistTracksProvider(playlistId));
+    final tracksAsync = ref.watch(playlistEntriesProvider(playlistId));
     final currentTrackId = ref.watch(
       playerStateProvider.select((s) => s.value?.currentTrack?.id),
     );
@@ -99,7 +99,8 @@ class PlaylistDetailPage extends ConsumerWidget {
             title: 'Error loading playlist',
             subtitle: e.toString(),
           ),
-          data: (tracks) {
+          data: (entries) {
+            final tracks = entries.map((entry) => entry.track).toList();
             final artworkSize = MediaQuery.of(context).size.width * 0.50;
 
             Widget artworkWidget;
@@ -310,6 +311,30 @@ class PlaylistDetailPage extends ConsumerWidget {
                           context: context,
                           track: track,
                           ref: ref,
+                          trackContext: TrackActionContext.playlist,
+                          onRemoveFromPlaylist: () async {
+                            final result = await ref
+                                .read(playlistRepositoryProvider)
+                                .removePlaylistEntry(
+                                  playlistId,
+                                  entries[index].id,
+                                );
+                            if (result.isSuccess || !context.mounted) return;
+                            await showCupertinoDialog<void>(
+                              context: context,
+                              builder: (dialogContext) => CupertinoAlertDialog(
+                                title: const Text('Could Not Remove Song'),
+                                content: Text(result.failureOrNull!.message),
+                                actions: [
+                                  CupertinoDialogAction(
+                                    onPressed: () =>
+                                        Navigator.pop(dialogContext),
+                                    child: const Text('OK'),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
                         ),
                       );
                     }, childCount: tracks.length),
