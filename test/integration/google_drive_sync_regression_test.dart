@@ -196,7 +196,7 @@ void main() {
   tearDown(() => db.close());
 
   Future<Set<String>> trackIds() async =>
-      (await db.select(db.tracks).get()).map((row) => row.driveFileId).toSet();
+      (await db.select(db.tracks).get()).map((row) => row.driveFileId).nonNulls.toSet();
 
   Future<void> seed() async {
     expect(
@@ -933,7 +933,7 @@ void main() {
           ids.map(
             (id) => TracksCompanion.insert(
               id: 'track_$id',
-              driveFileId: id,
+              driveFileId: Value(id),
               sourceId: 'source_gdrive',
               title: id,
               normalizedTitle: id,

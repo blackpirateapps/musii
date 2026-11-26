@@ -35,7 +35,7 @@ void main() {
           .insert(
             TracksCompanion.insert(
               id: 'track_test_101',
-              driveFileId: 'drive_file_101',
+              driveFileId: const Value('drive_file_101'),
               sourceId: 'source_gdrive',
               title: 'Mayonaka no Door',
               normalizedTitle: 'mayonaka no door',
@@ -86,7 +86,7 @@ void main() {
             .insert(
               TracksCompanion.insert(
                 id: 'track_words_102',
-                driveFileId: 'df_words_102',
+                driveFileId: const Value('df_words_102'),
                 sourceId: 'source_gdrive',
                 title: 'Look In My Eyes',
                 normalizedTitle: 'look in my eyes',
@@ -157,7 +157,7 @@ void main() {
           .insert(
             TracksCompanion.insert(
               id: trackId,
-              driveFileId: 'drive_fav_1',
+              driveFileId: const Value('drive_fav_1'),
               sourceId: 'source_gdrive',
               title: 'Favorite Song',
               normalizedTitle: 'favorite song',
@@ -195,7 +195,7 @@ void main() {
           .insert(
             TracksCompanion.insert(
               id: 't1',
-              driveFileId: 'df1',
+              driveFileId: const Value('df1'),
               sourceId: 'src',
               title: 'Track 1',
               normalizedTitle: 'track 1',
@@ -208,7 +208,7 @@ void main() {
           .insert(
             TracksCompanion.insert(
               id: 't2',
-              driveFileId: 'df2',
+              driveFileId: const Value('df2'),
               sourceId: 'src',
               title: 'Track 2',
               normalizedTitle: 'track 2',
@@ -240,7 +240,7 @@ void main() {
           .insert(
             TracksCompanion.insert(
               id: trackId,
-              driveFileId: 'df_recent',
+              driveFileId: const Value('df_recent'),
               sourceId: 'src',
               title: 'Recent Song',
               normalizedTitle: 'recent song',

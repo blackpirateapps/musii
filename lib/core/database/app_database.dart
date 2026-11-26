@@ -54,7 +54,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? e]) : super(e ?? _openConnection());
 
   @override
-  int get schemaVersion => 12;
+  int get schemaVersion => 13;
 
   @override
   MigrationStrategy get migration {
@@ -254,6 +254,14 @@ class AppDatabase extends _$AppDatabase {
               ORDER BY latest.started_at DESC, latest.id DESC LIMIT 1
             ) AND run.discovery_completed = 1 AND file.is_lrc = 0
           ''');
+        }
+        if (from < 13 && !await _columnExists('tracks', 'youtube_video_id')) {
+          await m.alterTable(
+            TableMigration(
+              tracks,
+              newColumns: [tracks.youtubeVideoId, tracks.artworkUrl],
+            ),
+          );
         }
       },
       beforeOpen: (details) async {

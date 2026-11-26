@@ -93,6 +93,11 @@ class CacheRepositoryImpl implements CacheRepository {
     Track track, {
     void Function(double progress)? onProgress,
   }) async {
+    if (track.driveFileId == null) {
+      return const Result.failure(
+        CacheFailure('Offline downloads are available for Drive tracks.'),
+      );
+    }
     final existingFuture = _inFlightDownloads[track.id];
     if (existingFuture != null) {
       return existingFuture;
@@ -118,7 +123,8 @@ class CacheRepositoryImpl implements CacheRepository {
 
       final reservation = await _database.transaction(() async {
         final latest = await _findTrack(track.id);
-        if (latest == null) return null;
+        final driveId = latest?.driveFileId;
+        if (latest == null || driveId == null) return null;
         final extension = latest.format?.toLowerCase() ?? 'mp3';
         final target = _fileSystem.getAudioCacheFile(track.id, extension);
         final version = latest.driveAudioVersion;
@@ -128,7 +134,7 @@ class CacheRepositoryImpl implements CacheRepository {
               CacheEntriesCompanion.insert(
                 id: track.id,
                 trackId: track.id,
-                driveFileId: latest.driveFileId,
+                driveFileId: driveId,
                 localPath: target.path,
                 fileSize: latest.fileSize,
                 state: 'downloading',
@@ -137,7 +143,7 @@ class CacheRepositoryImpl implements CacheRepository {
                 isPinnedOffline: Value(latest.isPinnedOffline),
               ),
             );
-        return (latest.driveFileId, target, version, latest.driveMd5Checksum);
+        return (driveId, target, version, latest.driveMd5Checksum);
       });
       if (reservation == null) {
         return const Result.failure(

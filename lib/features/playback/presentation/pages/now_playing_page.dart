@@ -112,6 +112,9 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
     final hasLoadError = ref.watch(
       playerStateProvider.select((s) => s.value?.hasLoadError ?? false),
     );
+    final loadErrorMessage = ref.watch(
+      playerStateProvider.select((s) => s.value?.loadErrorMessage),
+    );
     final shuffleMode = ref.watch(
       playerStateProvider.select((s) => s.value?.shuffleMode ?? false),
     );
@@ -158,6 +161,7 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
               Positioned.fill(
                 child: ArtworkBackdrop(
                   artworkPath: track?.artworkPath,
+                  artworkUrl: track?.artworkUrl,
                   overlay: const BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.topCenter,
@@ -279,6 +283,7 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
                                     ),
                                     child: AlbumArtwork(
                                       artworkPath: track?.artworkPath,
+                                      artworkUrl: track?.artworkUrl,
                                       title: track?.title,
                                       artist: track?.artistName,
                                       size: artworkSize,
@@ -493,7 +498,10 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
                                     child: Semantics(
                                       liveRegion: true,
                                       child: Text(
-                                        isLoadingTrack ? 'Loading audio…' : 'Couldn’t start playback. Tap Play to retry.',
+                                        isLoadingTrack
+                                            ? 'Loading audio…'
+                                            : loadErrorMessage ??
+                                                  'Couldn’t start playback. Tap Play to retry.',
                                         textAlign: TextAlign.center,
                                         style: const TextStyle(
                                           color: CupertinoColors.white,

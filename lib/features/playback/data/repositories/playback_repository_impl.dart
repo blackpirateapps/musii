@@ -7,6 +7,7 @@ import 'package:drift/drift.dart' as drift;
 import 'package:just_audio/just_audio.dart';
 
 import '../../../../core/database/app_database.dart' hide PlaybackState;
+import '../../../../core/error/failures.dart';
 import '../../../../core/filesystem/app_file_system.dart';
 import '../../../../core/logging/app_logger.dart';
 import '../../../../core/services/connectivity_service.dart';
@@ -16,16 +17,18 @@ import '../../../last_fm/data/services/last_fm_playback_coordinator.dart';
 import '../../../metadata/domain/services/metadata_normalization_service.dart';
 import '../../../playlists/domain/entities/playlist_entities.dart';
 import '../../../recently_played/data/repositories/recently_played_repository_impl.dart';
+import '../../../youtube_music/data/youtube_music_client.dart';
 import '../../domain/entities/playback_repository.dart';
 import '../../domain/entities/playback_state.dart';
 
 class MusiiAudioHandler extends BaseAudioHandler
     with QueueHandler, SeekHandler {
-  final AudioPlayer _player = AudioPlayer();
+  final AudioPlayer _player;
   final CacheRepository _cacheRepository;
   final RecentlyPlayedRepository _recentlyPlayedRepository;
   final AppDatabase _database;
   final ConnectivityService _connectivityService;
+  final YouTubeMusicClient _youtubeMusic;
   LastFmPlaybackCoordinator? _lastFmCoordinator;
 
   List<QueueItem> _currentQueue = [];
@@ -37,6 +40,7 @@ class MusiiAudioHandler extends BaseAudioHandler
   int _loadGeneration = 0;
   String? _loadedTrackId;
   String? _loadingTrackId;
+  bool _retryingStream = false;
 
   final StreamController<PlayerStateSnapshot> _stateController =
       StreamController<PlayerStateSnapshot>.broadcast();
@@ -49,10 +53,14 @@ class MusiiAudioHandler extends BaseAudioHandler
     required AppDatabase database,
     ConnectivityService? connectivityService,
     LastFmPlaybackCoordinator? lastFmCoordinator,
-  }) : _cacheRepository = cacheRepository,
+    YouTubeMusicClient youtubeMusic = const YouTubeMusicClient(),
+    AudioPlayer? player,
+  }) : _player = player ?? AudioPlayer(),
+       _cacheRepository = cacheRepository,
        _recentlyPlayedRepository = recentlyPlayedRepository,
        _database = database,
        _connectivityService = connectivityService ?? ConnectivityService(),
+       _youtubeMusic = youtubeMusic,
        _lastFmCoordinator = lastFmCoordinator {
     _initAudioSession();
     _listenToPlayerEvents();
@@ -82,7 +90,8 @@ class MusiiAudioHandler extends BaseAudioHandler
   }
 
   Track _resolveTrackArtwork(Track track) {
-    if (track.artworkPath != null && track.artworkPath!.isNotEmpty) {
+    if (track.youtubeVideoId != null ||
+        (track.artworkPath != null && track.artworkPath!.isNotEmpty)) {
       return track;
     }
     final resolved =
@@ -92,7 +101,8 @@ class MusiiAudioHandler extends BaseAudioHandler
   }
 
   MediaItem _toMediaItem(Track track) {
-    Uri? artUri;
+    Uri? artUri = Uri.tryParse(track.artworkUrl ?? '');
+    if (artUri?.scheme != 'https') artUri = null;
     final artworkPath =
         (track.artworkPath != null && track.artworkPath!.isNotEmpty)
         ? track.artworkPath
@@ -167,7 +177,7 @@ class MusiiAudioHandler extends BaseAudioHandler
             ? AudioProcessingState.error
             : audioProcessing,
         errorMessage: _snapshot.hasLoadError
-            ? 'Unable to start playback'
+            ? _snapshot.loadErrorMessage ?? 'Unable to start playback'
             : null,
         playing: isPlaying,
         updatePosition: isRestore ? _snapshot.position : _player.position,
@@ -180,6 +190,15 @@ class MusiiAudioHandler extends BaseAudioHandler
   }
 
   void _listenToPlayerEvents() {
+    _player.errorStream.listen((_) {
+      final track = _currentTrack;
+      if (track != null &&
+          track.youtubeVideoId != null &&
+          _loadedTrackId == track.id &&
+          _loadingTrackId == null) {
+        unawaited(_recoverStream(track, _snapshot.position));
+      }
+    });
     _player.playbackEventStream.listen((PlaybackEvent event) {
       if (_loadingTrackId != null || _loadedTrackId != _currentTrack?.id) {
         return;
@@ -242,6 +261,7 @@ class MusiiAudioHandler extends BaseAudioHandler
   }
 
   Future<void> _onTrackCompleted() async {
+    final generation = _loadGeneration;
     final current = _snapshot.currentTrack;
     if (current != null) {
       _lastFmCoordinator?.onTrackCompleted();
@@ -251,6 +271,7 @@ class MusiiAudioHandler extends BaseAudioHandler
         true,
       );
     }
+    if (generation != _loadGeneration) return;
 
     if (_repeatMode == AudioRepeatMode.one) {
       await seek(Duration.zero);
@@ -318,22 +339,31 @@ class MusiiAudioHandler extends BaseAudioHandler
       _currentIndex = 0;
       _playNextCount = 0;
     } else {
-      _currentIndex = _currentQueue.indexWhere((q) => q.track.id == track.id);
+      _currentIndex =
+          queueIndex ?? _currentQueue.indexWhere((q) => q.track.id == track.id);
       if (_currentIndex == -1) _currentIndex = 0;
       _playNextCount = 0;
     }
 
-    final targetTrack = _currentTrack ?? _resolveTrackArtwork(track);
-    _cacheRepository.setCurrentlyPlayingTrackId(targetTrack.id);
-
     // Sync media session queue immediately
     _syncMediaQueue();
     unawaited(_persistQueue());
-    unawaited(_persistState());
+    await _loadCurrentTrack(_currentTrack ?? _resolveTrackArtwork(track));
+  }
 
+  Future<void> _loadCurrentTrack(
+    Track targetTrack, {
+    Duration position = Duration.zero,
+    bool retryingStream = false,
+  }) async {
+    final videoId = targetTrack.youtubeVideoId;
+    _cacheRepository.setCurrentlyPlayingTrackId(
+      targetTrack.driveFileId == null ? null : targetTrack.id,
+    );
     final currentGen = ++_loadGeneration;
     _loadingTrackId = targetTrack.id;
     _loadedTrackId = null;
+    _retryingStream = retryingStream;
 
     // Emit loading state immediately
     _emitSnapshot(
@@ -345,10 +375,11 @@ class MusiiAudioHandler extends BaseAudioHandler
         isPlaying: false,
         queueItems: _currentQueue,
         queueIndex: _currentIndex,
-        position: Duration.zero,
+        position: position,
         duration: Duration(milliseconds: targetTrack.durationMs),
       ),
     );
+    final saveSelection = _persistState();
 
     // Update MediaItem for system notification
     mediaItem.add(_toMediaItem(targetTrack));
@@ -373,7 +404,7 @@ class MusiiAudioHandler extends BaseAudioHandler
         androidCompactActionIndices: const [0, 1, 2],
         processingState: AudioProcessingState.loading,
         playing: true,
-        updatePosition: Duration.zero,
+        updatePosition: position,
         bufferedPosition: Duration.zero,
         speed: 1.0,
         queueIndex: _currentIndex,
@@ -386,34 +417,23 @@ class MusiiAudioHandler extends BaseAudioHandler
       await _player.pause();
       if (currentGen != _loadGeneration) return;
 
-      AppLogger.info(
-        LogCategory.playback,
-        'Fetching audio for: ${targetTrack.title}',
-      );
-      final fileResult = await _cacheRepository.getOrDownloadTrack(targetTrack);
-
-      // Check if a newer track load request was initiated while downloading
-      if (currentGen != _loadGeneration) {
-        AppLogger.debug(
-          LogCategory.playback,
-          'Discarding stale load for ${targetTrack.title}',
+      if (videoId != null) {
+        final stream = await _youtubeMusic.resolveAudio(videoId);
+        if (currentGen != _loadGeneration) return;
+        await _player.setUrl(stream.toString(), initialPosition: position);
+      } else {
+        final fileResult = await _cacheRepository.getOrDownloadTrack(targetTrack);
+        if (currentGen != _loadGeneration) return;
+        if (fileResult.isFailure) {
+          _publishLoadFailure();
+          return;
+        }
+        await _player.setFilePath(
+          fileResult.dataOrNull!.path,
+          initialPosition: position,
         );
-        return;
       }
 
-      if (fileResult.isFailure) {
-        AppLogger.error(
-          LogCategory.playback,
-          'Failed to obtain audio file: ${fileResult.failureOrNull?.message}',
-        );
-        _publishLoadFailure();
-        return;
-      }
-
-      final file = fileResult.dataOrNull!;
-      if (currentGen != _loadGeneration) return;
-
-      await _player.setFilePath(file.path);
       if (currentGen != _loadGeneration) return;
 
       _loadedTrackId = targetTrack.id;
@@ -426,18 +446,21 @@ class MusiiAudioHandler extends BaseAudioHandler
         ),
       );
 
-      await _player.play();
-      if (currentGen != _loadGeneration) return;
-
-      _lastFmCoordinator?.onTrackStarted(targetTrack);
-
-      await _persistState();
-      await _persistQueue();
-
-      // Trigger automatic background Wi-Fi pre-caching for upcoming tracks
+      // just_audio's play future stays pending while the track is playing.
+      unawaited(_startPlayback());
       unawaited(_precacheUpcomingWifiTracks());
+      await _persistState();
     } catch (e, st) {
-      if (currentGen == _loadGeneration) {
+      if (currentGen != _loadGeneration) return;
+      if (videoId != null) {
+        if (e is PlayerException) {
+          await _recoverStream(targetTrack, position);
+        } else {
+          _publishLoadFailure(
+            e is AppFailure ? e.message : 'Could not load the YouTube track.',
+          );
+        }
+      } else {
         AppLogger.error(
           LogCategory.playback,
           'Playback error for ${targetTrack.title}',
@@ -446,10 +469,35 @@ class MusiiAudioHandler extends BaseAudioHandler
         );
         _publishLoadFailure();
       }
+    } finally {
+      await saveSelection;
     }
   }
 
-  void _publishLoadFailure() {
+  Future<void> _startPlayback() async {
+    final generation = _loadGeneration;
+    try {
+      await _player.play();
+    } catch (_) {
+      final track = _currentTrack;
+      if (generation != _loadGeneration || _loadedTrackId == null) return;
+      if (track != null && track.youtubeVideoId != null) {
+        await _recoverStream(track, _snapshot.position);
+      } else {
+        _publishLoadFailure();
+      }
+    }
+  }
+
+  Future<void> _recoverStream(Track track, Duration position) async {
+    if (_retryingStream) {
+      _publishLoadFailure('YouTube audio stopped. Tap Play to retry.');
+    } else {
+      await _loadCurrentTrack(track, position: position, retryingStream: true);
+    }
+  }
+
+  void _publishLoadFailure([String? message]) {
     _loadingTrackId = null;
     _loadedTrackId = null;
     _cacheRepository.setCurrentlyPlayingTrackId(null);
@@ -459,6 +507,7 @@ class MusiiAudioHandler extends BaseAudioHandler
         isBuffering: false,
         isPlaying: false,
         hasLoadError: true,
+        loadErrorMessage: message,
       ),
     );
     _broadcastPlaybackState();
@@ -471,8 +520,9 @@ class MusiiAudioHandler extends BaseAudioHandler
 
       final nextTracks = _currentQueue
           .skip(_currentIndex + 1)
-          .take(3)
           .map((item) => item.track)
+          .where((track) => track.driveFileId != null)
+          .take(3)
           .toList();
 
       for (final track in nextTracks) {
@@ -504,7 +554,7 @@ class MusiiAudioHandler extends BaseAudioHandler
       if (_player.processingState == ProcessingState.completed) {
         await seek(Duration.zero);
       }
-      await _player.play();
+      unawaited(_startPlayback());
       _broadcastPlaybackState();
       await _persistState();
     } else if (_loadingTrackId == target.id) {
@@ -512,7 +562,7 @@ class MusiiAudioHandler extends BaseAudioHandler
       return;
     } else {
       // Target track is not loaded in player; load and play it now.
-      await loadAndPlayTrack(target);
+      await _loadCurrentTrack(target, position: _snapshot.position);
     }
   }
 
@@ -588,24 +638,24 @@ class MusiiAudioHandler extends BaseAudioHandler
 
     if (_currentIndex < _currentQueue.length - 1) {
       _currentIndex++;
-      await loadAndPlayTrack(_currentQueue[_currentIndex].track);
+      await _loadCurrentTrack(_currentQueue[_currentIndex].track);
     } else if (_repeatMode == AudioRepeatMode.all) {
       _currentIndex = 0;
-      await loadAndPlayTrack(_currentQueue[_currentIndex].track);
+      await _loadCurrentTrack(_currentQueue[_currentIndex].track);
     }
   }
 
   @override
   Future<void> skipToPrevious() async {
     _playNextCount = 0;
-    if (_player.position.inSeconds > 3) {
+    if (_snapshot.position.inSeconds > 3 && _loadedTrackId != null) {
       await seek(Duration.zero);
       return;
     }
 
     if (_currentIndex > 0) {
       _currentIndex--;
-      await loadAndPlayTrack(_currentQueue[_currentIndex].track);
+      await _loadCurrentTrack(_currentQueue[_currentIndex].track);
     } else {
       await seek(Duration.zero);
     }
@@ -616,7 +666,7 @@ class MusiiAudioHandler extends BaseAudioHandler
     _playNextCount = 0;
     if (index >= 0 && index < _currentQueue.length) {
       _currentIndex = index;
-      await loadAndPlayTrack(_currentQueue[_currentIndex].track);
+      await _loadCurrentTrack(_currentQueue[_currentIndex].track);
     }
   }
 
@@ -816,7 +866,7 @@ class MusiiAudioHandler extends BaseAudioHandler
         if (_currentIndex >= _currentQueue.length) {
           _currentIndex = _currentQueue.length - 1;
         }
-        loadAndPlayTrack(_currentQueue[_currentIndex].track);
+        unawaited(_loadCurrentTrack(_currentQueue[_currentIndex].track));
       } else if (index < _currentIndex) {
         _currentIndex--;
         _emitSnapshot(
@@ -884,30 +934,43 @@ class MusiiAudioHandler extends BaseAudioHandler
 
   Future<void> _persistState() async {
     try {
+      final loaded = _loadedTrackId != null;
       await _database
           .into(_database.playbackStates)
           .insertOnConflictUpdate(
             PlaybackStatesCompanion(
               id: const drift.Value('current'),
               currentTrackId: drift.Value(_currentTrack?.id),
-              positionMs: drift.Value(_player.position.inMilliseconds),
-              durationMs: drift.Value(_player.duration?.inMilliseconds ?? 0),
-              isPlaying: drift.Value(_player.playing),
+              positionMs: drift.Value(
+                (loaded ? _player.position : _snapshot.position).inMilliseconds,
+              ),
+              durationMs: drift.Value(
+                ((loaded ? _player.duration : null) ?? _snapshot.duration)
+                    .inMilliseconds,
+              ),
+              isPlaying: drift.Value(loaded && _player.playing),
               shuffleMode: drift.Value(_shuffleMode),
               repeatMode: drift.Value(_repeatMode.value),
               queueIndex: drift.Value(_currentIndex),
               updatedAt: drift.Value(DateTime.now()),
             ),
           );
-    } catch (_) {}
+    } catch (e) {
+      AppLogger.warning(
+        LogCategory.playback,
+        'Failed to persist playback state',
+        e,
+      );
+    }
   }
 
   Future<void> _persistQueue() async {
+    final items = List.of(_currentQueue);
     try {
       await _database.transaction(() async {
         await _database.delete(_database.playbackQueue).go();
-        for (int i = 0; i < _currentQueue.length; i++) {
-          final item = _currentQueue[i];
+        for (int i = 0; i < items.length; i++) {
+          final item = items[i];
           await _database
               .into(_database.playbackQueue)
               .insert(
@@ -951,6 +1014,8 @@ class MusiiAudioHandler extends BaseAudioHandler
           final track = Track(
             id: t.id,
             driveFileId: t.driveFileId,
+            youtubeVideoId: t.youtubeVideoId,
+            artworkUrl: t.artworkUrl,
             sourceId: t.sourceId,
             title: t.title,
             normalizedTitle: t.normalizedTitle,
@@ -977,8 +1042,10 @@ class MusiiAudioHandler extends BaseAudioHandler
             localPath: t.localPath,
             artworkPath:
                 t.artworkPath ??
-                _resolveArtworkPath(t.albumName, t.albumArtist) ??
-                _resolveArtworkPath(t.albumName, t.artistName),
+                (t.driveFileId == null
+                    ? null
+                    : _resolveArtworkPath(t.albumName, t.albumArtist) ??
+                          _resolveArtworkPath(t.albumName, t.artistName)),
           );
           return QueueItem(id: qRow.id, track: track);
         }).toList();

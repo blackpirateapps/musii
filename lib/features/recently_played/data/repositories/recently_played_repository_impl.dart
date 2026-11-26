@@ -36,6 +36,8 @@ class RecentlyPlayedRepositoryImpl implements RecentlyPlayedRepository {
     return Track(
       id: row.id,
       driveFileId: row.driveFileId,
+      youtubeVideoId: row.youtubeVideoId,
+      artworkUrl: row.artworkUrl,
       sourceId: row.sourceId,
       title: row.title,
       normalizedTitle: row.normalizedTitle,

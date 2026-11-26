@@ -459,7 +459,7 @@ void main() {
         .insert(
           TracksCompanion.insert(
             id: 'track_v10',
-            driveFileId: 'df_v10',
+            driveFileId: const Value('df_v10'),
             sourceId: 'src_v10',
             title: 'V10 Track',
             normalizedTitle: 'v10 track',
@@ -521,7 +521,7 @@ void main() {
           .insert(
             TracksCompanion.insert(
               id: 'track_dup_1',
-              driveFileId: 'df_dup_1',
+              driveFileId: const Value('df_dup_1'),
               sourceId: 'src_dup',
               title: 'Track 1',
               normalizedTitle: 'track 1',
@@ -536,7 +536,7 @@ void main() {
           .insert(
             TracksCompanion.insert(
               id: 'track_dup_2',
-              driveFileId: 'df_dup_2',
+              driveFileId: const Value('df_dup_2'),
               sourceId: 'src_dup',
               title: 'Track 2',
               normalizedTitle: 'track 2',

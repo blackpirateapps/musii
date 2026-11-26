@@ -80,7 +80,9 @@ class Genres extends Table {
 @DataClassName('TrackRow')
 class Tracks extends Table {
   TextColumn get id => text()();
-  TextColumn get driveFileId => text().unique()();
+  TextColumn get driveFileId => text().nullable().unique()();
+  TextColumn get youtubeVideoId => text().nullable().unique()();
+  TextColumn get artworkUrl => text().nullable()();
   TextColumn get sourceId => text()();
   TextColumn get title => text()();
   TextColumn get normalizedTitle => text()();
@@ -116,6 +118,11 @@ class Tracks extends Table {
 
   @override
   Set<Column> get primaryKey => {id};
+
+  @override
+  List<String> get customConstraints => [
+    'CHECK ((drive_file_id IS NULL) <> (youtube_video_id IS NULL))',
+  ];
 }
 
 class TrackSources extends Table {

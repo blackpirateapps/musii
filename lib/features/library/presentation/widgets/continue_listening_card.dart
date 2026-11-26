@@ -102,6 +102,7 @@ class ContinueListeningCard extends ConsumerWidget {
                         tag: 'current_artwork_${track.id}',
                         child: AlbumArtwork(
                           artworkPath: track.artworkPath,
+                          artworkUrl: track.artworkUrl,
                           title: track.title,
                           artist: track.artistName,
                           size: 102,

@@ -49,7 +49,7 @@ void main() {
 
   TracksCompanion track(int index, {String? title}) => TracksCompanion.insert(
     id: 't$index',
-    driveFileId: 'file$index',
+    driveFileId: Value('file$index'),
     sourceId: 'source_gdrive',
     title: title ?? 'Stress Song $index',
     normalizedTitle: (title ?? 'Stress Song $index').toLowerCase(),

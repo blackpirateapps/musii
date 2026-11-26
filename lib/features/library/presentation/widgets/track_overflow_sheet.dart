@@ -178,35 +178,36 @@ Future<void> showTrackActionSheet({
           },
           child: const Text('Add to Playlist...'),
         ),
-        CupertinoActionSheetAction(
-          onPressed: () async {
-            Navigator.pop(ctx);
-            await HapticFeedback.lightImpact();
-            if (!context.mounted) return;
-            final cacheRepo = ref.read(cacheRepositoryProvider);
-            final result = isDownloaded
-                ? await cacheRepo.unpinTrackOffline(track.id)
-                : await cacheRepo.pinTrackOffline(track.id);
-            final failure = result.failureOrNull;
-            if (failure == null || !context.mounted) return;
-            await showCupertinoDialog<void>(
-              context: context,
-              builder: (dialogContext) => CupertinoAlertDialog(
-                title: const Text('Could Not Update Offline Download'),
-                content: Text(failure.message),
-                actions: [
-                  CupertinoDialogAction(
-                    onPressed: () => Navigator.pop(dialogContext),
-                    child: const Text('OK'),
-                  ),
-                ],
-              ),
-            );
-          },
-          child: Text(
-            isDownloaded ? 'Remove Offline Download' : 'Download for Offline',
+        if (track.driveFileId != null)
+          CupertinoActionSheetAction(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await HapticFeedback.lightImpact();
+              if (!context.mounted) return;
+              final cacheRepo = ref.read(cacheRepositoryProvider);
+              final result = isDownloaded
+                  ? await cacheRepo.unpinTrackOffline(track.id)
+                  : await cacheRepo.pinTrackOffline(track.id);
+              final failure = result.failureOrNull;
+              if (failure == null || !context.mounted) return;
+              await showCupertinoDialog<void>(
+                context: context,
+                builder: (dialogContext) => CupertinoAlertDialog(
+                  title: const Text('Could Not Update Offline Download'),
+                  content: Text(failure.message),
+                  actions: [
+                    CupertinoDialogAction(
+                      onPressed: () => Navigator.pop(dialogContext),
+                      child: const Text('OK'),
+                    ),
+                  ],
+                ),
+              );
+            },
+            child: Text(
+              isDownloaded ? 'Remove Offline Download' : 'Download for Offline',
+            ),
           ),
-        ),
         if (track.albumId != null && trackContext != TrackActionContext.album)
           CupertinoActionSheetAction(
             onPressed: () {

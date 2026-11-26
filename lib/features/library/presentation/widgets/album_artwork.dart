@@ -6,6 +6,7 @@ import '../../../../core/constants/app_constants.dart';
 
 class AlbumArtwork extends StatelessWidget {
   final String? artworkPath;
+  final String? artworkUrl;
   final String? title;
   final String? artist;
   final double size;
@@ -14,6 +15,7 @@ class AlbumArtwork extends StatelessWidget {
   const AlbumArtwork({
     super.key,
     this.artworkPath,
+    this.artworkUrl,
     this.title,
     this.artist,
     this.size = 56.0,
@@ -22,7 +24,8 @@ class AlbumArtwork extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (artworkPath != null && artworkPath!.isNotEmpty) {
+    final image = trackArtworkImage(artworkPath, artworkUrl);
+    if (image != null) {
       final dpr = MediaQuery.maybeDevicePixelRatioOf(context) ?? 2.0;
       final targetCacheDim = size.isFinite
           ? (size * dpr).round().clamp(64, 800)
@@ -30,12 +33,14 @@ class AlbumArtwork extends StatelessWidget {
 
       return ClipRRect(
         borderRadius: BorderRadius.circular(borderRadius),
-        child: Image.file(
-          File(artworkPath!),
+        child: Image(
+          image: ResizeImage.resizeIfNeeded(
+            targetCacheDim,
+            targetCacheDim,
+            image,
+          ),
           width: size.isFinite ? size : null,
           height: size.isFinite ? size : null,
-          cacheWidth: targetCacheDim,
-          cacheHeight: targetCacheDim,
           fit: BoxFit.cover,
           gaplessPlayback: true,
           filterQuality: FilterQuality.medium,
@@ -95,4 +100,10 @@ class AlbumArtwork extends StatelessWidget {
       },
     );
   }
+}
+
+ImageProvider? trackArtworkImage(String? path, String? url) {
+  if (path != null && path.isNotEmpty) return FileImage(File(path));
+  if (url != null && url.isNotEmpty) return NetworkImage(url);
+  return null;
 }

@@ -501,7 +501,7 @@ void main() {
           .insert(
             TracksCompanion.insert(
               id: 'track_df_1',
-              driveFileId: 'df_1',
+              driveFileId: const Value('df_1'),
               sourceId: 'source_gdrive',
               title: 'Song A',
               normalizedTitle: 'song a',
@@ -726,7 +726,7 @@ void main() {
           .insert(
             TracksCompanion.insert(
               id: 'track_df_1',
-              driveFileId: 'df_1',
+              driveFileId: const Value('df_1'),
               sourceId: 'source_gdrive',
               title: 'Track 1',
               normalizedTitle: 'track 1',

@@ -291,6 +291,7 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet> {
               ),
               child: ArtworkBackdrop(
                 artworkPath: track.artworkPath,
+                artworkUrl: track.artworkUrl,
                 overlay: BoxDecoration(
                   color: isDark
                       ? CupertinoColors.black.withOpacity(0.75)

@@ -30,6 +30,8 @@ import '../../features/search/data/repositories/search_repository_impl.dart';
 import '../../features/settings/data/repositories/settings_repository_impl.dart';
 import '../../features/settings/domain/entities/app_theme_mode.dart';
 import '../../features/last_fm/presentation/providers/last_fm_providers.dart';
+import '../../features/youtube_music/data/youtube_music_client.dart';
+import '../../features/youtube_music/data/youtube_music_repository.dart';
 
 // Database & File System
 final appDatabaseProvider = Provider<AppDatabase>((ref) {
@@ -195,6 +197,17 @@ final connectivityServiceProvider = Provider<ConnectivityService>((ref) {
 });
 
 // Playback & AudioHandler
+final youtubeMusicClientProvider = Provider<YouTubeMusicClient>((ref) {
+  return const YouTubeMusicClient();
+});
+
+final youtubeMusicRepositoryProvider = Provider<YouTubeMusicRepository>((ref) {
+  return YouTubeMusicRepository(
+    ref.watch(appDatabaseProvider),
+    ref.watch(youtubeMusicClientProvider),
+  );
+});
+
 final musiiAudioHandlerProvider = Provider<MusiiAudioHandler>((ref) {
   final cache = ref.watch(cacheRepositoryProvider);
   final recents = ref.watch(recentlyPlayedRepositoryProvider);
@@ -208,6 +221,7 @@ final musiiAudioHandlerProvider = Provider<MusiiAudioHandler>((ref) {
     database: db,
     connectivityService: connectivity,
     lastFmCoordinator: lastFmCoordinator,
+    youtubeMusic: ref.watch(youtubeMusicClientProvider),
   );
   return handler;
 });

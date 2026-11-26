@@ -52,7 +52,7 @@ void main() {
             .insert(
               TracksCompanion.insert(
                 id: 'track_1',
-                driveFileId: 'df1',
+                driveFileId: const Value('df1'),
                 sourceId: 'src',
                 title: 'T1',
                 normalizedTitle: 't1',
@@ -66,7 +66,7 @@ void main() {
             .insert(
               TracksCompanion.insert(
                 id: 'track_2',
-                driveFileId: 'df2',
+                driveFileId: const Value('df2'),
                 sourceId: 'src',
                 title: 'T2',
                 normalizedTitle: 't2',
@@ -112,7 +112,7 @@ void main() {
             .insert(
               TracksCompanion.insert(
                 id: 't1',
-                driveFileId: 'df1',
+                driveFileId: const Value('df1'),
                 sourceId: 'src',
                 title: 'T1',
                 normalizedTitle: 't1',
@@ -127,7 +127,7 @@ void main() {
             .insert(
               TracksCompanion.insert(
                 id: 't2',
-                driveFileId: 'df2',
+                driveFileId: const Value('df2'),
                 sourceId: 'src',
                 title: 'T2',
                 normalizedTitle: 't2',
@@ -180,7 +180,7 @@ void main() {
           .insert(
             TracksCompanion.insert(
               id: 'ram_t1',
-              driveFileId: 'df_ram_1',
+              driveFileId: const Value('df_ram_1'),
               sourceId: 'src',
               title: 'Get Lucky',
               normalizedTitle: 'get lucky',
@@ -199,7 +199,7 @@ void main() {
           .insert(
             TracksCompanion.insert(
               id: 'ram_t2',
-              driveFileId: 'df_ram_2',
+              driveFileId: const Value('df_ram_2'),
               sourceId: 'src',
               title: 'Giorgio by Moroder',
               normalizedTitle: 'giorgio by moroder',
@@ -217,7 +217,7 @@ void main() {
           .insert(
             TracksCompanion.insert(
               id: 'ram_t3',
-              driveFileId: 'df_ram_3',
+              driveFileId: const Value('df_ram_3'),
               sourceId: 'src',
               title: 'Instant Crush',
               normalizedTitle: 'instant crush',
@@ -299,7 +299,7 @@ void main() {
           .insert(
             TracksCompanion.insert(
               id: 'q1',
-              driveFileId: 'df_q1',
+              driveFileId: const Value('df_q1'),
               sourceId: 'src',
               title: 'Bohemian Rhapsody',
               normalizedTitle: 'bohemian rhapsody',
@@ -315,7 +315,7 @@ void main() {
           .insert(
             TracksCompanion.insert(
               id: 'a1',
-              driveFileId: 'df_a1',
+              driveFileId: const Value('df_a1'),
               sourceId: 'src',
               title: 'Dancing Queen',
               normalizedTitle: 'dancing queen',

@@ -414,6 +414,8 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
     return Track(
       id: row.id,
       driveFileId: row.driveFileId,
+      youtubeVideoId: row.youtubeVideoId,
+      artworkUrl: row.artworkUrl,
       sourceId: row.sourceId,
       title: row.title,
       normalizedTitle: row.normalizedTitle,
@@ -1176,7 +1178,9 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
       final driveFileMap = {for (final f in driveAudioFiles) f.id: f};
 
       // 3. Load existing indexed tracks
-      final allIndexedTracks = await _database.select(_database.tracks).get();
+      final allIndexedTracks = await (_database.select(
+        _database.tracks,
+      )..where((track) => track.driveFileId.isNotNull())).get();
       final sourcesByTrack = <String, Set<String>>{};
       for (final membership
           in await _database.select(_database.trackSources).get()) {
@@ -2170,6 +2174,8 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
     final track = await (_database.select(
       _database.tracks,
     )..where((row) => row.id.equals(trackId))).getSingle();
+    final driveFileId = track.driveFileId;
+    if (driveFileId == null) return;
     if (!track.isPinnedOffline) {
       await (_database.delete(
         _database.cacheEntries,
@@ -2203,7 +2209,7 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
           CacheEntriesCompanion.insert(
             id: track.id,
             trackId: track.id,
-            driveFileId: track.driveFileId,
+            driveFileId: driveFileId,
             localPath: file.path,
             fileSize: await file.length(),
             state: 'cached',
@@ -2268,7 +2274,9 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
     final filesByFingerprint = <String, File>{};
     final tracksByAlbum = <String?, List<TrackRow>>{};
     for (final track in await _database.select(_database.tracks).get()) {
-      if (removedTrackIds.contains(track.id)) continue;
+      if (track.driveFileId == null || removedTrackIds.contains(track.id)) {
+        continue;
+      }
       tracksByAlbum.putIfAbsent(track.albumId, () => []).add(track);
     }
     for (final tracks in tracksByAlbum.values) {
@@ -2279,8 +2287,10 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
       }
       for (final track in tracks) {
         cancellation.throwIfCancelled();
+        final driveFileId = track.driveFileId;
+        if (driveFileId == null) continue;
         final candidate = FolderArtworkResolver.resolveCandidate(
-          folderId: driveFiles[track.driveFileId]?.parentFolderId,
+          folderId: driveFiles[driveFileId]?.parentFolderId,
           folderImages: folderImages,
           folderParentMap: folderParents,
         );
@@ -2307,7 +2317,7 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
           }
           filesByFingerprint[fingerprint] = file;
         }
-        byTrack[track.driveFileId] = (fingerprint, file.path);
+        byTrack[driveFileId] = (fingerprint, file.path);
         break;
       }
     }

@@ -265,8 +265,57 @@ void main() {
   }
 
   group('Database Migration Suite', () {
+    test('v12 upgrade preserves Drive track references and adds YouTube tracks', () async {
+      final dbFile = createDbFile('v12_tracks.sqlite');
+      final rawDb = raw_sqlite.sqlite3.open(dbFile.path);
+      seedV1Tables(rawDb);
+      rawDb.execute('''
+        ALTER TABLE tracks ADD COLUMN artwork_path TEXT;
+        ALTER TABLE tracks ADD COLUMN embedded_artwork_path TEXT;
+        ALTER TABLE tracks ADD COLUMN sidecar_fingerprint TEXT;
+        CREATE TABLE track_sources (
+          source_id TEXT NOT NULL,
+          track_id TEXT NOT NULL REFERENCES tracks(id) ON DELETE CASCADE,
+          PRIMARY KEY (source_id, track_id)
+        );
+        CREATE INDEX idx_tracks_drive ON tracks(drive_file_id);
+        INSERT INTO tracks
+           (id, drive_file_id, source_id, title, normalized_title, created_at, updated_at)
+        VALUES ('old-track', 'drive-id', 'drive-source', 'Old Track', 'old track', 1, 1);
+        INSERT INTO track_sources VALUES ('drive-source', 'old-track');
+        INSERT INTO favorites VALUES ('favorite', 'old-track', 1);
+        INSERT INTO playback_queue VALUES ('queue-item', 'old-track', 0, 1);
+        PRAGMA user_version = 12;
+      ''');
+      rawDb.dispose();
+
+      final db = AppDatabase(NativeDatabase(dbFile));
+      addTearDown(db.close);
+      final drive = await db.select(db.tracks).getSingle();
+      expect(drive.id, 'old-track');
+      expect(drive.driveFileId, 'drive-id');
+      expect(drive.youtubeVideoId, isNull);
+      expect((await db.select(db.trackSources).getSingle()).trackId, drive.id);
+      expect((await db.select(db.favorites).getSingle()).trackId, drive.id);
+      expect((await db.select(db.playbackQueue).getSingle()).trackId, drive.id);
+      expect(await db.customSelect('PRAGMA foreign_key_check;').get(), isEmpty);
+
+      final now = DateTime.now();
+      final youtube = TracksCompanion.insert(
+        id: 'youtube_dQw4w9WgXcQ',
+        youtubeVideoId: const Value('dQw4w9WgXcQ'),
+        sourceId: 'source_youtube_music',
+        title: 'New Track',
+        normalizedTitle: 'new track',
+        createdAt: now,
+        updatedAt: now,
+      );
+      await db.into(db.tracks).insert(youtube);
+      expect(await db.select(db.tracks).get(), hasLength(2));
+    });
+
     test(
-      'fresh database creation initializes at schemaVersion 12 with all tables',
+      'fresh database creation initializes at schemaVersion 13 with all tables',
       () async {
         final db = AppDatabase(NativeDatabase.memory());
         addTearDown(db.close);
@@ -280,11 +329,11 @@ void main() {
         final userVersionResult = await db
             .customSelect('PRAGMA user_version;')
             .getSingle();
-        expect(userVersionResult.read<int>('user_version'), 12);
+        expect(userVersionResult.read<int>('user_version'), 13);
       },
     );
 
-    test('reproduction: migration from schema v4 to v12 succeeds without duplicate column error', () async {
+    test('reproduction: migration from schema v4 to v13 succeeds without duplicate column error', () async {
       final dbFile = createDbFile('v4_to_v10.sqlite');
 
       final rawDb = raw_sqlite.sqlite3.open(dbFile.path);
@@ -305,7 +354,7 @@ void main() {
       final uvResult = await db
           .customSelect('PRAGMA user_version;')
           .getSingle();
-      expect(uvResult.read<int>('user_version'), 12);
+      expect(uvResult.read<int>('user_version'), 13);
 
       // Verify columns in discovered_files exist and can be inserted/selected
       final now = DateTime.now();
@@ -357,7 +406,7 @@ void main() {
           .insert(
             TracksCompanion.insert(
               id: 'track1',
-              driveFileId: 'df1',
+              driveFileId: const Value('df1'),
               sourceId: 'gdrive',
               title: 'Song',
               normalizedTitle: 'song',
@@ -372,7 +421,7 @@ void main() {
       expect(track.artworkPath, '/path/to/art.jpg');
     });
 
-    test('migration from schema v1 to v12 succeeds seamlessly', () async {
+    test('migration from schema v1 to v13 succeeds seamlessly', () async {
       final dbFile = createDbFile('v1_to_v10.sqlite');
 
       final rawDb = raw_sqlite.sqlite3.open(dbFile.path);
@@ -389,10 +438,10 @@ void main() {
       final uvResult = await db
           .customSelect('PRAGMA user_version;')
           .getSingle();
-      expect(uvResult.read<int>('user_version'), 12);
+      expect(uvResult.read<int>('user_version'), 13);
     });
 
-    test('migration from schema v5 (with legacy discovered_files without is_processed) to v11', () async {
+    test('migration from schema v5 (with legacy discovered_files without is_processed) to v13', () async {
       final dbFile = createDbFile('v5_to_v10.sqlite');
 
       final rawDb = raw_sqlite.sqlite3.open(dbFile.path);
@@ -413,7 +462,7 @@ void main() {
       final uvResult = await db
           .customSelect('PRAGMA user_version;')
           .getSingle();
-      expect(uvResult.read<int>('user_version'), 12);
+      expect(uvResult.read<int>('user_version'), 13);
 
       // Ensure newly added columns can be written and read
       final now = DateTime.now();
@@ -439,7 +488,7 @@ void main() {
       expect(row.processStatus, 'updated');
     });
 
-    test('migration from schema v9 to v12 adds tracks.artwork_path and backfills from albums', () async {
+    test('migration from schema v9 to v13 adds tracks.artwork_path and backfills from albums', () async {
       final dbFile = createDbFile('v9_to_v10.sqlite');
 
       final rawDb = raw_sqlite.sqlite3.open(dbFile.path);
@@ -482,7 +531,7 @@ void main() {
       final uvResult = await db
           .customSelect('PRAGMA user_version;')
           .getSingle();
-      expect(uvResult.read<int>('user_version'), 12);
+      expect(uvResult.read<int>('user_version'), 13);
     });
 
     test('idempotency: re-running onUpgrade with existing tables/columns does not error', () async {

@@ -2665,10 +2665,33 @@ class $TracksTable extends Tracks with TableInfo<$TracksTable, TrackRow> {
   late final GeneratedColumn<String> driveFileId = GeneratedColumn<String>(
     'drive_file_id',
     aliasedName,
-    false,
+    true,
     type: DriftSqlType.string,
-    requiredDuringInsert: true,
+    requiredDuringInsert: false,
     defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'),
+  );
+  static const VerificationMeta _youtubeVideoIdMeta = const VerificationMeta(
+    'youtubeVideoId',
+  );
+  @override
+  late final GeneratedColumn<String> youtubeVideoId = GeneratedColumn<String>(
+    'youtube_video_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'),
+  );
+  static const VerificationMeta _artworkUrlMeta = const VerificationMeta(
+    'artworkUrl',
+  );
+  @override
+  late final GeneratedColumn<String> artworkUrl = GeneratedColumn<String>(
+    'artwork_url',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
   );
   static const VerificationMeta _sourceIdMeta = const VerificationMeta(
     'sourceId',
@@ -3018,6 +3041,8 @@ class $TracksTable extends Tracks with TableInfo<$TracksTable, TrackRow> {
   List<GeneratedColumn> get $columns => [
     id,
     driveFileId,
+    youtubeVideoId,
+    artworkUrl,
     sourceId,
     title,
     normalizedTitle,
@@ -3075,8 +3100,21 @@ class $TracksTable extends Tracks with TableInfo<$TracksTable, TrackRow> {
           _driveFileIdMeta,
         ),
       );
-    } else if (isInserting) {
-      context.missing(_driveFileIdMeta);
+    }
+    if (data.containsKey('youtube_video_id')) {
+      context.handle(
+        _youtubeVideoIdMeta,
+        youtubeVideoId.isAcceptableOrUnknown(
+          data['youtube_video_id']!,
+          _youtubeVideoIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('artwork_url')) {
+      context.handle(
+        _artworkUrlMeta,
+        artworkUrl.isAcceptableOrUnknown(data['artwork_url']!, _artworkUrlMeta),
+      );
     }
     if (data.containsKey('source_id')) {
       context.handle(
@@ -3320,7 +3358,15 @@ class $TracksTable extends Tracks with TableInfo<$TracksTable, TrackRow> {
       driveFileId: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}drive_file_id'],
-      )!,
+      ),
+      youtubeVideoId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}youtube_video_id'],
+      ),
+      artworkUrl: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}artwork_url'],
+      ),
       sourceId: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}source_id'],
@@ -3456,7 +3502,9 @@ class $TracksTable extends Tracks with TableInfo<$TracksTable, TrackRow> {
 
 class TrackRow extends DataClass implements Insertable<TrackRow> {
   final String id;
-  final String driveFileId;
+  final String? driveFileId;
+  final String? youtubeVideoId;
+  final String? artworkUrl;
   final String sourceId;
   final String title;
   final String normalizedTitle;
@@ -3490,7 +3538,9 @@ class TrackRow extends DataClass implements Insertable<TrackRow> {
   final DateTime updatedAt;
   const TrackRow({
     required this.id,
-    required this.driveFileId,
+    this.driveFileId,
+    this.youtubeVideoId,
+    this.artworkUrl,
     required this.sourceId,
     required this.title,
     required this.normalizedTitle,
@@ -3527,7 +3577,15 @@ class TrackRow extends DataClass implements Insertable<TrackRow> {
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
-    map['drive_file_id'] = Variable<String>(driveFileId);
+    if (!nullToAbsent || driveFileId != null) {
+      map['drive_file_id'] = Variable<String>(driveFileId);
+    }
+    if (!nullToAbsent || youtubeVideoId != null) {
+      map['youtube_video_id'] = Variable<String>(youtubeVideoId);
+    }
+    if (!nullToAbsent || artworkUrl != null) {
+      map['artwork_url'] = Variable<String>(artworkUrl);
+    }
     map['source_id'] = Variable<String>(sourceId);
     map['title'] = Variable<String>(title);
     map['normalized_title'] = Variable<String>(normalizedTitle);
@@ -3609,7 +3667,15 @@ class TrackRow extends DataClass implements Insertable<TrackRow> {
   TracksCompanion toCompanion(bool nullToAbsent) {
     return TracksCompanion(
       id: Value(id),
-      driveFileId: Value(driveFileId),
+      driveFileId: driveFileId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(driveFileId),
+      youtubeVideoId: youtubeVideoId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(youtubeVideoId),
+      artworkUrl: artworkUrl == null && nullToAbsent
+          ? const Value.absent()
+          : Value(artworkUrl),
       sourceId: Value(sourceId),
       title: Value(title),
       normalizedTitle: Value(normalizedTitle),
@@ -3693,7 +3759,9 @@ class TrackRow extends DataClass implements Insertable<TrackRow> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return TrackRow(
       id: serializer.fromJson<String>(json['id']),
-      driveFileId: serializer.fromJson<String>(json['driveFileId']),
+      driveFileId: serializer.fromJson<String?>(json['driveFileId']),
+      youtubeVideoId: serializer.fromJson<String?>(json['youtubeVideoId']),
+      artworkUrl: serializer.fromJson<String?>(json['artworkUrl']),
       sourceId: serializer.fromJson<String>(json['sourceId']),
       title: serializer.fromJson<String>(json['title']),
       normalizedTitle: serializer.fromJson<String>(json['normalizedTitle']),
@@ -3736,7 +3804,9 @@ class TrackRow extends DataClass implements Insertable<TrackRow> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
-      'driveFileId': serializer.toJson<String>(driveFileId),
+      'driveFileId': serializer.toJson<String?>(driveFileId),
+      'youtubeVideoId': serializer.toJson<String?>(youtubeVideoId),
+      'artworkUrl': serializer.toJson<String?>(artworkUrl),
       'sourceId': serializer.toJson<String>(sourceId),
       'title': serializer.toJson<String>(title),
       'normalizedTitle': serializer.toJson<String>(normalizedTitle),
@@ -3773,7 +3843,9 @@ class TrackRow extends DataClass implements Insertable<TrackRow> {
 
   TrackRow copyWith({
     String? id,
-    String? driveFileId,
+    Value<String?> driveFileId = const Value.absent(),
+    Value<String?> youtubeVideoId = const Value.absent(),
+    Value<String?> artworkUrl = const Value.absent(),
     String? sourceId,
     String? title,
     String? normalizedTitle,
@@ -3807,7 +3879,11 @@ class TrackRow extends DataClass implements Insertable<TrackRow> {
     DateTime? updatedAt,
   }) => TrackRow(
     id: id ?? this.id,
-    driveFileId: driveFileId ?? this.driveFileId,
+    driveFileId: driveFileId.present ? driveFileId.value : this.driveFileId,
+    youtubeVideoId: youtubeVideoId.present
+        ? youtubeVideoId.value
+        : this.youtubeVideoId,
+    artworkUrl: artworkUrl.present ? artworkUrl.value : this.artworkUrl,
     sourceId: sourceId ?? this.sourceId,
     title: title ?? this.title,
     normalizedTitle: normalizedTitle ?? this.normalizedTitle,
@@ -3856,6 +3932,12 @@ class TrackRow extends DataClass implements Insertable<TrackRow> {
       driveFileId: data.driveFileId.present
           ? data.driveFileId.value
           : this.driveFileId,
+      youtubeVideoId: data.youtubeVideoId.present
+          ? data.youtubeVideoId.value
+          : this.youtubeVideoId,
+      artworkUrl: data.artworkUrl.present
+          ? data.artworkUrl.value
+          : this.artworkUrl,
       sourceId: data.sourceId.present ? data.sourceId.value : this.sourceId,
       title: data.title.present ? data.title.value : this.title,
       normalizedTitle: data.normalizedTitle.present
@@ -3923,6 +4005,8 @@ class TrackRow extends DataClass implements Insertable<TrackRow> {
     return (StringBuffer('TrackRow(')
           ..write('id: $id, ')
           ..write('driveFileId: $driveFileId, ')
+          ..write('youtubeVideoId: $youtubeVideoId, ')
+          ..write('artworkUrl: $artworkUrl, ')
           ..write('sourceId: $sourceId, ')
           ..write('title: $title, ')
           ..write('normalizedTitle: $normalizedTitle, ')
@@ -3962,6 +4046,8 @@ class TrackRow extends DataClass implements Insertable<TrackRow> {
   int get hashCode => Object.hashAll([
     id,
     driveFileId,
+    youtubeVideoId,
+    artworkUrl,
     sourceId,
     title,
     normalizedTitle,
@@ -4000,6 +4086,8 @@ class TrackRow extends DataClass implements Insertable<TrackRow> {
       (other is TrackRow &&
           other.id == this.id &&
           other.driveFileId == this.driveFileId &&
+          other.youtubeVideoId == this.youtubeVideoId &&
+          other.artworkUrl == this.artworkUrl &&
           other.sourceId == this.sourceId &&
           other.title == this.title &&
           other.normalizedTitle == this.normalizedTitle &&
@@ -4035,7 +4123,9 @@ class TrackRow extends DataClass implements Insertable<TrackRow> {
 
 class TracksCompanion extends UpdateCompanion<TrackRow> {
   final Value<String> id;
-  final Value<String> driveFileId;
+  final Value<String?> driveFileId;
+  final Value<String?> youtubeVideoId;
+  final Value<String?> artworkUrl;
   final Value<String> sourceId;
   final Value<String> title;
   final Value<String> normalizedTitle;
@@ -4071,6 +4161,8 @@ class TracksCompanion extends UpdateCompanion<TrackRow> {
   const TracksCompanion({
     this.id = const Value.absent(),
     this.driveFileId = const Value.absent(),
+    this.youtubeVideoId = const Value.absent(),
+    this.artworkUrl = const Value.absent(),
     this.sourceId = const Value.absent(),
     this.title = const Value.absent(),
     this.normalizedTitle = const Value.absent(),
@@ -4106,7 +4198,9 @@ class TracksCompanion extends UpdateCompanion<TrackRow> {
   });
   TracksCompanion.insert({
     required String id,
-    required String driveFileId,
+    this.driveFileId = const Value.absent(),
+    this.youtubeVideoId = const Value.absent(),
+    this.artworkUrl = const Value.absent(),
     required String sourceId,
     required String title,
     required String normalizedTitle,
@@ -4140,7 +4234,6 @@ class TracksCompanion extends UpdateCompanion<TrackRow> {
     required DateTime updatedAt,
     this.rowid = const Value.absent(),
   }) : id = Value(id),
-       driveFileId = Value(driveFileId),
        sourceId = Value(sourceId),
        title = Value(title),
        normalizedTitle = Value(normalizedTitle),
@@ -4149,6 +4242,8 @@ class TracksCompanion extends UpdateCompanion<TrackRow> {
   static Insertable<TrackRow> custom({
     Expression<String>? id,
     Expression<String>? driveFileId,
+    Expression<String>? youtubeVideoId,
+    Expression<String>? artworkUrl,
     Expression<String>? sourceId,
     Expression<String>? title,
     Expression<String>? normalizedTitle,
@@ -4185,6 +4280,8 @@ class TracksCompanion extends UpdateCompanion<TrackRow> {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (driveFileId != null) 'drive_file_id': driveFileId,
+      if (youtubeVideoId != null) 'youtube_video_id': youtubeVideoId,
+      if (artworkUrl != null) 'artwork_url': artworkUrl,
       if (sourceId != null) 'source_id': sourceId,
       if (title != null) 'title': title,
       if (normalizedTitle != null) 'normalized_title': normalizedTitle,
@@ -4223,7 +4320,9 @@ class TracksCompanion extends UpdateCompanion<TrackRow> {
 
   TracksCompanion copyWith({
     Value<String>? id,
-    Value<String>? driveFileId,
+    Value<String?>? driveFileId,
+    Value<String?>? youtubeVideoId,
+    Value<String?>? artworkUrl,
     Value<String>? sourceId,
     Value<String>? title,
     Value<String>? normalizedTitle,
@@ -4260,6 +4359,8 @@ class TracksCompanion extends UpdateCompanion<TrackRow> {
     return TracksCompanion(
       id: id ?? this.id,
       driveFileId: driveFileId ?? this.driveFileId,
+      youtubeVideoId: youtubeVideoId ?? this.youtubeVideoId,
+      artworkUrl: artworkUrl ?? this.artworkUrl,
       sourceId: sourceId ?? this.sourceId,
       title: title ?? this.title,
       normalizedTitle: normalizedTitle ?? this.normalizedTitle,
@@ -4303,6 +4404,12 @@ class TracksCompanion extends UpdateCompanion<TrackRow> {
     }
     if (driveFileId.present) {
       map['drive_file_id'] = Variable<String>(driveFileId.value);
+    }
+    if (youtubeVideoId.present) {
+      map['youtube_video_id'] = Variable<String>(youtubeVideoId.value);
+    }
+    if (artworkUrl.present) {
+      map['artwork_url'] = Variable<String>(artworkUrl.value);
     }
     if (sourceId.present) {
       map['source_id'] = Variable<String>(sourceId.value);
@@ -4410,6 +4517,8 @@ class TracksCompanion extends UpdateCompanion<TrackRow> {
     return (StringBuffer('TracksCompanion(')
           ..write('id: $id, ')
           ..write('driveFileId: $driveFileId, ')
+          ..write('youtubeVideoId: $youtubeVideoId, ')
+          ..write('artworkUrl: $artworkUrl, ')
           ..write('sourceId: $sourceId, ')
           ..write('title: $title, ')
           ..write('normalizedTitle: $normalizedTitle, ')
@@ -15663,7 +15772,9 @@ typedef $$GenresTableProcessedTableManager =
     >;
 typedef $$TracksTableCreateCompanionBuilder = TracksCompanion Function({
   required String id,
-  required String driveFileId,
+  Value<String?> driveFileId,
+  Value<String?> youtubeVideoId,
+  Value<String?> artworkUrl,
   required String sourceId,
   required String title,
   required String normalizedTitle,
@@ -15699,7 +15810,9 @@ typedef $$TracksTableCreateCompanionBuilder = TracksCompanion Function({
 });
 typedef $$TracksTableUpdateCompanionBuilder = TracksCompanion Function({
   Value<String> id,
-  Value<String> driveFileId,
+  Value<String?> driveFileId,
+  Value<String?> youtubeVideoId,
+  Value<String?> artworkUrl,
   Value<String> sourceId,
   Value<String> title,
   Value<String> normalizedTitle,
@@ -15773,6 +15886,16 @@ class $$TracksTableFilterComposer
 
   ColumnFilters<String> get driveFileId => $composableBuilder(
     column: $table.driveFileId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get youtubeVideoId => $composableBuilder(
+    column: $table.youtubeVideoId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get artworkUrl => $composableBuilder(
+    column: $table.artworkUrl,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -15976,6 +16099,16 @@ class $$TracksTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get youtubeVideoId => $composableBuilder(
+    column: $table.youtubeVideoId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get artworkUrl => $composableBuilder(
+    column: $table.artworkUrl,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get sourceId => $composableBuilder(
     column: $table.sourceId,
     builder: (column) => ColumnOrderings(column),
@@ -16146,6 +16279,16 @@ class $$TracksTableAnnotationComposer
 
   GeneratedColumn<String> get driveFileId => $composableBuilder(
     column: $table.driveFileId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get youtubeVideoId => $composableBuilder(
+    column: $table.youtubeVideoId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get artworkUrl => $composableBuilder(
+    column: $table.artworkUrl,
     builder: (column) => column,
   );
 
@@ -16325,7 +16468,9 @@ class $$TracksTableTableManager
           updateCompanionCallback:
               ({
                 Value<String> id = const Value.absent(),
-                Value<String> driveFileId = const Value.absent(),
+                Value<String?> driveFileId = const Value.absent(),
+                Value<String?> youtubeVideoId = const Value.absent(),
+                Value<String?> artworkUrl = const Value.absent(),
                 Value<String> sourceId = const Value.absent(),
                 Value<String> title = const Value.absent(),
                 Value<String> normalizedTitle = const Value.absent(),
@@ -16361,6 +16506,8 @@ class $$TracksTableTableManager
               }) => TracksCompanion(
                 id: id,
                 driveFileId: driveFileId,
+                youtubeVideoId: youtubeVideoId,
+                artworkUrl: artworkUrl,
                 sourceId: sourceId,
                 title: title,
                 normalizedTitle: normalizedTitle,
@@ -16397,7 +16544,9 @@ class $$TracksTableTableManager
           createCompanionCallback:
               ({
                 required String id,
-                required String driveFileId,
+                Value<String?> driveFileId = const Value.absent(),
+                Value<String?> youtubeVideoId = const Value.absent(),
+                Value<String?> artworkUrl = const Value.absent(),
                 required String sourceId,
                 required String title,
                 required String normalizedTitle,
@@ -16433,6 +16582,8 @@ class $$TracksTableTableManager
               }) => TracksCompanion.insert(
                 id: id,
                 driveFileId: driveFileId,
+                youtubeVideoId: youtubeVideoId,
+                artworkUrl: artworkUrl,
                 sourceId: sourceId,
                 title: title,
                 normalizedTitle: normalizedTitle,

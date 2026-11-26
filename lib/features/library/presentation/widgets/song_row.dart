@@ -73,6 +73,7 @@ class SongRow extends StatelessWidget {
                 padding: const EdgeInsets.only(right: 16.0),
                 child: AlbumArtwork(
                   artworkPath: track.artworkPath,
+                  artworkUrl: track.artworkUrl,
                   title: track.title,
                   artist: track.artistName,
                   size: 52,

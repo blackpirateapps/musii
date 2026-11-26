@@ -3,7 +3,9 @@ import 'package:flutter/foundation.dart';
 @immutable
 class Track {
   final String id;
-  final String driveFileId;
+  final String? driveFileId;
+  final String? youtubeVideoId;
+  final String? artworkUrl;
   final String sourceId;
   final String title;
   final String normalizedTitle;
@@ -32,7 +34,9 @@ class Track {
 
   const Track({
     required this.id,
-    required this.driveFileId,
+    this.driveFileId,
+    this.youtubeVideoId,
+    this.artworkUrl,
     required this.sourceId,
     required this.title,
     required this.normalizedTitle,
@@ -63,6 +67,8 @@ class Track {
   Track copyWith({
     String? id,
     String? driveFileId,
+    String? youtubeVideoId,
+    String? artworkUrl,
     String? sourceId,
     String? title,
     String? normalizedTitle,
@@ -92,6 +98,8 @@ class Track {
     return Track(
       id: id ?? this.id,
       driveFileId: driveFileId ?? this.driveFileId,
+      youtubeVideoId: youtubeVideoId ?? this.youtubeVideoId,
+      artworkUrl: artworkUrl ?? this.artworkUrl,
       sourceId: sourceId ?? this.sourceId,
       title: title ?? this.title,
       normalizedTitle: normalizedTitle ?? this.normalizedTitle,

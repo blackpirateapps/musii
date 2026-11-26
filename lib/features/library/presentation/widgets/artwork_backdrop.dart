@@ -1,27 +1,30 @@
-import 'dart:io';
 import 'dart:ui';
 
 import 'package:flutter/cupertino.dart';
 
+import 'album_artwork.dart';
+
 /// Uses the artwork as the blur input without filtering the rest of the route.
 class ArtworkBackdrop extends StatelessWidget {
   final String? artworkPath;
+  final String? artworkUrl;
   final Decoration overlay;
 
   const ArtworkBackdrop({
     super.key,
     required this.artworkPath,
+    this.artworkUrl,
     required this.overlay,
   });
 
   @override
   Widget build(BuildContext context) {
-    final path = artworkPath;
+    final image = trackArtworkImage(artworkPath, artworkUrl);
     return RepaintBoundary(
       child: Stack(
         fit: StackFit.expand,
         children: [
-          if (path != null && path.isNotEmpty)
+          if (image != null)
             ClipRect(
               child: ImageFiltered(
                 imageFilter: ImageFilter.blur(
@@ -31,7 +34,7 @@ class ArtworkBackdrop extends StatelessWidget {
                 ),
                 child: Image(
                   image: ResizeImage(
-                    FileImage(File(path)),
+                    image,
                     width: 256,
                     height: 256,
                     policy: ResizeImagePolicy.fit,

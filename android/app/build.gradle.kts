@@ -20,6 +20,7 @@ android {
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
@@ -55,6 +56,11 @@ android {
             }
         }
     }
+}
+
+dependencies {
+    implementation("com.github.TeamNewPipe:NewPipeExtractor:v0.27.1")
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs_nio:2.1.5")
 }
 
 kotlin {

@@ -228,6 +228,7 @@ class QueuePage extends ConsumerWidget {
                     children: [
                       AlbumArtwork(
                         artworkPath: currentTrack.artworkPath,
+                        artworkUrl: currentTrack.artworkUrl,
                         title: currentTrack.title,
                         artist: currentTrack.artistName,
                         size: 46,
@@ -459,6 +460,7 @@ class QueuePage extends ConsumerWidget {
                                 children: [
                                   AlbumArtwork(
                                     artworkPath: track.artworkPath,
+                                    artworkUrl: track.artworkUrl,
                                     title: track.title,
                                     artist: track.artistName,
                                     size: 42,

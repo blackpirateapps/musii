@@ -97,6 +97,7 @@ class HomeArtworkCard extends ConsumerWidget {
                 borderRadius: BorderRadius.circular(16.0),
                 child: AlbumArtwork(
                   artworkPath: artworkPath,
+                  artworkUrl: track?.artworkUrl,
                   title: title,
                   artist: subtitle,
                   size: width,

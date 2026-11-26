@@ -1,6 +1,6 @@
 # Musii — AI Engineering Handoff Document
 
-> **Document Version**: 1.19.0
+> **Document Version**: 1.20.0
 > **Target Audience**: Incoming AI Coding Assistants & Human Software Engineers  
 > **Last Verified**: November 2026
 > **App Identifier**: `com.blackpirateapps.musii`  
@@ -37,7 +37,7 @@ The codebase strictly adheres to standard four-layer Clean Architecture:
    - `constants/app_constants.dart`: Design tokens (`AppRadii`, `AppSpacing`, `AppAudioConstants`, `AppGreeting`).
    - `filesystem/app_file_system.dart`: Centralized cache directory management, `.partial` file staging, and atomic commits.
    - `storage/secure_credential_store.dart`: Abstract `SecureCredentialStore` with hardware-backed Android Keystore (`FlutterSecureStorage`) and in-memory test store.
-   - `database/`: Drift SQLite setup, 26 tables with `@DataClassName` annotations and schema v12 migration.
+   - `database/`: Drift SQLite setup, 26 tables with `@DataClassName` annotations and schema v13 migration.
 2. **Domain (`lib/features/*/domain/`)**:
    - Pure Dart entities (`Track`, `Album`, `Artist`, `Genre`, `Playlist`, `CacheEntry`, `PlayerStateSnapshot`, `TrackLyrics`, `LyricLine`, `LyricWord`, `LyricSource`, `SyncProgress`, `SyncPhase`, `SyncCancellationToken`).
    - Repository interfaces declaring business contracts (`MusicLibraryRepository`, `GoogleDriveRepository`, `CacheRepository`, `PlaybackRepository`, `LyricsRepository`, `PlaylistRepository`, etc.).
@@ -83,6 +83,11 @@ Located in `lib/features/library/presentation/pages/home_page.dart` and `lib/fea
 - **Content-Aware Geometry**: Sections only render when real data exists; empty states render clean Cupertino invitations to connect Drive.
 
 ### 2. Now Playing Experience (Visual Authority)
+
+**YouTube Music links.** Search → Play a YouTube Music Link accepts public, on-demand song links for signed-out playback. Play Next and Add to Queue can mix them with Drive tracks. The Android Flutter plugin uses NewPipe Extractor v0.27.1 for metadata and HTTPS audio resolution. `MusiiAudioHandler` keeps the queue and media session and loads audio through `just_audio`. Confirmed stream positions are used for a single automatic retry after a player error.
+
+Schema v13 keeps existing Drive track IDs and adds a unique YouTube video ID and remote artwork URL. Each track has exactly one provider ID. Playback queue restoration joins those track rows and resolves the stream on demand when the user resumes. Drive sync and offline caching only process Drive tracks. Temporary audio URLs are held in memory. The pinned extractor and Android NIO desugaring are declared in `android/app/build.gradle.kts`.
+
 Located in `lib/features/playback/presentation/pages/now_playing_page.dart`:
 - **Cupertino Top Bar**: Features a centered "Now Playing" title, left dismiss chevron (`chevron_down`), and right top queue access button (`text_badge_plus`), perfectly matching the Now Playing visual authority screenshot.
 - **Vertical gestures** dismiss Now Playing or open the queue when the content fits. Pulling down updates a transform through one controller listener. On compact screens, vertical scrolling keeps the controls reachable.

@@ -15,6 +15,7 @@ import '../../../library/presentation/widgets/section_header.dart';
 import '../../../library/presentation/widgets/song_row.dart';
 import '../../../library/presentation/widgets/track_overflow_sheet.dart';
 import '../../../playlists/presentation/pages/playlist_detail_page.dart';
+import '../../../youtube_music/presentation/youtube_music_link_page.dart';
 
 class SearchPage extends ConsumerStatefulWidget {
   const SearchPage({super.key});
@@ -69,6 +70,19 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                 controller: _searchController,
                 onChanged: _onSearchChanged,
                 placeholder: 'Songs, Albums, Artists, Playlists',
+              ),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: CupertinoButton(
+                onPressed: () => Navigator.of(context).push(
+                  CupertinoPageRoute<void>(
+                    builder: (_) => const YouTubeMusicLinkPage(),
+                  ),
+                ),
+                child: const Text('Play a YouTube Music Link'),
               ),
             ),
           ),
