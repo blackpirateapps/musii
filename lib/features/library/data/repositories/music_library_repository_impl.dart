@@ -644,7 +644,8 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
         local.format != null &&
         local.format!.isNotEmpty;
 
-    if (_needsUnicodeMetadataRepair(local, album)) {
+    if (_needsUnicodeMetadataRepair(local, album) ||
+        _needsAlbumGroupingRepair(local, album)) {
       return TrackSyncAction.repairIncomplete;
     }
 
@@ -674,6 +675,31 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
           album?.artistName,
           album?.artistId?.replaceFirst('artist_', ''),
         );
+  }
+
+  bool _needsAlbumGroupingRepair(TrackRow track, AlbumRow? album) {
+    final trackArtist = track.artistName?.trim().toLowerCase() ?? '';
+    final albumArtist = album?.artistName?.trim().toLowerCase() ?? '';
+    if (trackArtist.isEmpty ||
+        albumArtist.isEmpty ||
+        MetadataNormalizationService.sameArtistCredit(
+          trackArtist,
+          albumArtist,
+        ) ||
+        !(trackArtist.contains(albumArtist) ||
+            albumArtist.startsWith(trackArtist))) {
+      return false;
+    }
+    final raw = track.rawMetadataJson;
+    if (raw == null) return false;
+    try {
+      final tags = jsonDecode(raw);
+      return tags is Map &&
+          tags.containsKey('albumArtist') &&
+          tags['albumArtist'] == null;
+    } on FormatException {
+      return false;
+    }
   }
 
   bool _audioChanged(DriveFileItem remote, TrackRow local) {
@@ -1950,27 +1976,21 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
               ..where((tbl) => tbl.albumKey.equals(canonicalAlbumKey)))
             .getSingleOrNull();
 
-    // If not found and meta.albumArtist was not explicitly tagged:
-    // Check if an existing album with the same normalizedTitle already exists
-    // whose artist is compatible with meta.artist (e.g. prefix / substring match)
+    // An untagged guest credit can follow an album credited to its base artist.
     if (existingAlbum == null && meta.albumArtist == null) {
-      final titleCandidates =
+      final candidates =
           await (_database.select(_database.albums)..where(
                 (tbl) => tbl.normalizedTitle.equals(meta.normalizedAlbum),
               ))
               .get();
-      for (final candidate in titleCandidates) {
-        final candArtist = (candidate.artistName ?? '').toLowerCase().trim();
-        final trackArtist = meta.artist.toLowerCase().trim();
-        if (candArtist.isNotEmpty &&
-            (candArtist == trackArtist ||
-                trackArtist.startsWith(candArtist) ||
-                candArtist.startsWith(trackArtist) ||
-                trackArtist.contains(candArtist))) {
-          existingAlbum = candidate;
-          break;
-        }
-      }
+      existingAlbum = candidates
+          .where(
+            (candidate) => MetadataNormalizationService.sameArtistCredit(
+              candidate.artistName ?? '',
+              meta.artist,
+            ),
+          )
+          .firstOrNull;
     }
 
     final existingArt = existingAlbum?.artworkPath;

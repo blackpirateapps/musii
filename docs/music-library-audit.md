@@ -7,7 +7,7 @@ Audited on 26 November 2026 at commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09`
 | ID | Severity | Finding | Reproduction |
 | --- | --- | --- | --- |
 | LIB-01 | High | Unrelated non-Latin albums and artists collapse into the same records | SQLite and simulated Drive · Fixed |
-| LIB-02 | High | Distinct same-title releases merge when one artist name begins with the other | SQLite and simulated Drive |
+| LIB-02 | High | Distinct same-title releases merge when one artist name begins with the other | SQLite and simulated Drive · Fixed |
 | LIB-03 | High | Offline download can appear pinned after the download failed | SQLite and simulated Drive · Fixed |
 | LIB-04 | High | The audio cache accepts a payload with the wrong Drive checksum | SQLite and simulated Drive · Fixed |
 | LIB-05 | Medium | Exact searches miss titles with apostrophes and non-Latin text | Android and SQLite |
@@ -31,6 +31,8 @@ Audited on 26 November 2026 at commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09`
 **Cause.** The ASCII-style word filter strips these names before they become artist IDs and album keys. [Metadata normalization](../lib/features/metadata/domain/services/metadata_normalization_service.dart#L217) · [Library ingestion](../lib/features/library/data/repositories/music_library_repository_impl.dart#L1814)
 
 ### LIB-02 · Similar artist names merge distinct releases
+
+**Resolution.** Album grouping recognizes explicit featured-artist markers and matching base credits. Incremental sync repairs previously merged rows when their original tags establish the old match was incorrect.
 
 **Reproduce.** Sync two tracks whose album tag is `Live` and whose artist tags are `The Band` and `The Bandits`. Omit both album-artist tags. List the first track first.
 

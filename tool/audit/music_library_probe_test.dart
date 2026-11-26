@@ -276,7 +276,7 @@ void main() {
   );
 
   test(
-    'untagged artists with a common prefix merge distinct same-title releases',
+    'untagged artists with a common prefix keep distinct same-title releases',
     () async {
       listing = [audio('a'), audio('b')];
       extractor.customMetadata.addAll({
@@ -298,13 +298,31 @@ void main() {
         ),
       });
       await sync();
-      final album = (await library.watchAllAlbums().first).single;
-      expect(album.trackCount, 2);
+      final albums = await library.watchAllAlbums().first;
       expect(
-        (await library.watchAlbum(album.id).first)!.tracks
-            .map((t) => t.artistName)
-            .toSet(),
-        {'The Band', 'The Bandits'},
+        albums.map((album) => album.artistName),
+        unorderedEquals(['The Band', 'The Bandits']),
+      );
+      expect(albums.map((album) => album.trackCount), everyElement(1));
+
+      final band = albums.singleWhere(
+        (album) => album.artistName == 'The Band',
+      );
+      await (db.update(
+        db.tracks,
+      )..where((row) => row.id.equals('track_b'))).write(
+        TracksCompanion(
+          albumId: Value(band.id),
+          albumArtist: const Value('The Band'),
+          rawMetadataJson: const Value('{"albumArtist":null}'),
+        ),
+      );
+      mediaRequests.clear();
+      await sync();
+      expect(mediaRequests, ['b']);
+      expect(
+        (await library.watchAllAlbums().first).map((album) => album.trackCount),
+        everyElement(1),
       );
     },
   );

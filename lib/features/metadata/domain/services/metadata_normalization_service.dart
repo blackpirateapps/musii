@@ -224,6 +224,15 @@ class MetadataNormalizationService {
         .trim();
   }
 
+  static final _featureMarker = RegExp(r'\s+(?:feat(?:uring)?|ft)\.?\s+');
+
+  static bool sameArtistCredit(String a, String b) {
+    String base(String name) =>
+        name.toLowerCase().trim().split(_featureMarker).first;
+    final first = base(a);
+    return first.isNotEmpty && first == base(b);
+  }
+
   static String computeArtworkKey(String? album, String? artist) {
     final normAlbum = searchKey(album ?? unknownAlbum);
     final normArtist = searchKey(artist ?? unknownArtist);

@@ -573,12 +573,10 @@ class AppDatabase extends _$AppDatabase {
         '';
 
     if (effective1.isEmpty || effective2.isEmpty) return true;
-    if (effective1 == effective2) return true;
-
-    return effective1.startsWith(effective2) ||
-        effective2.startsWith(effective1) ||
-        effective1.contains(effective2) ||
-        effective2.contains(effective1);
+    return MetadataNormalizationService.sameArtistCredit(
+      effective1,
+      effective2,
+    );
   }
 
   String _findDominantOrBaseArtist(
