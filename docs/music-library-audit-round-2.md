@@ -8,7 +8,7 @@ Audited commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09` on 26 November 2026. T
 | --- | --- | --- | --- |
 | LIB-14 | High | Resume deletes a track that returned to Drive after discovery | Sync fixture · Fixed |
 | LIB-15 | High | One account can delete a shared track still indexed by another account | Two-account sync fixture · Fixed |
-| LIB-16 | Medium | Failed folder change replaces the last working saved root | Sync fixture |
+| LIB-16 | Medium | Failed folder change replaces the last working saved root | Sync fixture · Fixed |
 | LIB-17 | Medium | Deleting the last embedded cover hides available folder artwork for one sync | Sync fixture |
 | LIB-18 | Medium | Superseded folder covers accumulate outside cache management | Filesystem fixture |
 | LIB-19 | Medium | Automatic cache limit is unenforced at download time | Android settings and cache fixture |
@@ -40,6 +40,8 @@ Audited commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09` on 26 November 2026. T
 **Expected.** A shared file still indexed through B should remain in the library after A stops listing it. A single unique file ID and one `sourceId` cannot record both roots' membership. The subsequent sync preserves the original owner, and reconciliation prunes by that owner. [Track schema](../lib/core/database/tables.dart#L75) · [Source assignment](../lib/features/library/data/repositories/music_library_repository_impl.dart#L1351) · [Reconciliation](../lib/features/library/data/repositories/music_library_repository_impl.dart#L1510)
 
 ### LIB-16 · Failed folder change replaces the last working saved root
+
+**Resolution.** The chosen root and successful timestamp are saved together during reconciliation. A failed replacement can be resumed without overwriting the working source. The account sheet displays the saved root and successful timestamp.
 
 **Reproduce.** Complete a sync of folder A. Select folder B and return HTTP 503 for its listing. Run an ordinary sync from the saved folder.
 

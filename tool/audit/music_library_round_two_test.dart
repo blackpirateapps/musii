@@ -349,7 +349,7 @@ void main() {
     },
   );
 
-  test('failed folder switch overwrites the last working saved root', () async {
+  test('failed folder switch preserves the last working saved root', () async {
     await sync(root: 'working');
     final working = await db.select(db.musicSources).getSingle();
     expect(working.lastSyncedAt, isNotNull);
@@ -362,11 +362,11 @@ void main() {
     );
     expect(failed.isFailure, isTrue);
     final source = await db.select(db.musicSources).getSingle();
-    expect(source.rootFolderId, 'broken');
+    expect(source.rootFolderId, 'working');
     expect(source.lastSyncedAt, working.lastSyncedAt);
     listingRequests.clear();
-    expect((await library.syncFromSavedFolder()).isFailure, isTrue);
-    expect(listingRequests.single.queryParameters['q'], contains("'broken'"));
+    expect((await library.syncFromSavedFolder()).isSuccess, isTrue);
+    expect(listingRequests.single.queryParameters['q'], contains("'working'"));
     expect(await library.watchAllTracks().first, hasLength(2));
   });
 

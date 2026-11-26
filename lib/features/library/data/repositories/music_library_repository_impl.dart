@@ -911,8 +911,6 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
                 id: sourceId,
                 type: 'google_drive',
                 accountEmail: account.email,
-                rootFolderId: Value(rootFolderId),
-                rootFolderName: Value(rootFolderName),
                 createdAt: source?.createdAt ?? now,
               ),
             );
@@ -1731,9 +1729,15 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
           ),
         );
 
-        await (_database.update(_database.musicSources)
-              ..where((row) => row.id.equals(sourceId)))
-            .write(MusicSourcesCompanion(lastSyncedAt: Value(DateTime.now())));
+        await (_database.update(
+          _database.musicSources,
+        )..where((row) => row.id.equals(sourceId))).write(
+          MusicSourcesCompanion(
+            rootFolderId: Value(rootFolderId),
+            rootFolderName: Value(rootFolderName),
+            lastSyncedAt: Value(DateTime.now()),
+          ),
+        );
         cancellationToken.throwIfCancelled();
       });
 

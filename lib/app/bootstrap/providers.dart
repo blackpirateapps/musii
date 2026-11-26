@@ -314,6 +314,18 @@ final syncProgressProvider = StreamProvider<SyncProgress>((ref) {
   return repo.watchSyncProgress();
 });
 
+final savedMusicSourceProvider = FutureProvider.autoDispose<MusicSource?>((
+  ref,
+) {
+  final user = ref.watch(currentUserProvider).value;
+  if (user == null) return Future.value(null);
+  ref.watch(syncProgressProvider.select((p) => p.value?.phase));
+  final db = ref.watch(appDatabaseProvider);
+  return (db.select(db.musicSources)
+        ..where((row) => row.id.equals('source_gdrive_${user.id}')))
+      .getSingleOrNull();
+});
+
 // Search
 final searchRepositoryProvider = Provider<SearchRepository>((ref) {
   final db = ref.watch(appDatabaseProvider);

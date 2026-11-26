@@ -65,6 +65,11 @@ class AccountInfoSheet extends ConsumerWidget {
     final syncProgress =
         ref.watch(syncProgressProvider).value ?? const SyncProgress();
 
+    final savedSource = ref.watch(savedMusicSourceProvider).value;
+    final savedFolderName = savedSource?.rootFolderName;
+    final savedFolderId =
+        savedSource?.rootFolderId ?? syncProgress.rootFolderId;
+
     return Container(
       padding: EdgeInsets.only(
         top: AppSpacing.sm,
@@ -251,13 +256,12 @@ class AccountInfoSheet extends ConsumerWidget {
                     ),
                   ),
                 ),
-                if (syncProgress.rootFolderName != null &&
-                    syncProgress.rootFolderName!.isNotEmpty)
+                if (savedFolderName != null && savedFolderName.isNotEmpty)
                   CupertinoListTile(
                     leading: const Icon(CupertinoIcons.folder, size: 22),
                     title: const Text('Music Folder'),
                     trailing: Text(
-                      syncProgress.rootFolderName!,
+                      savedFolderName,
                       style: TextStyle(
                         fontWeight: FontWeight.w500,
                         color: isDark
@@ -270,7 +274,7 @@ class AccountInfoSheet extends ConsumerWidget {
                   leading: const Icon(CupertinoIcons.time, size: 22),
                   title: const Text('Last Synchronization'),
                   subtitle: Text(
-                    _formatDate(syncProgress.lastCheckpointAt),
+                    _formatDate(savedSource?.lastSyncedAt),
                     style: TextStyle(
                       fontSize: 12,
                       color: isDark
@@ -293,7 +297,7 @@ class AccountInfoSheet extends ConsumerWidget {
                     CupertinoButton.filled(
                       onPressed: () {
                         Navigator.pop(context);
-                        if (syncProgress.rootFolderId == null) {
+                        if (savedFolderId == null) {
                           Navigator.of(context).push(
                             CupertinoPageRoute(
                               builder: (_) => const DriveFolderPickerPage(),
