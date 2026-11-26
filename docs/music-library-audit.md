@@ -16,7 +16,7 @@ Audited on 26 November 2026 at commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09`
 | LIB-08 | Medium | Search retains results after library changes | Android and Riverpod with SQLite |
 | LIB-09 | Medium | Home's See All buttons do nothing | Android and source review |
 | LIB-10 | Medium | Artists show “0 songs” while their details list songs | Android |
-| LIB-11 | Medium | Replaying a song repeatedly hides other recently played songs | SQLite |
+| LIB-11 | Medium | Replaying a song repeatedly hides other recently played songs | SQLite · Fixed |
 | LIB-12 | Medium | A playlist can contain repeated additions with no way to remove an individual song | Android and SQLite |
 | LIB-13 | Low | Concurrent favorite toggles fail and lose updates | SQLite · Fixed |
 
@@ -109,6 +109,8 @@ Audited on 26 November 2026 at commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09`
 **Observed and expected.** Multiple cards read `0 songs`. One detail page also read `0 songs` and showed a numbered song under Popular. The count should include the visible song. The app reads the displayed total from the stored artist aggregate and fetches the artist's tracks separately. Fresh sync and recovery calculated the correct count in the 1,205-track fixture. The cause of the stale aggregate in this device's database was not established. [Artist mapper and queries](../lib/features/library/data/repositories/music_library_repository_impl.dart#L471) · [Artist detail](../lib/features/library/presentation/pages/artist_detail_page.dart#L104)
 
 ### LIB-11 · Replays crowd older songs out of Recently Played
+
+**Resolution.** Recently Played selects the latest event per track before applying the result limit. Replays no longer crowd older distinct songs out of the list.
 
 **Reproduce.** Record one play for each of 11 different songs. Then record 30 newer plays of a twelfth song. Read the default Recently Played list.
 

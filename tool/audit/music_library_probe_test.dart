@@ -513,7 +513,7 @@ void main() {
     },
   );
 
-  test('30 replays hide older distinct recently played songs', () async {
+  test('30 replays preserve older distinct recently played songs', () async {
     await db.batch((batch) {
       batch.insertAll(db.tracks, List.generate(12, track));
       batch.insertAll(db.recentlyPlayed, [
@@ -526,9 +526,8 @@ void main() {
       ]);
     });
     final history = RecentlyPlayedRepositoryImpl(database: db);
-    expect((await history.watchRecentlyPlayed().first).map((t) => t.id), [
-      't0',
-    ]);
-    expect(await history.watchRecentlyPlayed(limit: 41).first, hasLength(12));
+    final recent = (await history.watchRecentlyPlayed().first).map((t) => t.id);
+    expect(recent, ['t0', for (var i = 11; i > 0; i--) 't$i']);
+    expect(await history.watchRecentlyPlayed(limit: 3).first, hasLength(3));
   });
 }

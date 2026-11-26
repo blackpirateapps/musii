@@ -69,28 +69,28 @@ class RecentlyPlayedRepositoryImpl implements RecentlyPlayedRepository {
 
   @override
   Stream<List<Track>> watchRecentlyPlayed({int limit = 30}) {
-    final query =
-        _database.select(_database.recentlyPlayed).join([
-            innerJoin(
-              _database.tracks,
-              _database.tracks.id.equalsExp(_database.recentlyPlayed.trackId),
-            ),
-          ])
-          ..orderBy([OrderingTerm.desc(_database.recentlyPlayed.playedAt)])
-          ..limit(limit);
-
-    return query.watch().map((rows) {
-      final seenTrackIds = <String>{};
-      final list = <Track>[];
-      for (final row in rows) {
-        final trackData = row.readTable(_database.tracks);
-        if (!seenTrackIds.contains(trackData.id)) {
-          seenTrackIds.add(trackData.id);
-          list.add(_mapDbTrackToEntity(trackData));
-        }
-      }
-      return list;
-    });
+    return _database
+        .customSelect(
+          """
+      WITH latest AS (
+        SELECT track_id, played_at, id,
+          ROW_NUMBER() OVER (PARTITION BY track_id ORDER BY played_at DESC, id DESC) AS rank
+        FROM recently_played
+      )
+      SELECT tracks.* FROM latest JOIN tracks ON tracks.id = latest.track_id
+      WHERE latest.rank = 1
+      ORDER BY latest.played_at DESC, latest.id DESC
+      LIMIT ?
+      """,
+          variables: [Variable.withInt(limit)],
+          readsFrom: {_database.tracks, _database.recentlyPlayed},
+        )
+        .watch()
+        .map(
+          (rows) => rows
+              .map((row) => _mapDbTrackToEntity(_database.tracks.map(row.data)))
+              .toList(),
+        );
   }
 
   @override
