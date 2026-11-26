@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' show TableUpdateQuery;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/database/app_database.dart';
@@ -336,6 +337,18 @@ final searchResultsProvider = FutureProvider<SearchResults>((ref) async {
   final query = ref.watch(searchQueryStateProvider);
   final repo = ref.watch(searchRepositoryProvider);
   if (query.trim().isEmpty) return const SearchResults();
+  final db = ref.watch(appDatabaseProvider);
+  final changes = db
+      .tableUpdates(
+        TableUpdateQuery.onAllTables([
+          db.tracks,
+          db.albums,
+          db.artists,
+          db.playlists,
+        ]),
+      )
+      .listen((_) => ref.invalidateSelf());
+  ref.onDispose(changes.cancel);
   final result = await repo.search(query);
   return result.fold(
     onSuccess: (results) => results,

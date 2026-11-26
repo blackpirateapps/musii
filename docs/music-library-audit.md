@@ -13,7 +13,7 @@ Audited on 26 November 2026 at commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09`
 | LIB-05 | Medium | Exact searches miss titles with apostrophes and non-Latin text | Android and SQLite · Fixed |
 | LIB-06 | Medium | Searching for punctuation can match the entire library | Android and SQLite · Fixed |
 | LIB-07 | Medium | Album and artist details retain stale track download state | SQLite stream subscriptions · Fixed |
-| LIB-08 | Medium | Search retains results after library changes | Android and Riverpod with SQLite |
+| LIB-08 | Medium | Search retains results after library changes | Android and Riverpod with SQLite · Fixed |
 | LIB-09 | Medium | Home's See All buttons do nothing | Android and source review |
 | LIB-10 | Medium | Artists show “0 songs” while their details list songs | Android |
 | LIB-11 | Medium | Replaying a song repeatedly hides other recently played songs | SQLite · Fixed |
@@ -91,6 +91,8 @@ Audited on 26 November 2026 at commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09`
 **Cause.** Each detail stream listens to its parent row and reads the child queries once per parent emission. Track-only writes leave the parent query untouched. [Album and artist streams](../lib/features/library/data/repositories/music_library_repository_impl.dart#L534)
 
 ### LIB-08 · A search query stays stale after a playlist changes
+
+**Resolution.** Search subscribes to changes in its four indexed tables and refreshes the current query after a write. Creating and deleting a playlist no longer requires retyping the query.
 
 **Reproduce.** Search for a new playlist name, switch to Library, create a playlist with that name, and return to Search with the query intact. For the inverse, search for an existing playlist, delete it, and read the same results again.
 

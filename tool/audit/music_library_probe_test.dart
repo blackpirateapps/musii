@@ -383,33 +383,24 @@ void main() {
   });
 
   test(
-    'a visited search remains stale after playlist creation and deletion',
+    'a visited search refreshes after playlist creation and deletion',
     () async {
       final container = ProviderContainer(
-        overrides: [searchRepositoryProvider.overrideWithValue(search)],
+        overrides: [
+          appDatabaseProvider.overrideWithValue(db),
+          searchRepositoryProvider.overrideWithValue(search),
+        ],
       );
       addTearDown(container.dispose);
-      final query = container.read(searchQueryStateProvider.notifier);
-      query.state = 'Stress Playlist';
+      container.read(searchQueryStateProvider.notifier).state =
+          'Stress Playlist';
       expect(
         (await container.read(searchResultsProvider.future)).playlists,
         isEmpty,
       );
       final playlist = (await playlists.createPlaylist('Stress Playlist'))
           .dataOrNull!;
-      expect(
-        (await search.search('Stress Playlist'))
-            .dataOrNull!
-            .playlists
-            .single
-            .id,
-        playlist,
-      );
-      expect(
-        (await container.read(searchResultsProvider.future)).playlists,
-        isEmpty,
-      );
-      query.state = 'Stress Playlis';
+      await container.pump();
       expect(
         (await container.read(searchResultsProvider.future))
             .playlists
@@ -418,15 +409,9 @@ void main() {
         playlist,
       );
       expect((await playlists.deletePlaylist(playlist)).isSuccess, isTrue);
+      await container.pump();
       expect(
-        (await container.read(searchResultsProvider.future))
-            .playlists
-            .single
-            .id,
-        playlist,
-      );
-      expect(
-        (await search.search('Stress Playlis')).dataOrNull!.playlists,
+        (await container.read(searchResultsProvider.future)).playlists,
         isEmpty,
       );
     },

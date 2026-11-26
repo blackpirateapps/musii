@@ -184,7 +184,10 @@ void main() {
     await db.customStatement('DROP TABLE tracks');
     expect((await search.search('Test Artist')).isFailure, isTrue);
     final container = ProviderContainer(
-      overrides: [searchRepositoryProvider.overrideWithValue(search)],
+      overrides: [
+        appDatabaseProvider.overrideWithValue(db),
+        searchRepositoryProvider.overrideWithValue(search),
+      ],
     );
     addTearDown(container.dispose);
     container.read(searchQueryStateProvider.notifier).state = 'Test Artist';
