@@ -94,12 +94,24 @@ class SearchRepositoryImpl implements SearchRepository {
 
     try {
       final likePattern = '%$cleanQuery%';
+      final normalized = MetadataNormalizationService.searchKey(cleanQuery);
+      final keyQuery = normalized.isEmpty ? cleanQuery : normalized;
+      final keyPattern = '%$keyQuery%';
+      final matchingArtists = _database.selectOnly(_database.artists)
+        ..addColumns([_database.artists.id])
+        ..where(_database.artists.normalizedName.like(keyPattern));
+      final matchingAlbums = _database.selectOnly(_database.albums)
+        ..addColumns([_database.albums.id])
+        ..where(_database.albums.normalizedTitle.like(keyPattern));
 
       // 1. Search Tracks
       final trackRows =
           await (_database.select(_database.tracks)..where(
                 (tbl) =>
-                    tbl.normalizedTitle.like(likePattern) |
+                    tbl.normalizedTitle.like(keyPattern) |
+                    tbl.title.like(likePattern) |
+                    tbl.artistId.isInQuery(matchingArtists) |
+                    tbl.albumId.isInQuery(matchingAlbums) |
                     tbl.artistName.like(likePattern) |
                     tbl.albumName.like(likePattern) |
                     tbl.genre.like(likePattern),
@@ -110,10 +122,10 @@ class SearchRepositoryImpl implements SearchRepository {
       final tracks = trackRows.map(_mapDbTrackToEntity).toList()
         ..sort((a, b) {
           final aExact =
-              a.normalizedTitle == cleanQuery ||
+              a.normalizedTitle == keyQuery ||
               a.title.toLowerCase() == cleanQuery;
           final bExact =
-              b.normalizedTitle == cleanQuery ||
+              b.normalizedTitle == keyQuery ||
               b.title.toLowerCase() == cleanQuery;
           if (aExact && !bExact) return -1;
           if (!aExact && bExact) return 1;
@@ -124,7 +136,9 @@ class SearchRepositoryImpl implements SearchRepository {
       final albumRows =
           await (_database.select(_database.albums)..where(
                 (tbl) =>
-                    tbl.normalizedTitle.like(likePattern) |
+                    tbl.normalizedTitle.like(keyPattern) |
+                    tbl.title.like(likePattern) |
+                    tbl.artistId.isInQuery(matchingArtists) |
                     tbl.artistName.like(likePattern),
               ))
               .get();
@@ -148,8 +162,8 @@ class SearchRepositoryImpl implements SearchRepository {
               )
               .toList()
             ..sort((a, b) {
-              final aExact = a.normalizedTitle == cleanQuery;
-              final bExact = b.normalizedTitle == cleanQuery;
+              final aExact = a.normalizedTitle == keyQuery;
+              final bExact = b.normalizedTitle == keyQuery;
               if (aExact && !bExact) return -1;
               if (!aExact && bExact) return 1;
               return a.normalizedTitle.compareTo(b.normalizedTitle);
@@ -158,7 +172,7 @@ class SearchRepositoryImpl implements SearchRepository {
       // 3. Search Artists
       final artistRows = await (_database.select(
         _database.artists,
-      )..where((tbl) => tbl.normalizedName.like(likePattern))).get();
+      )..where((tbl) => tbl.normalizedName.like(keyPattern))).get();
 
       final artists = artistRows
           .map(

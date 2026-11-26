@@ -10,7 +10,7 @@ Audited on 26 November 2026 at commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09`
 | LIB-02 | High | Distinct same-title releases merge when one artist name begins with the other | SQLite and simulated Drive · Fixed |
 | LIB-03 | High | Offline download can appear pinned after the download failed | SQLite and simulated Drive · Fixed |
 | LIB-04 | High | The audio cache accepts a payload with the wrong Drive checksum | SQLite and simulated Drive · Fixed |
-| LIB-05 | Medium | Exact searches miss titles with apostrophes and non-Latin text | Android and SQLite |
+| LIB-05 | Medium | Exact searches miss titles with apostrophes and non-Latin text | Android and SQLite · Fixed |
 | LIB-06 | Medium | Searching for punctuation can match the entire library | Android and SQLite |
 | LIB-07 | Medium | Album and artist details retain stale track download state | SQLite stream subscriptions |
 | LIB-08 | Medium | Search retains results after library changes | Android and Riverpod with SQLite |
@@ -61,6 +61,8 @@ Audited on 26 November 2026 at commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09`
 **Cause.** The cache validates that the indexed version still matches its reservation, records the staged byte count, and renames the file without verifying the bytes against the remote checksum. [Download and commit](../lib/features/cache/data/repositories/cache_repository_impl.dart#L142)
 
 ### LIB-05 · Exact title and artist searches miss indexed music
+
+**Resolution.** Search uses the metadata key normalizer for normalized fields and also matches display titles. Exact matches rank first for either spelling.
 
 **Reproduce.** On Android, search for the visible song title `Don't Wanna Go`, using its straight apostrophe. In the fixture, search for `Don't Stop`, `夜空`, `青葉市子`, and `檻髪`.
 

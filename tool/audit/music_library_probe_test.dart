@@ -267,7 +267,10 @@ void main() {
         (await library.getTrackById('track_a')).dataOrNull!.normalizedTitle,
         '夜空',
       );
-      expect((await search.search("Don't Stop")).dataOrNull!.tracks, isEmpty);
+      expect(
+        (await search.search("Don't Stop")).dataOrNull!.tracks.single.id,
+        'track_c',
+      );
       expect(
         (await search.search('Dont Stop')).dataOrNull!.tracks.single.id,
         'track_c',
