@@ -77,6 +77,16 @@ final class YouTubeMusicCatalog {
     }
 
     Map<String, Object> getHome() throws IOException, ExtractionException {
+        List<Map<String, Object>> sections = loadShelves("FEmusic_home");
+        if (sections.isEmpty()) {
+            // Some regions show only playlists on the signed-out home page.
+            sections = loadShelves("FEmusic_explore");
+        }
+        return Collections.singletonMap("sections", sections);
+    }
+
+    private List<Map<String, Object>> loadShelves(String browseId)
+            throws IOException, ExtractionException {
         String body = JsonWriter.string()
             .object()
                 .object("context")
@@ -88,7 +98,7 @@ final class YouTubeMusicCatalog {
                         .value("platform", "DESKTOP")
                     .end()
                 .end()
-                .value("browseId", "FEmusic_home")
+                .value("browseId", browseId)
             .end().done();
         String response = YoutubeParsingHelper.getValidJsonResponseBody(
             NewPipe.getDownloader().postWithContentTypeJson(
@@ -113,7 +123,7 @@ final class YouTubeMusicCatalog {
             collectShelves(browse.getObject("twoColumnBrowseResultsRenderer")
                 .getObject("secondaryContents").getObject("sectionListRenderer")
                 .getArray("contents"), sections);
-            return Collections.singletonMap("sections", sections);
+            return sections;
         } catch (JsonParserException error) {
             throw new ParsingException("Could not read YouTube Music home", error);
         }
