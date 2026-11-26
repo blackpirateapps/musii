@@ -1510,6 +1510,25 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
       final removedTracks = existingTracks
           .where((track) => !driveFileMap.containsKey(track.driveFileId))
           .toList();
+      if (isResume && removedTracks.isNotEmpty) {
+        // A checkpoint can outlive a file move. Confirm absences with a fresh
+        // listing before deleting tracks and their local relationships.
+        final liveListing = await _driveRepository.listAudioFilesRecursively(
+          rootFolderId,
+          isCancelled: () => cancellationToken.isCancelled,
+          abortTrigger: cancellationToken.whenCancelled,
+        );
+        cancellationToken.throwIfCancelled();
+        if (liveListing.isFailure) throw liveListing.failureOrNull!;
+        final presentIds = liveListing.dataOrNull!
+            .where((file) => !file.isLrc && !file.isImage)
+            .map((file) => file.id)
+            .toSet();
+        removedTracks.removeWhere(
+          (track) => presentIds.contains(track.driveFileId),
+        );
+        await verifyAccount();
+      }
       await _database.transaction(() async {
         cancellationToken.throwIfCancelled();
         final affectedPlaylists = <String>{};

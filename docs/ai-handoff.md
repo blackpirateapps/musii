@@ -57,6 +57,7 @@ The codebase strictly adheres to standard four-layer Clean Architecture:
 ## 3. Subsystems & Features
 
 The [Now Playing and lyrics audit](now-playing-audit.md) tracks playback UI fixes and the Android performance baseline.
+The [music library audit](music-library-audit.md) records open findings from Android browsing and SQLite stress tests.
 
 ### 1. Home Screen Experience (Visual Authority)
 Located in `lib/features/library/presentation/pages/home_page.dart` and `lib/features/library/presentation/widgets/`:
@@ -145,7 +146,7 @@ Located in `lib/features/lyrics/`:
 The [audit and remediation record](google-drive-sync-audit.md) links each pre-fix symptom to its regression coverage.
 
 - **Drive listings.** The folder picker follows every page, includes shared-drive roots, and resolves accessible folder shortcuts. Recursive discovery handles supported audio shortcuts using target metadata and avoids cycles by target folder ID. Any incomplete Drive listing or repeated page token fails the run before local removals.
-- **Folder checkpoints.** A folder enters the visited set after all its pages succeed. Its discovered files, child-to-parent links, and remaining folder queue commit together in SQLite. A stop or failure within a folder discards that folder’s partial listing. Startup recovery continues at the first unfinished folder. Completed discovery needs zero additional listing requests on resume, while outstanding audio, sidecar, or artwork work can still make remote requests.
+- **Folder checkpoints.** A folder enters the visited set after all its pages succeed. Its discovered files, child-to-parent links, and remaining folder queue commit together in SQLite. A stop or failure within a folder discards that folder’s partial listing. Startup recovery continues at the first unfinished folder. Resume reuses completed discovery for metadata work. If a resumed run would remove tracks, it checks a fresh Drive listing before deleting local data.
 - **Saved roots and account changes.** Roots, runs, and pruning are scoped to the active Google account. Signing out keeps indexed music and offline files available. Sign-out and account changes cancel an active run. Startup only attempts recovery with a restored Google sign-in.
 - **Stop and force resume.** Drive list and media requests use an abort trigger. Each track transaction commits its checkpoint and preserves its original outcome on resume. Schema v11 persists Force Full Re-sync mode, so resume still processes the remaining tracks in force mode. Cancellation before reconciliation completes rolls back local removals.
 - **Incremental metadata.** Unchanged audio reuses local metadata. A changed checksum, newer remote timestamp, or difference between known sizes refreshes audio metadata. Missing core metadata triggers repair. Discovery deduplicates by file ID and writes unchanged status in bounded SQLite batches.
