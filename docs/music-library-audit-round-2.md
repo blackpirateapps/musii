@@ -10,7 +10,7 @@ Audited commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09` on 26 November 2026. T
 | LIB-15 | High | One account can delete a shared track still indexed by another account | Two-account sync fixture · Fixed |
 | LIB-16 | Medium | Failed folder change replaces the last working saved root | Sync fixture · Fixed |
 | LIB-17 | Medium | Deleting the last embedded cover hides available folder artwork for one sync | Sync fixture · Fixed |
-| LIB-18 | Medium | Superseded folder covers accumulate outside cache management | Filesystem fixture |
+| LIB-18 | Medium | Superseded folder covers accumulate outside cache management | Filesystem fixture · Fixed |
 | LIB-19 | Medium | Automatic cache limit is unenforced at download time | Android settings and cache fixture |
 | LIB-20 | Medium | Failed cache clear leaves database rows for deleted files | SQLite fault injection |
 | LIB-21 | Medium | A favorite can be removed by an action labeled Favorite | Android |
@@ -60,6 +60,8 @@ Audited commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09` on 26 November 2026. T
 **Expected.** The first completed sync should pick the available folder cover when the last track with embedded art disappears. Artwork preparation checks the old track set before reconciliation removes A. [Artwork preparation](../lib/features/library/data/repositories/music_library_repository_impl.dart#L2102) · [Artwork selection](../lib/features/library/data/repositories/music_library_repository_impl.dart#L2199)
 
 ### LIB-18 · Superseded folder covers accumulate outside cache management
+
+**Resolution.** Sync reclaims unreferenced versioned artwork after database writes. Artist fallback covers follow the current album artwork so they do not retain superseded files.
 
 **Reproduce.** Sync one album through 12 versions of the same Drive cover, each with a different fingerprint. Delete the cover on Drive and sync. Run cache eviction with a zero-byte target and clear cached audio.
 

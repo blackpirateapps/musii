@@ -1811,11 +1811,20 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
           await _fileSystem.removeUnreferencedAudio(
             entries.map((entry) => entry.localPath).toSet(),
           );
+          final artworkPaths = await _database.customSelect("""
+            SELECT artwork_path AS path FROM tracks WHERE artwork_path IS NOT NULL
+            UNION SELECT embedded_artwork_path FROM tracks WHERE embedded_artwork_path IS NOT NULL
+            UNION SELECT artwork_path FROM albums WHERE artwork_path IS NOT NULL
+            UNION SELECT artwork_path FROM artists WHERE artwork_path IS NOT NULL
+          """).get();
+          await _fileSystem.removeUnreferencedArtwork(
+            artworkPaths.map((row) => row.read<String>('path')).toSet(),
+          );
         });
       } catch (e) {
         AppLogger.warning(
           LogCategory.cache,
-          'Could not remove stale sync audio',
+          'Could not remove stale sync files',
           e,
         );
       }
@@ -2385,10 +2394,12 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
         continue;
       }
 
-      String? resolvedArtwork = art.artworkPath;
-      if (resolvedArtwork == null ||
-          resolvedArtwork.isEmpty ||
-          !File(resolvedArtwork).existsSync()) {
+      String? resolvedArtwork = _existingFile(art.artworkPath);
+      if (resolvedArtwork != null &&
+          AppFileSystem.isVersionedArtwork(resolvedArtwork)) {
+        resolvedArtwork = null;
+      }
+      if (resolvedArtwork == null) {
         final artistCache = _fileSystem.getArtworkCacheFile(
           'artist_${art.normalizedName}',
         );
@@ -2417,9 +2428,7 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
         ArtistsCompanion(
           trackCount: Value(tracks.length),
           albumCount: Value(albums.length),
-          artworkPath: resolvedArtwork != null
-              ? Value(resolvedArtwork)
-              : const Value.absent(),
+          artworkPath: Value(resolvedArtwork),
         ),
       );
     }

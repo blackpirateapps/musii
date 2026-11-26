@@ -176,6 +176,29 @@ class AppFileSystem {
     }
   }
 
+  static bool isVersionedArtwork(String path) {
+    final name = p.basename(path);
+    return name.startsWith('drive_') || name.startsWith('embedded_');
+  }
+
+  Future<void> removeUnreferencedArtwork(Set<String> retainedPaths) async {
+    await for (final entry in artworkCacheDir.list()) {
+      if (entry is File &&
+          isVersionedArtwork(entry.path) &&
+          !retainedPaths.contains(entry.path)) {
+        try {
+          await entry.delete();
+        } on FileSystemException catch (error) {
+          AppLogger.warning(
+            LogCategory.cache,
+            'Could not remove obsolete artwork',
+            error,
+          );
+        }
+      }
+    }
+  }
+
   Future<int> getAudioCacheSizeBytes() async {
     if (!await audioCacheDir.exists()) return 0;
     int total = 0;

@@ -397,22 +397,19 @@ void main() {
     },
   );
 
-  test('successive folder cover versions accumulate outside audio cache management', () async {
+  test('successive folder cover versions are reclaimed after sync', () async {
     for (var version = 0; version < 12; version++) {
       files = [
         audio('a'),
         {...cover('cover'), 'md5Checksum': 'cover-$version'},
       ];
       await sync();
+      expect(await fs.artworkCacheDir.list().toList(), hasLength(1));
     }
     files = [audio('a')];
     await sync();
     expect((await library.watchAllAlbums().first).single.artworkPath, isNull);
-    expect(await fs.artworkCacheDir.list().toList(), hasLength(12));
-    expect(await cache.getTotalCacheSize(), 0);
-    expect((await cache.clearCache(includePinned: true)).isSuccess, isTrue);
-    expect((await cache.evictLruCache(targetSizeBytes: 0)).isSuccess, isTrue);
-    expect(await fs.artworkCacheDir.list().toList(), hasLength(12));
+    expect(await fs.artworkCacheDir.list().toList(), isEmpty);
   });
 
   test(
