@@ -161,6 +161,7 @@ The [audit and remediation record](google-drive-sync-audit.md) links each pre-fi
 Located in `lib/app/bootstrap/bootstrap.dart`, `lib/core/services/notification_permission_service.dart`, and `lib/features/playback/data/repositories/playback_repository_impl.dart`:
 - **AudioService Registration (`AudioService.init`)**:
   - Initializes background foreground service with `AudioServiceConfig` (channel `com.blackpirateapps.musii.channel.audio`, small icon `drawable/ic_stat_music`).
+  - `audio_service` looks up the notification icon and action drawables by name at runtime. `res/raw/keep_com_blackpirateapps_musii.xml` keeps them through release resource shrinking. A missing Stop icon on Android 13+ causes `PlaybackStateCompat.CustomAction` to throw before the service can publish playback state or post the notification. The APK workflow checks the packaged notification and playback drawables before upload.
   - Graceful fallback for test/desktop runtime where native host channel is not present.
 - **Android 13+ Notification Permission (`POST_NOTIFICATIONS`)**:
   - `<uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>` declared in `AndroidManifest.xml`.

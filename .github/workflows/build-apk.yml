@@ -70,6 +70,22 @@ jobs:
       - name: Build Android Release APK
         run: flutter build apk --release
 
+      - name: Verify media notification icons in release APK
+        shell: bash
+        run: |
+          aapt2=$(find "$ANDROID_HOME/build-tools" -type f -name aapt2 | sort -V | tail -n 1)
+          "$aapt2" dump resources build/app/outputs/flutter-apk/app-release.apk \
+            | awk '$1 == "resource" { print $3 }' > "$RUNNER_TEMP/musii-release-resources.txt"
+
+          missing=0
+          for icon in ic_stat_music audio_service_{play_arrow,pause,skip_previous,skip_next,stop}; do
+            if ! grep -Fxq "drawable/$icon" "$RUNNER_TEMP/musii-release-resources.txt"; then
+              echo "::error::Release APK is missing drawable/$icon"
+              missing=1
+            fi
+          done
+          exit "$missing"
+
       - name: Upload Release APK artifact
         uses: actions/upload-artifact@v4
         with:
