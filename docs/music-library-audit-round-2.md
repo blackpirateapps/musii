@@ -14,7 +14,7 @@ Audited commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09` on 26 November 2026. T
 | LIB-19 | Medium | Automatic cache limit is unenforced at download time | Android settings and cache fixture |
 | LIB-20 | Medium | Failed cache clear leaves database rows for deleted files | SQLite fault injection |
 | LIB-21 | Medium | A favorite can be removed by an action labeled Favorite | Android |
-| LIB-22 | Medium | Extensionless audio is downloaded during every incremental sync | Generated WAV and production metadata parser |
+| LIB-22 | Medium | Extensionless audio is downloaded during every incremental sync | Generated WAV and production metadata parser · Fixed |
 | LIB-23 | Medium | Artist detail exposes only five songs and provides no full track list | Flutter widget test · Fixed |
 | LIB-24 | Medium | Search reports No Results when its SQLite query fails | SQLite and Riverpod · Fixed |
 | LIB-25 | Medium | Song overflow buttons have no accessibility label | Android accessibility tree and source · Fixed |
@@ -88,6 +88,8 @@ Audited commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09` on 26 November 2026. T
 **Expected.** An existing favorite should offer Remove from Favorites, or the action should wait for the current state. The menu reads a stream value once and uses a false fallback. The action then toggles the actual database state. [Overflow state and action](../lib/features/library/presentation/widgets/track_overflow_sheet.dart#L23)
 
 ### LIB-22 · Extensionless audio downloads on every incremental sync
+
+**Resolution.** Supported MIME types supply a format when a Drive filename lacks an extension. A generated WAV now indexes once and skips all three unchanged syncs.
 
 **Reproduce.** Serve two valid one-second PCM WAV files with MIME type `audio/wav`, one named `Extensionless` and one named `Control.wav`. Sync once, then sync three more times with identical remote fingerprints.
 

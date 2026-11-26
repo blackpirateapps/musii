@@ -1362,10 +1362,20 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
           NormalizedMetadata? normalized;
           String? embeddedArtworkPath;
           if (!sidecarOnly.contains(driveFile.id)) {
-            final extension = driveFile.name
-                .split('.')
-                .last
-                .replaceAll(RegExp(r'[^a-zA-Z0-9]'), '');
+            final filename = driveFile.name;
+            final dot = filename.lastIndexOf('.');
+            final mimeExtension = AppAudioConstants.extensionForMimeType(
+              driveFile.mimeType,
+            );
+            final hasExtension = dot > 0 && dot < filename.length - 1;
+            final extension =
+                (hasExtension
+                        ? filename.substring(dot + 1)
+                        : mimeExtension ?? '')
+                    .replaceAll(RegExp(r'[^a-zA-Z0-9]'), '');
+            final metadataFilename = !hasExtension && mimeExtension != null
+                ? '$filename.$mimeExtension'
+                : filename;
             tempFile = _fileSystem.getTempMetadataFile(
               'temp_${Uri.encodeComponent(driveFile.id)}.${extension.substring(0, extension.length.clamp(0, 12))}',
             );
@@ -1385,7 +1395,7 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
             }
             parsedMeta = await _metadataExtractor.extractFromFile(
               tempFile,
-              fallbackName: driveFile.name,
+              fallbackName: metadataFilename,
               knownFileSize: driveFile.size > 0 ? driveFile.size : null,
             );
             normalized = MetadataNormalizationService.normalize(

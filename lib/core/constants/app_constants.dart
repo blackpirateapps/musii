@@ -67,6 +67,18 @@ abstract final class AppAudioConstants {
     'audio/x-wav',
   ];
 
+  static String? extensionForMimeType(String mimeType) =>
+      switch (mimeType.toLowerCase()) {
+        'audio/mpeg' || 'audio/mp3' => 'mp3',
+        'audio/flac' || 'audio/x-flac' => 'flac',
+        'audio/mp4' || 'audio/x-m4a' => 'm4a',
+        'audio/aac' => 'aac',
+        'audio/ogg' => 'ogg',
+        'audio/opus' => 'opus',
+        'audio/wav' || 'audio/x-wav' => 'wav',
+        _ => null,
+      };
+
   // Meaningful playback threshold: 30 seconds or 30% of song
   static const int minPlaySecondsForHistory = 30;
   static const double minPlayRatioForHistory = 0.30;

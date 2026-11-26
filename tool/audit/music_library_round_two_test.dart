@@ -119,7 +119,7 @@ void main() {
       (await library.getTrackByDriveFileId(id)).dataOrNull!;
 
   test(
-    'a valid extensionless WAV downloads on every incremental sync',
+    'a valid extensionless WAV skips unchanged incremental downloads',
     () async {
       const samples = 8000;
       final wav = ByteData(44 + 2 * samples);
@@ -163,13 +163,13 @@ void main() {
       );
       addTearDown(realMetadataLibrary.dispose);
       await sync(repository: realMetadataLibrary);
-      expect((await track('a')).format, isEmpty);
+      expect((await track('a')).format, 'WAV');
       expect((await track('b')).format, 'WAV');
       for (var repeat = 0; repeat < 3; repeat++) {
         mediaRequests.clear();
         await sync(repository: realMetadataLibrary);
-        expect(mediaRequests, ['a']);
-        expect((await track('a')).format, isEmpty);
+        expect(mediaRequests, isEmpty);
+        expect((await track('a')).format, 'WAV');
       }
     },
   );
