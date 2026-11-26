@@ -18,7 +18,7 @@ Audited on 26 November 2026 at commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09`
 | LIB-10 | Medium | Artists show “0 songs” while their details list songs | Android |
 | LIB-11 | Medium | Replaying a song repeatedly hides other recently played songs | SQLite |
 | LIB-12 | Medium | A playlist can contain repeated additions with no way to remove an individual song | Android and SQLite |
-| LIB-13 | Low | Concurrent favorite toggles fail and lose updates | SQLite |
+| LIB-13 | Low | Concurrent favorite toggles fail and lose updates | SQLite · Fixed |
 
 ### LIB-01 · Non-Latin metadata merges unrelated music
 
@@ -125,6 +125,8 @@ Audited on 26 November 2026 at commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09`
 **Cause.** Membership insertions accept repeat track IDs. The detail page delegates to the standard track menu, while the removal API accepts a track ID and deletes every matching membership. [Membership writes](../lib/features/playlists/data/repositories/playlist_repository_impl.dart#L174) · [Playlist row menu](../lib/features/playlists/presentation/pages/playlist_detail_page.dart#L297)
 
 ### LIB-13 · Concurrent favorite toggles lose updates
+
+**Resolution.** Favorite toggling reads and updates the row in one transaction. Twenty concurrent requests complete with the same result as twenty sequential toggles.
 
 **Reproduce.** Start with one unfavorited track and issue 20 concurrent calls to `toggleFavorite` for its ID.
 

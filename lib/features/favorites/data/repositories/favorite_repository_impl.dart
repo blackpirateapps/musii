@@ -93,27 +93,29 @@ class FavoriteRepositoryImpl implements FavoriteRepository {
   @override
   Future<Result<bool, AppFailure>> toggleFavorite(String trackId) async {
     try {
-      final existing = await (_database.select(
-        _database.favorites,
-      )..where((tbl) => tbl.trackId.equals(trackId))).getSingleOrNull();
-
-      if (existing != null) {
-        await (_database.delete(
+      return await _database.transaction(() async {
+        final existing = await (_database.select(
           _database.favorites,
-        )..where((tbl) => tbl.trackId.equals(trackId))).go();
-        return const Result.success(false);
-      } else {
-        await _database
-            .into(_database.favorites)
-            .insert(
-              FavoritesCompanion(
-                id: Value('fav_${DateTime.now().microsecondsSinceEpoch}'),
-                trackId: Value(trackId),
-                addedAt: Value(DateTime.now()),
-              ),
-            );
-        return const Result.success(true);
-      }
+        )..where((tbl) => tbl.trackId.equals(trackId))).getSingleOrNull();
+
+        if (existing != null) {
+          await (_database.delete(
+            _database.favorites,
+          )..where((tbl) => tbl.trackId.equals(trackId))).go();
+          return const Result.success(false);
+        } else {
+          await _database
+              .into(_database.favorites)
+              .insert(
+                FavoritesCompanion(
+                  id: Value('fav_${DateTime.now().microsecondsSinceEpoch}'),
+                  trackId: Value(trackId),
+                  addedAt: Value(DateTime.now()),
+                ),
+              );
+          return const Result.success(true);
+        }
+      });
     } catch (e) {
       return Result.failure(
         DatabaseFailure('Failed to toggle favorite', cause: e),

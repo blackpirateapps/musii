@@ -448,19 +448,16 @@ void main() {
     expect(await playlists.watchPlaylistTracks(playlist).first, isEmpty);
   });
 
-  test(
-    'concurrent favorite toggles lose operations against the unique constraint',
-    () async {
-      await db.into(db.tracks).insert(track(0));
-      final favorite = FavoriteRepositoryImpl(database: db);
-      final results = await Future.wait(
-        List.generate(20, (_) => favorite.toggleFavorite('t0')),
-      );
-      expect(results.where((result) => result.isSuccess), hasLength(1));
-      expect(results.where((result) => result.isFailure), hasLength(19));
-      expect(await favorite.watchIsFavorite('t0').first, isTrue);
-    },
-  );
+  test('concurrent favorite toggles serialize all operations', () async {
+    await db.into(db.tracks).insert(track(0));
+    final favorite = FavoriteRepositoryImpl(database: db);
+    final results = await Future.wait(
+      List.generate(20, (_) => favorite.toggleFavorite('t0')),
+    );
+    expect(results.where((result) => result.isSuccess), hasLength(20));
+    expect(results.where((result) => result.isFailure), isEmpty);
+    expect(await favorite.watchIsFavorite('t0').first, isFalse);
+  });
 
   test('offline pin reports failure and can retry the download', () async {
     listing = [audio('a')];
