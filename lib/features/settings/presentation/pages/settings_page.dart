@@ -55,6 +55,43 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
   }
 
+  Future<void> _showCacheLimitPicker() async {
+    const gib = 1024 * 1024 * 1024;
+    const options = [
+      AppAudioConstants.minCacheSizeBytes,
+      gib,
+      2 * gib,
+      5 * gib,
+      10 * gib,
+      20 * gib,
+      AppAudioConstants.maxCacheSizeBytes,
+    ];
+    final selected = await showCupertinoModalPopup<int>(
+      context: context,
+      builder: (sheetContext) => CupertinoActionSheet(
+        title: const Text('Automatic Cache Limit'),
+        actions: [
+          for (final bytes in options)
+            CupertinoActionSheetAction(
+              isDefaultAction: bytes == _cacheLimitBytes,
+              onPressed: () => Navigator.pop(sheetContext, bytes),
+              child: Text(_formatBytes(bytes)),
+            ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.pop(sheetContext),
+          child: const Text('Cancel'),
+        ),
+      ),
+    );
+    if (selected == null || !mounted) return;
+    final settings = ref.read(settingsRepositoryProvider);
+    final cache = ref.read(cacheRepositoryProvider);
+    await settings.setCacheLimitBytes(selected);
+    if (mounted) setState(() => _cacheLimitBytes = selected);
+    await cache.evictLruCache(targetSizeBytes: selected);
+  }
+
   void _showClearCacheConfirm() {
     showCupertinoDialog(
       context: context,
@@ -449,6 +486,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                   ),
                   CupertinoListTile(
                     title: const Text('Automatic Cache Limit'),
+                    onTap: _showCacheLimitPicker,
                     trailing: Text(
                       _formatBytes(_cacheLimitBytes),
                       style: TextStyle(

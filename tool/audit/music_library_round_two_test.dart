@@ -412,31 +412,25 @@ void main() {
     expect(await fs.artworkCacheDir.list().toList(), isEmpty);
   });
 
-  test(
-    'download ignores saved cache setting and can exceed the reported default',
-    () async {
-      await sync();
-      final settings = SettingsRepositoryImpl(database: db);
-      await settings.setCacheLimitBytes(AppAudioConstants.minCacheSizeBytes);
-      final saved = await settings.getCacheLimitBytes();
-      expect(saved, lessThan(AppAudioConstants.defaultCacheSizeBytes));
-      final file = (await cache.getOrDownloadTrack(await track('a')))
-          .dataOrNull!;
-      final handle = await file.open(mode: FileMode.append);
-      await handle.truncate(AppAudioConstants.defaultCacheSizeBytes - 1);
-      await handle.close();
+  test('download makes room under the saved cache limit', () async {
+    await sync();
+    final settings = SettingsRepositoryImpl(database: db);
+    await settings.setCacheLimitBytes(AppAudioConstants.minCacheSizeBytes);
+    final saved = await settings.getCacheLimitBytes();
+    expect(saved, lessThan(AppAudioConstants.defaultCacheSizeBytes));
+    final file = (await cache.getOrDownloadTrack(await track('a'))).dataOrNull!;
+    final handle = await file.open(mode: FileMode.append);
+    await handle.truncate(saved - 1);
+    await handle.close();
 
-      expect(
-        (await cache.getOrDownloadTrack(await track('b'))).isSuccess,
-        isTrue,
-      );
-      expect(await cache.isTrackCached('track_a'), isTrue);
-      expect(
-        await cache.getTotalCacheSize(),
-        AppAudioConstants.defaultCacheSizeBytes + 2,
-      );
-    },
-  );
+    expect(
+      (await cache.getOrDownloadTrack(await track('b'))).isSuccess,
+      isTrue,
+    );
+    expect(await cache.isTrackCached('track_a'), isFalse);
+    expect(await cache.isTrackCached('track_b'), isTrue);
+    expect(await cache.getTotalCacheSize(), 3);
+  });
 
   test('failed clear retains both cache records and files', () async {
     await sync();

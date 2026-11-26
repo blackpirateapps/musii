@@ -54,7 +54,7 @@ sequenceDiagram
 
 ## 3. Least Recently Used (LRU) Eviction
 
-Musii maintains a configurable cache quota (default 2 GB; adjustable in Settings between 500 MB and 10 GB).
+Musii maintains a configurable cache quota (default 5 GiB, adjustable in Settings from 500 MiB to 50 GiB).
 
 ### Eviction Algorithm:
 1. When new audio is written, `CacheRepositoryImpl` evaluates:

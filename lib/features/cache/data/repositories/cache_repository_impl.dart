@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:drift/drift.dart';
 
-import '../../../../core/constants/app_constants.dart';
 import '../../../../core/database/app_database.dart';
 import '../../../../core/error/failures.dart';
 import '../../../../core/filesystem/app_file_system.dart';
@@ -11,12 +11,14 @@ import '../../../../core/logging/app_logger.dart';
 import '../../../../core/result/result.dart';
 import '../../../google_drive/domain/entities/drive_item.dart';
 import '../../../library/domain/entities/music_entities.dart';
+import '../../../settings/data/repositories/settings_repository_impl.dart';
 import '../../domain/entities/cache_entry.dart';
 
 class CacheRepositoryImpl implements CacheRepository {
   final AppDatabase _database;
   final GoogleDriveRepository _driveRepository;
   final AppFileSystem _fileSystem;
+  final SettingsRepositoryImpl _settings;
 
   String? _currentlyPlayingTrackId;
   final Map<String, StreamController<double?>> _progressControllers = {};
@@ -28,7 +30,8 @@ class CacheRepositoryImpl implements CacheRepository {
     AppFileSystem? fileSystem,
   }) : _database = database,
        _driveRepository = driveRepository,
-       _fileSystem = fileSystem ?? AppFileSystem.instance;
+       _fileSystem = fileSystem ?? AppFileSystem.instance,
+       _settings = SettingsRepositoryImpl(database: database);
 
   @override
   void setCurrentlyPlayingTrackId(String? trackId) {
@@ -112,7 +115,6 @@ class CacheRepositoryImpl implements CacheRepository {
     try {
       final existing = await getCachedAudioFile(track.id);
       if (existing != null) return Result.success(existing);
-      await evictLruCache();
 
       final reservation = await _database.transaction(() async {
         final latest = await _findTrack(track.id);
@@ -193,6 +195,9 @@ class CacheRepositoryImpl implements CacheRepository {
                 .getSingleOrNull();
         if (entry == null) return false;
         final size = await staging.length();
+        final limit = await _settings.getCacheLimitBytes();
+        await _removeUnreferencedAudio();
+        await _evictTo(math.max(0, limit - size));
         await staging.rename(target.path);
         await (_database.update(
           _database.cacheEntries,
@@ -220,6 +225,7 @@ class CacheRepositoryImpl implements CacheRepository {
           CacheFailure('Track changed while downloading. Try again.'),
         );
       }
+      await _removeUnreferencedAudio();
       _emitProgress(track.id, 1.0);
       return Result.success(target);
     } catch (e, st) {
@@ -317,58 +323,10 @@ class CacheRepositoryImpl implements CacheRepository {
   @override
   Future<Result<void, AppFailure>> evictLruCache({int? targetSizeBytes}) async {
     try {
+      final limit = targetSizeBytes ?? await _settings.getCacheLimitBytes();
       await _database.transaction(() async {
         await _removeUnreferencedAudio();
-        final maxAllowedBytes =
-            targetSizeBytes ?? AppAudioConstants.defaultCacheSizeBytes;
-        int currentTotal = await getTotalCacheSize();
-
-        if (currentTotal <= maxAllowedBytes) {
-          return;
-        }
-
-        AppLogger.info(
-          LogCategory.cache,
-          'Cache exceeds threshold ($currentTotal > $maxAllowedBytes). Starting LRU eviction.',
-        );
-
-        // Query LRU non-pinned tracks
-        final candidates =
-            await (_database.select(_database.cacheEntries)
-                  ..where(
-                    (tbl) =>
-                        tbl.isPinnedOffline.equals(false) &
-                        tbl.state.equals('cached'),
-                  )
-                  ..orderBy([(tbl) => OrderingTerm.asc(tbl.lastAccessedAt)]))
-                .get();
-
-        for (final entry in candidates) {
-          if (entry.trackId == _currentlyPlayingTrackId) continue;
-
-          final file = File(entry.localPath);
-          if (await file.exists()) {
-            currentTotal -= await file.length();
-          }
-
-          // Update database
-          await (_database.delete(
-            _database.cacheEntries,
-          )..where((tbl) => tbl.id.equals(entry.id))).go();
-
-          await (_database.update(
-            _database.tracks,
-          )..where((tbl) => tbl.id.equals(entry.trackId))).write(
-            const TracksCompanion(
-              isCached: Value(false),
-              localPath: Value(null),
-            ),
-          );
-
-          if (currentTotal <= (maxAllowedBytes * 0.90)) {
-            break; // Safely below watermark
-          }
-        }
+        await _evictTo(limit);
       });
       await _removeUnreferencedAudio();
       return const Result.success(null);
@@ -377,6 +335,54 @@ class CacheRepositoryImpl implements CacheRepository {
       return Result.failure(
         CacheFailure('Cache eviction encountered an error', cause: e),
       );
+    }
+  }
+
+  Future<void> _evictTo(int maxAllowedBytes) async {
+    int currentTotal = await getTotalCacheSize();
+
+    if (currentTotal <= maxAllowedBytes) {
+      return;
+    }
+
+    AppLogger.info(
+      LogCategory.cache,
+      'Cache exceeds threshold ($currentTotal > $maxAllowedBytes). Starting LRU eviction.',
+    );
+
+    // Query LRU non-pinned tracks
+    final candidates =
+        await (_database.select(_database.cacheEntries)
+              ..where(
+                (tbl) =>
+                    tbl.isPinnedOffline.equals(false) &
+                    tbl.state.equals('cached'),
+              )
+              ..orderBy([(tbl) => OrderingTerm.asc(tbl.lastAccessedAt)]))
+            .get();
+
+    for (final entry in candidates) {
+      if (entry.trackId == _currentlyPlayingTrackId) continue;
+
+      final file = File(entry.localPath);
+      if (await file.exists()) {
+        currentTotal -= await file.length();
+      }
+
+      // Update database
+      await (_database.delete(
+        _database.cacheEntries,
+      )..where((tbl) => tbl.id.equals(entry.id))).go();
+
+      await (_database.update(
+        _database.tracks,
+      )..where((tbl) => tbl.id.equals(entry.trackId))).write(
+        const TracksCompanion(isCached: Value(false), localPath: Value(null)),
+      );
+
+      if (currentTotal <= (maxAllowedBytes * 0.90)) {
+        break; // Safely below watermark
+      }
     }
   }
 

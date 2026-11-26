@@ -11,7 +11,7 @@ Audited commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09` on 26 November 2026. T
 | LIB-16 | Medium | Failed folder change replaces the last working saved root | Sync fixture · Fixed |
 | LIB-17 | Medium | Deleting the last embedded cover hides available folder artwork for one sync | Sync fixture · Fixed |
 | LIB-18 | Medium | Superseded folder covers accumulate outside cache management | Filesystem fixture · Fixed |
-| LIB-19 | Medium | Automatic cache limit is unenforced at download time | Android settings and cache fixture |
+| LIB-19 | Medium | Automatic cache limit is unenforced at download time | Android settings and cache fixture · Fixed |
 | LIB-20 | Medium | Failed cache clear leaves database rows for deleted files | SQLite fault injection · Fixed |
 | LIB-21 | Medium | A favorite can be removed by an action labeled Favorite | Android |
 | LIB-22 | Medium | Extensionless audio is downloaded during every incremental sync | Generated WAV and production metadata parser · Fixed |
@@ -70,6 +70,8 @@ Audited commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09` on 26 November 2026. T
 **Expected.** Obsolete artwork needs reclamation or a separate storage limit. Folder artwork is stored under a versioned filename, while the current cache inventory and eviction manage audio paths. [Versioned cover writes](../lib/features/library/data/repositories/music_library_repository_impl.dart#L2132) · [Audio cache scope](../lib/core/filesystem/app_file_system.dart#L153)
 
 ### LIB-19 · Normal downloads can exceed both saved and displayed cache limits
+
+**Resolution.** Settings exposes cache capacity controls. Normal download commits apply the stored capacity, budget the incoming file size inside the database transaction, and evict eligible older audio. Pinned and playing media remain exempt.
 
 **Reproduce.** In a fixture, save the minimum cache limit. Seed one evictable audio file just below the default 5 GiB limit using a sparse file, then request a second three-byte song.
 
