@@ -293,49 +293,55 @@ void main() {
     },
   );
 
-  test('one account can prune a shared file another account indexed', () async {
-    final auth = SwitchingAuthRepository();
-    addTearDown(auth.changes.close);
-    final accountLibrary = MusicLibraryRepositoryImpl(
-      database: db,
-      driveRepository: drive,
-      authRepository: auth,
-      metadataExtractor: extractor,
-      artistArtworkDownloader: OfflineArtworkDownloader(db),
-    );
-    addTearDown(accountLibrary.dispose);
-    listing = (uri) {
-      final query = uri.queryParameters['q']!;
-      expect(query.contains("'alice'") || query.contains("'bob'"), isTrue);
-      return page(query.contains("'bob'") ? [audio('a')] : files);
-    };
-    files = [audio('a')];
-    auth.switchTo('alice');
-    await sync(repository: accountLibrary, root: 'alice');
-    auth.switchTo('bob');
-    await sync(repository: accountLibrary, root: 'bob');
-    expect((await track('a')).sourceId, 'source_gdrive_alice');
-    final favorite = FavoriteRepositoryImpl(database: db);
-    expect((await favorite.toggleFavorite('track_a')).isSuccess, isTrue);
+  test(
+    'one account cannot prune a shared file another account indexed',
+    () async {
+      final auth = SwitchingAuthRepository();
+      addTearDown(auth.changes.close);
+      final accountLibrary = MusicLibraryRepositoryImpl(
+        database: db,
+        driveRepository: drive,
+        authRepository: auth,
+        metadataExtractor: extractor,
+        artistArtworkDownloader: OfflineArtworkDownloader(db),
+      );
+      addTearDown(accountLibrary.dispose);
+      var bobFiles = [audio('a')];
+      listing = (uri) {
+        final query = uri.queryParameters['q']!;
+        expect(query.contains("'alice'") || query.contains("'bob'"), isTrue);
+        return page(query.contains("'bob'") ? bobFiles : files);
+      };
+      files = [audio('a')];
+      auth.switchTo('alice');
+      await sync(repository: accountLibrary, root: 'alice');
+      auth.switchTo('bob');
+      await sync(repository: accountLibrary, root: 'bob');
+      expect((await track('a')).sourceId, 'source_gdrive_alice');
+      final favorite = FavoriteRepositoryImpl(database: db);
+      expect((await favorite.toggleFavorite('track_a')).isSuccess, isTrue);
 
-    auth.switchTo('alice');
-    files = [];
-    expect((await accountLibrary.syncFromSavedFolder()).isSuccess, isTrue);
-    expect((await accountLibrary.getLastSyncSession())?.filesRemoved, 1);
-    expect(
-      (await accountLibrary.getTrackByDriveFileId('a')).dataOrNull,
-      isNull,
-    );
-    auth.switchTo('bob');
-    expect(
-      (await accountLibrary.getLastSyncSession())?.phase,
-      SyncPhase.complete,
-    );
-    expect(await favorite.watchIsFavorite('track_a').first, isFalse);
-    expect((await accountLibrary.syncFromSavedFolder()).isSuccess, isTrue);
-    expect((await track('a')).sourceId, 'source_gdrive_bob');
-    expect(await favorite.watchIsFavorite('track_a').first, isFalse);
-  });
+      auth.switchTo('alice');
+      files = [];
+      expect((await accountLibrary.syncFromSavedFolder()).isSuccess, isTrue);
+      expect((await accountLibrary.getLastSyncSession())?.filesRemoved, 0);
+      expect((await track('a')).sourceId, 'source_gdrive_bob');
+      auth.switchTo('bob');
+      expect(
+        (await accountLibrary.getLastSyncSession())?.phase,
+        SyncPhase.complete,
+      );
+      expect(await favorite.watchIsFavorite('track_a').first, isTrue);
+      bobFiles = [];
+      expect((await accountLibrary.syncFromSavedFolder()).isSuccess, isTrue);
+      expect((await accountLibrary.getLastSyncSession())?.filesRemoved, 1);
+      expect(
+        (await accountLibrary.getTrackByDriveFileId('a')).dataOrNull,
+        isNull,
+      );
+      expect(await favorite.watchIsFavorite('track_a').first, isFalse);
+    },
+  );
 
   test('failed folder switch overwrites the last working saved root', () async {
     await sync(root: 'working');

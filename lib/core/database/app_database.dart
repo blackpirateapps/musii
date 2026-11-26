@@ -29,6 +29,7 @@ extension TrackAudioVersion on TrackRow {
     Albums,
     Genres,
     Tracks,
+    TrackSources,
     Playlists,
     PlaylistTracks,
     Favorites,
@@ -53,7 +54,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? e]) : super(e ?? _openConnection());
 
   @override
-  int get schemaVersion => 11;
+  int get schemaVersion => 12;
 
   @override
   MigrationStrategy get migration {
@@ -234,6 +235,25 @@ class AppDatabase extends _$AppDatabase {
                 files_removed = 0, errors_count = 0, progress_percent = 0
             WHERE status != 'completed'
           """);
+        }
+        if (from < 12) {
+          await _createTableSafely(m, trackSources);
+          await customStatement('''
+            INSERT OR IGNORE INTO track_sources (source_id, track_id)
+            SELECT source_id, id FROM tracks
+          ''');
+          await customStatement('''
+            INSERT OR IGNORE INTO track_sources (source_id, track_id)
+            SELECT run.source_id, track.id
+            FROM sync_runs AS run
+            JOIN discovered_files AS file ON file.sync_run_id = run.id
+            JOIN tracks AS track ON track.drive_file_id = file.drive_file_id
+            WHERE run.id = (
+              SELECT latest.id FROM sync_runs AS latest
+              WHERE latest.source_id = run.source_id AND latest.status = 'completed'
+              ORDER BY latest.started_at DESC, latest.id DESC LIMIT 1
+            ) AND run.discovery_completed = 1 AND file.is_lrc = 0
+          ''');
         }
       },
       beforeOpen: (details) async {

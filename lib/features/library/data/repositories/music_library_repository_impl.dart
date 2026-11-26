@@ -1124,8 +1124,17 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
 
       // 3. Load existing indexed tracks
       final allIndexedTracks = await _database.select(_database.tracks).get();
+      final sourcesByTrack = <String, Set<String>>{};
+      for (final membership
+          in await _database.select(_database.trackSources).get()) {
+        sourcesByTrack
+            .putIfAbsent(membership.trackId, () => {})
+            .add(membership.sourceId);
+      }
       final existingTracks = allIndexedTracks.where(
-        (track) => track.sourceId == sourceId,
+        (track) =>
+            sourcesByTrack[track.id]?.contains(sourceId) ??
+            track.sourceId == sourceId,
       );
       final existingMap = {
         for (final track in allIndexedTracks) track.driveFileId: track,
@@ -1507,10 +1516,10 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
       onProgress?.call(_currentProgress);
 
       await verifyAccount();
-      final removedTracks = existingTracks
+      final missingTracks = existingTracks
           .where((track) => !driveFileMap.containsKey(track.driveFileId))
           .toList();
-      if (isResume && removedTracks.isNotEmpty) {
+      if (isResume && missingTracks.isNotEmpty) {
         // A checkpoint can outlive a file move. Confirm absences with a fresh
         // listing before deleting tracks and their local relationships.
         final liveListing = await _driveRepository.listAudioFilesRecursively(
@@ -1524,17 +1533,34 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
             .where((file) => !file.isLrc && !file.isImage)
             .map((file) => file.id)
             .toSet();
-        removedTracks.removeWhere(
+        missingTracks.removeWhere(
           (track) => presentIds.contains(track.driveFileId),
         );
         await verifyAccount();
       }
+      final removedTracks = <TrackRow>[];
       await _database.transaction(() async {
         cancellationToken.throwIfCancelled();
         final affectedPlaylists = <String>{};
-        for (final track in removedTracks) {
+        for (final track in missingTracks) {
           cancellationToken.throwIfCancelled();
+          final otherSources = sourcesByTrack[track.id]?.difference({sourceId});
+          if (otherSources != null && otherSources.isNotEmpty) {
+            await (_database.delete(_database.trackSources)..where(
+                  (row) =>
+                      row.sourceId.equals(sourceId) &
+                      row.trackId.equals(track.id),
+                ))
+                .go();
+            if (track.sourceId == sourceId) {
+              await (_database.update(_database.tracks)
+                    ..where((row) => row.id.equals(track.id)))
+                  .write(TracksCompanion(sourceId: Value(otherSources.first)));
+            }
+            continue;
+          }
           affectedPlaylists.addAll(await _deleteTrack(track.id));
+          removedTracks.add(track);
         }
         for (final playlistId in affectedPlaylists) {
           final remaining =
@@ -1577,8 +1603,23 @@ class MusicLibraryRepositoryImpl implements MusicLibraryRepository {
                       row.sourceId.equals('source_gdrive'),
                 ))
                 .write(TracksCompanion(sourceId: Value(sourceId)));
+            await (_database.delete(_database.trackSources)..where(
+                  (row) =>
+                      row.sourceId.equals('source_gdrive') &
+                      row.trackId.isIn(legacyIds.skip(offset).take(500)),
+                ))
+                .go();
           }
         }
+        await _database.customStatement(
+          '''
+          INSERT OR IGNORE INTO track_sources (source_id, track_id)
+          SELECT ?, track.id FROM tracks AS track
+          JOIN discovered_files AS file ON file.drive_file_id = track.drive_file_id
+          WHERE file.sync_run_id = ? AND file.is_lrc = 0
+        ''',
+          [sourceId, syncRunId],
+        );
 
         await _database.reconcileDuplicateAlbums();
         await _recomputeLibraryAggregates(

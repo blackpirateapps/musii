@@ -266,7 +266,7 @@ void main() {
 
   group('Database Migration Suite', () {
     test(
-      'fresh database creation initializes at schemaVersion 10 with all tables',
+      'fresh database creation initializes at schemaVersion 12 with all tables',
       () async {
         final db = AppDatabase(NativeDatabase.memory());
         addTearDown(db.close);
@@ -280,11 +280,11 @@ void main() {
         final userVersionResult = await db
             .customSelect('PRAGMA user_version;')
             .getSingle();
-        expect(userVersionResult.read<int>('user_version'), 11);
+        expect(userVersionResult.read<int>('user_version'), 12);
       },
     );
 
-    test('reproduction: migration from schema v4 to v11 succeeds without duplicate column error', () async {
+    test('reproduction: migration from schema v4 to v12 succeeds without duplicate column error', () async {
       final dbFile = createDbFile('v4_to_v10.sqlite');
 
       final rawDb = raw_sqlite.sqlite3.open(dbFile.path);
@@ -305,7 +305,7 @@ void main() {
       final uvResult = await db
           .customSelect('PRAGMA user_version;')
           .getSingle();
-      expect(uvResult.read<int>('user_version'), 11);
+      expect(uvResult.read<int>('user_version'), 12);
 
       // Verify columns in discovered_files exist and can be inserted/selected
       final now = DateTime.now();
@@ -372,7 +372,7 @@ void main() {
       expect(track.artworkPath, '/path/to/art.jpg');
     });
 
-    test('migration from schema v1 to v11 succeeds seamlessly', () async {
+    test('migration from schema v1 to v12 succeeds seamlessly', () async {
       final dbFile = createDbFile('v1_to_v10.sqlite');
 
       final rawDb = raw_sqlite.sqlite3.open(dbFile.path);
@@ -389,7 +389,7 @@ void main() {
       final uvResult = await db
           .customSelect('PRAGMA user_version;')
           .getSingle();
-      expect(uvResult.read<int>('user_version'), 11);
+      expect(uvResult.read<int>('user_version'), 12);
     });
 
     test('migration from schema v5 (with legacy discovered_files without is_processed) to v11', () async {
@@ -413,7 +413,7 @@ void main() {
       final uvResult = await db
           .customSelect('PRAGMA user_version;')
           .getSingle();
-      expect(uvResult.read<int>('user_version'), 11);
+      expect(uvResult.read<int>('user_version'), 12);
 
       // Ensure newly added columns can be written and read
       final now = DateTime.now();
@@ -439,7 +439,7 @@ void main() {
       expect(row.processStatus, 'updated');
     });
 
-    test('migration from schema v9 to v11 adds tracks.artwork_path and backfills from albums', () async {
+    test('migration from schema v9 to v12 adds tracks.artwork_path and backfills from albums', () async {
       final dbFile = createDbFile('v9_to_v10.sqlite');
 
       final rawDb = raw_sqlite.sqlite3.open(dbFile.path);
@@ -482,7 +482,7 @@ void main() {
       final uvResult = await db
           .customSelect('PRAGMA user_version;')
           .getSingle();
-      expect(uvResult.read<int>('user_version'), 11);
+      expect(uvResult.read<int>('user_version'), 12);
     });
 
     test('idempotency: re-running onUpgrade with existing tables/columns does not error', () async {
@@ -500,6 +500,42 @@ void main() {
       final tracks = await db.select(db.tracks).get();
       expect(tracks, isEmpty);
     });
+
+    test(
+      'migration from v11 restores shared membership from completed discovery',
+      () async {
+        final dbFile = createDbFile('v11_track_sources.sqlite');
+        final original = AppDatabase(NativeDatabase(dbFile));
+        await original.customStatement('''
+        INSERT INTO tracks (id, drive_file_id, source_id, title, normalized_title, created_at, updated_at)
+        VALUES ('track_audio', 'audio', 'alice', 'Song', 'song', 1, 1)
+      ''');
+        await original.customStatement('''
+        INSERT INTO sync_runs (id, source_id, started_at, status, discovery_completed)
+        VALUES ('good', 'bob', 1, 'completed', 1), ('incomplete', 'other', 2, 'running', 1)
+      ''');
+        await original.customStatement('''
+        INSERT INTO discovered_files (id, sync_run_id, drive_file_id, name, mime_type, modified_time)
+        VALUES ('good_audio', 'good', 'audio', 'Song.mp3', 'audio/mpeg', 1),
+               ('incomplete_audio', 'incomplete', 'audio', 'Song.mp3', 'audio/mpeg', 1)
+      ''');
+        await original.customStatement('DROP TABLE track_sources');
+        await original.customStatement('PRAGMA user_version = 11');
+        await original.close();
+
+        final upgraded = AppDatabase(NativeDatabase(dbFile));
+        addTearDown(upgraded.close);
+        final memberships = await upgraded.select(upgraded.trackSources).get();
+        expect(
+          memberships.map((row) => row.sourceId),
+          unorderedEquals(['alice', 'bob']),
+        );
+        expect(
+          memberships.map((row) => row.trackId),
+          everyElement('track_audio'),
+        );
+      },
+    );
 
     test('migration from v10 clears unsafe snapshots and leaves ambiguous roots unowned', () async {
       final dbFile = createDbFile('v10_to_v11.sqlite');

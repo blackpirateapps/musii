@@ -7,7 +7,7 @@ Audited commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09` on 26 November 2026. T
 | ID | Severity | Finding | Evidence |
 | --- | --- | --- | --- |
 | LIB-14 | High | Resume deletes a track that returned to Drive after discovery | Sync fixture · Fixed |
-| LIB-15 | High | One account can delete a shared track still indexed by another account | Two-account sync fixture |
+| LIB-15 | High | One account can delete a shared track still indexed by another account | Two-account sync fixture · Fixed |
 | LIB-16 | Medium | Failed folder change replaces the last working saved root | Sync fixture |
 | LIB-17 | Medium | Deleting the last embedded cover hides available folder artwork for one sync | Sync fixture |
 | LIB-18 | Medium | Superseded folder covers accumulate outside cache management | Filesystem fixture |
@@ -30,6 +30,8 @@ Audited commit `af3c7e300a0b6fb2b0bd671590c3262a5a035c09` on 26 November 2026. T
 **Expected.** A completed discovery snapshot can seed recovery. Removal should also establish that an absent track is still absent when recovery may have outlived the listing. This differs from the earlier stop-during-pagination bug, since all pages completed successfully before Stop. [Saved discovery handling](../lib/features/library/data/repositories/music_library_repository_impl.dart#L873) · [Reconciliation](../lib/features/library/data/repositories/music_library_repository_impl.dart#L1510)
 
 ### LIB-15 · One account can remove a shared file another account still indexes
+
+**Resolution.** Schema v12 stores account memberships per Drive track. A successful sync removes only its own membership and prunes the track when the last account drops it.
 
 **Reproduce.** Index the same Drive file ID from account A's music root and then account B's music root. Favorite the song. Remove it from A's root while it remains listed under B, switch back to A, and resync A.
 

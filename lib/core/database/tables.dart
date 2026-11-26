@@ -118,6 +118,15 @@ class Tracks extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+class TrackSources extends Table {
+  TextColumn get sourceId => text()();
+  TextColumn get trackId =>
+      text().references(Tracks, #id, onDelete: KeyAction.cascade)();
+
+  @override
+  Set<Column> get primaryKey => {sourceId, trackId};
+}
+
 @DataClassName('PlaylistRow')
 class Playlists extends Table {
   TextColumn get id => text()();

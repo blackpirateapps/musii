@@ -132,3 +132,7 @@ All UI providers subscribe to reactive queries using Drift's `watch()` methods, 
 `sync_runs.force_sync` records whether the run must reprocess unchanged audio. Each fully listed folder commits its discovered files, parent links, and traversal queue together. Rows in `drive_folders` use the run ID in `source_id` so folder artwork lookup can be restored with the discovery snapshot.
 
 `tracks.sidecar_fingerprint` records which Drive lyric sidecar was processed. `tracks.embedded_artwork_path` records embedded artwork, and `albums.drive_artwork_fingerprint` tracks a Drive folder cover separately. Upgrading discards unfinished discovery snapshots from earlier schema versions, then recovery rebuilds the listing against the existing indexed library. Legacy roots recorded under the generic account label require a new folder selection. Verified legacy tracks can be associated with the signed-in account after a complete scan.
+
+## Schema v12 track sources
+
+`TrackSources` links each indexed track to the Google account sources that include it in their last successful scan. Migration seeds ownership from existing track rows and adds membership from each source's most recent completed discovery snapshot when available. Reconciliation removes account membership before deleting a track and its local relationships.

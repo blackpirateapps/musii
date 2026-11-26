@@ -4447,6 +4447,226 @@ class TracksCompanion extends UpdateCompanion<TrackRow> {
   }
 }
 
+class $TrackSourcesTable extends TrackSources
+    with TableInfo<$TrackSourcesTable, TrackSource> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $TrackSourcesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _sourceIdMeta = const VerificationMeta(
+    'sourceId',
+  );
+  @override
+  late final GeneratedColumn<String> sourceId = GeneratedColumn<String>(
+    'source_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _trackIdMeta = const VerificationMeta(
+    'trackId',
+  );
+  @override
+  late final GeneratedColumn<String> trackId = GeneratedColumn<String>(
+    'track_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES tracks (id) ON DELETE CASCADE',
+    ),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [sourceId, trackId];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'track_sources';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<TrackSource> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('source_id')) {
+      context.handle(
+        _sourceIdMeta,
+        sourceId.isAcceptableOrUnknown(data['source_id']!, _sourceIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_sourceIdMeta);
+    }
+    if (data.containsKey('track_id')) {
+      context.handle(
+        _trackIdMeta,
+        trackId.isAcceptableOrUnknown(data['track_id']!, _trackIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_trackIdMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {sourceId, trackId};
+  @override
+  TrackSource map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return TrackSource(
+      sourceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_id'],
+      )!,
+      trackId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}track_id'],
+      )!,
+    );
+  }
+
+  @override
+  $TrackSourcesTable createAlias(String alias) {
+    return $TrackSourcesTable(attachedDatabase, alias);
+  }
+}
+
+class TrackSource extends DataClass implements Insertable<TrackSource> {
+  final String sourceId;
+  final String trackId;
+  const TrackSource({required this.sourceId, required this.trackId});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['source_id'] = Variable<String>(sourceId);
+    map['track_id'] = Variable<String>(trackId);
+    return map;
+  }
+
+  TrackSourcesCompanion toCompanion(bool nullToAbsent) {
+    return TrackSourcesCompanion(
+      sourceId: Value(sourceId),
+      trackId: Value(trackId),
+    );
+  }
+
+  factory TrackSource.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return TrackSource(
+      sourceId: serializer.fromJson<String>(json['sourceId']),
+      trackId: serializer.fromJson<String>(json['trackId']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'sourceId': serializer.toJson<String>(sourceId),
+      'trackId': serializer.toJson<String>(trackId),
+    };
+  }
+
+  TrackSource copyWith({String? sourceId, String? trackId}) => TrackSource(
+    sourceId: sourceId ?? this.sourceId,
+    trackId: trackId ?? this.trackId,
+  );
+  TrackSource copyWithCompanion(TrackSourcesCompanion data) {
+    return TrackSource(
+      sourceId: data.sourceId.present ? data.sourceId.value : this.sourceId,
+      trackId: data.trackId.present ? data.trackId.value : this.trackId,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TrackSource(')
+          ..write('sourceId: $sourceId, ')
+          ..write('trackId: $trackId')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(sourceId, trackId);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is TrackSource &&
+          other.sourceId == this.sourceId &&
+          other.trackId == this.trackId);
+}
+
+class TrackSourcesCompanion extends UpdateCompanion<TrackSource> {
+  final Value<String> sourceId;
+  final Value<String> trackId;
+  final Value<int> rowid;
+  const TrackSourcesCompanion({
+    this.sourceId = const Value.absent(),
+    this.trackId = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  TrackSourcesCompanion.insert({
+    required String sourceId,
+    required String trackId,
+    this.rowid = const Value.absent(),
+  }) : sourceId = Value(sourceId),
+       trackId = Value(trackId);
+  static Insertable<TrackSource> custom({
+    Expression<String>? sourceId,
+    Expression<String>? trackId,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (sourceId != null) 'source_id': sourceId,
+      if (trackId != null) 'track_id': trackId,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  TrackSourcesCompanion copyWith({
+    Value<String>? sourceId,
+    Value<String>? trackId,
+    Value<int>? rowid,
+  }) {
+    return TrackSourcesCompanion(
+      sourceId: sourceId ?? this.sourceId,
+      trackId: trackId ?? this.trackId,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (sourceId.present) {
+      map['source_id'] = Variable<String>(sourceId.value);
+    }
+    if (trackId.present) {
+      map['track_id'] = Variable<String>(trackId.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TrackSourcesCompanion(')
+          ..write('sourceId: $sourceId, ')
+          ..write('trackId: $trackId, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $PlaylistsTable extends Playlists
     with TableInfo<$PlaylistsTable, PlaylistRow> {
   @override
@@ -13965,6 +14185,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $AlbumsTable albums = $AlbumsTable(this);
   late final $GenresTable genres = $GenresTable(this);
   late final $TracksTable tracks = $TracksTable(this);
+  late final $TrackSourcesTable trackSources = $TrackSourcesTable(this);
   late final $PlaylistsTable playlists = $PlaylistsTable(this);
   late final $PlaylistTracksTable playlistTracks = $PlaylistTracksTable(this);
   late final $FavoritesTable favorites = $FavoritesTable(this);
@@ -14001,6 +14222,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     albums,
     genres,
     tracks,
+    trackSources,
     playlists,
     playlistTracks,
     favorites,
@@ -14020,6 +14242,16 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     pendingScrobbles,
     scrobbleHistory,
   ];
+  @override
+  StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'tracks',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('track_sources', kind: UpdateKind.delete)],
+    ),
+  ]);
 }
 
 typedef $$UsersTableCreateCompanionBuilder = UsersCompanion Function({
@@ -15502,6 +15734,29 @@ typedef $$TracksTableUpdateCompanionBuilder = TracksCompanion Function({
   Value<int> rowid,
 });
 
+final class $$TracksTableReferences
+    extends BaseReferences<_$AppDatabase, $TracksTable, TrackRow> {
+  $$TracksTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static MultiTypedResultKey<$TrackSourcesTable, List<TrackSource>>
+  _trackSourcesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.trackSources,
+    aliasName: 'tracks__id__track_sources__track_id',
+  );
+
+  $$TrackSourcesTableProcessedTableManager get trackSourcesRefs {
+    final manager = $$TrackSourcesTableTableManager(
+      $_db,
+      $_db.trackSources,
+    ).filter((f) => f.trackId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_trackSourcesRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
 class $$TracksTableFilterComposer
     extends Composer<_$AppDatabase, $TracksTable> {
   $$TracksTableFilterComposer({
@@ -15675,6 +15930,31 @@ class $$TracksTableFilterComposer
     column: $table.updatedAt,
     builder: (column) => ColumnFilters(column),
   );
+
+  Expression<bool> trackSourcesRefs(
+    Expression<bool> Function($$TrackSourcesTableFilterComposer f) f,
+  ) {
+    final $$TrackSourcesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.trackSources,
+      getReferencedColumn: (t) => t.trackId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TrackSourcesTableFilterComposer(
+            $db: $db,
+            $table: $db.trackSources,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$TracksTableOrderingComposer
@@ -15989,6 +16269,31 @@ class $$TracksTableAnnotationComposer
 
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  Expression<T> trackSourcesRefs<T extends Object>(
+    Expression<T> Function($$TrackSourcesTableAnnotationComposer a) f,
+  ) {
+    final $$TrackSourcesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.trackSources,
+      getReferencedColumn: (t) => t.trackId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TrackSourcesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.trackSources,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$TracksTableTableManager
@@ -16002,9 +16307,9 @@ class $$TracksTableTableManager
           $$TracksTableAnnotationComposer,
           $$TracksTableCreateCompanionBuilder,
           $$TracksTableUpdateCompanionBuilder,
-          (TrackRow, BaseReferences<_$AppDatabase, $TracksTable, TrackRow>),
+          (TrackRow, $$TracksTableReferences),
           TrackRow,
-          PrefetchHooks Function()
+          PrefetchHooks Function({bool trackSourcesRefs})
         > {
   $$TracksTableTableManager(_$AppDatabase db, $TracksTable table)
     : super(
@@ -16165,15 +16470,39 @@ class $$TracksTableTableManager
               .map(
                 (e) => (
                   e.readTable<$TracksTable, TrackRow>(table),
-                  BaseReferences<_$AppDatabase, $TracksTable, TrackRow>(
-                    db,
-                    table,
-                    e,
-                  ),
+                  $$TracksTableReferences(db, table, e),
                 ),
               )
               .toList(),
-          prefetchHooksCallback: null,
+          prefetchHooksCallback: ({trackSourcesRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [if (trackSourcesRefs) db.trackSources],
+              addJoins: null,
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (trackSourcesRefs)
+                    await $_getPrefetchedData<
+                      TrackRow,
+                      $TracksTable,
+                      TrackSource
+                    >(
+                      currentTable: table,
+                      referencedTable: $$TracksTableReferences
+                          ._trackSourcesRefsTable(db),
+                      managerFromTypedResult: (p0) => $$TracksTableReferences(
+                        db,
+                        table,
+                        p0,
+                      ).trackSourcesRefs,
+                      referencedItemsForCurrentItem: (item, referencedItems) =>
+                          referencedItems.where((e) => e.trackId == item.id),
+                      typedResults: items,
+                    ),
+                ];
+              },
+            );
+          },
         ),
       );
 }
@@ -16188,9 +16517,267 @@ typedef $$TracksTableProcessedTableManager =
       $$TracksTableAnnotationComposer,
       $$TracksTableCreateCompanionBuilder,
       $$TracksTableUpdateCompanionBuilder,
-      (TrackRow, BaseReferences<_$AppDatabase, $TracksTable, TrackRow>),
+      (TrackRow, $$TracksTableReferences),
       TrackRow,
-      PrefetchHooks Function()
+      PrefetchHooks Function({bool trackSourcesRefs})
+    >;
+typedef $$TrackSourcesTableCreateCompanionBuilder =
+    TrackSourcesCompanion Function({
+      required String sourceId,
+      required String trackId,
+      Value<int> rowid,
+    });
+typedef $$TrackSourcesTableUpdateCompanionBuilder =
+    TrackSourcesCompanion Function({
+      Value<String> sourceId,
+      Value<String> trackId,
+      Value<int> rowid,
+    });
+
+final class $$TrackSourcesTableReferences
+    extends BaseReferences<_$AppDatabase, $TrackSourcesTable, TrackSource> {
+  $$TrackSourcesTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $TracksTable _trackIdTable(_$AppDatabase db) =>
+      db.tracks.createAlias('track_sources__track_id__tracks__id');
+
+  $$TracksTableProcessedTableManager get trackId {
+    final $_column = $_itemColumn<String>('track_id')!;
+
+    final manager = $$TracksTableTableManager(
+      $_db,
+      $_db.tracks,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_trackIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$TrackSourcesTableFilterComposer
+    extends Composer<_$AppDatabase, $TrackSourcesTable> {
+  $$TrackSourcesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get sourceId => $composableBuilder(
+    column: $table.sourceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$TracksTableFilterComposer get trackId {
+    final $$TracksTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.trackId,
+      referencedTable: $db.tracks,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TracksTableFilterComposer(
+            $db: $db,
+            $table: $db.tracks,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$TrackSourcesTableOrderingComposer
+    extends Composer<_$AppDatabase, $TrackSourcesTable> {
+  $$TrackSourcesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get sourceId => $composableBuilder(
+    column: $table.sourceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$TracksTableOrderingComposer get trackId {
+    final $$TracksTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.trackId,
+      referencedTable: $db.tracks,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TracksTableOrderingComposer(
+            $db: $db,
+            $table: $db.tracks,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$TrackSourcesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $TrackSourcesTable> {
+  $$TrackSourcesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get sourceId =>
+      $composableBuilder(column: $table.sourceId, builder: (column) => column);
+
+  $$TracksTableAnnotationComposer get trackId {
+    final $$TracksTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.trackId,
+      referencedTable: $db.tracks,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TracksTableAnnotationComposer(
+            $db: $db,
+            $table: $db.tracks,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$TrackSourcesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $TrackSourcesTable,
+          TrackSource,
+          $$TrackSourcesTableFilterComposer,
+          $$TrackSourcesTableOrderingComposer,
+          $$TrackSourcesTableAnnotationComposer,
+          $$TrackSourcesTableCreateCompanionBuilder,
+          $$TrackSourcesTableUpdateCompanionBuilder,
+          (TrackSource, $$TrackSourcesTableReferences),
+          TrackSource,
+          PrefetchHooks Function({bool trackId})
+        > {
+  $$TrackSourcesTableTableManager(_$AppDatabase db, $TrackSourcesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$TrackSourcesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$TrackSourcesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$TrackSourcesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> sourceId = const Value.absent(),
+                Value<String> trackId = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => TrackSourcesCompanion(
+                sourceId: sourceId,
+                trackId: trackId,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String sourceId,
+                required String trackId,
+                Value<int> rowid = const Value.absent(),
+              }) => TrackSourcesCompanion.insert(
+                sourceId: sourceId,
+                trackId: trackId,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$TrackSourcesTable, TrackSource>(table),
+                  $$TrackSourcesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({trackId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (trackId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.trackId,
+                        referencedTable: $$TrackSourcesTableReferences
+                            ._trackIdTable(db),
+                        referencedColumn: $$TrackSourcesTableReferences
+                            ._trackIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$TrackSourcesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $TrackSourcesTable,
+      TrackSource,
+      $$TrackSourcesTableFilterComposer,
+      $$TrackSourcesTableOrderingComposer,
+      $$TrackSourcesTableAnnotationComposer,
+      $$TrackSourcesTableCreateCompanionBuilder,
+      $$TrackSourcesTableUpdateCompanionBuilder,
+      (TrackSource, $$TrackSourcesTableReferences),
+      TrackSource,
+      PrefetchHooks Function({bool trackId})
     >;
 typedef $$PlaylistsTableCreateCompanionBuilder = PlaylistsCompanion Function({
   required String id,
@@ -21153,6 +21740,8 @@ class $AppDatabaseManager {
       $$GenresTableTableManager(_db, _db.genres);
   $$TracksTableTableManager get tracks =>
       $$TracksTableTableManager(_db, _db.tracks);
+  $$TrackSourcesTableTableManager get trackSources =>
+      $$TrackSourcesTableTableManager(_db, _db.trackSources);
   $$PlaylistsTableTableManager get playlists =>
       $$PlaylistsTableTableManager(_db, _db.playlists);
   $$PlaylistTracksTableTableManager get playlistTracks =>
