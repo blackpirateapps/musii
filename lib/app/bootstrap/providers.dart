@@ -208,6 +208,10 @@ final youtubeMusicRepositoryProvider = Provider<YouTubeMusicRepository>((ref) {
   );
 });
 
+final youtubeMusicHomeProvider = FutureProvider<List<YouTubeMusicSection>>((ref) {
+  return ref.watch(youtubeMusicRepositoryProvider).browseHome();
+});
+
 final musiiAudioHandlerProvider = Provider<MusiiAudioHandler>((ref) {
   final cache = ref.watch(cacheRepositoryProvider);
   final recents = ref.watch(recentlyPlayedRepositoryProvider);

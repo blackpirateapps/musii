@@ -8,11 +8,35 @@ import '../../metadata/domain/services/metadata_normalization_service.dart';
 import '../domain/youtube_music_link.dart';
 import 'youtube_music_client.dart';
 
+typedef YouTubeMusicSection = ({String title, List<Track> tracks});
+typedef YouTubeMusicSearchPage = ({List<Track> tracks, String? nextPage});
+
 class YouTubeMusicRepository {
   const YouTubeMusicRepository(this._database, this._client);
 
   final AppDatabase _database;
   final YouTubeMusicClient _client;
+
+  Future<List<YouTubeMusicSection>> browseHome() async {
+    final shelves = await _client.getHome();
+    return shelves
+        .map(
+          (shelf) =>
+              (title: shelf.title, tracks: shelf.tracks.map(_toTrack).toList()),
+        )
+        .toList();
+  }
+
+  Future<YouTubeMusicSearchPage> searchSongs(
+    String query, {
+    String? nextPage,
+  }) async {
+    final page = await _client.searchSongs(query, nextPage: nextPage);
+    return (
+      tracks: page.tracks.map(_toTrack).toList(),
+      nextPage: page.nextPage,
+    );
+  }
 
   Future<Result<Track, AppFailure>> importLink(String link) async {
     final videoId = youtubeVideoIdFromLink(link);
@@ -23,57 +47,68 @@ class YouTubeMusicRepository {
     }
 
     try {
-      final id = 'youtube_$videoId';
-      const sourceId = 'source_youtube_music';
-      final details = await _client.getTrack(videoId);
-      final normalizedTitle = MetadataNormalizationService.searchKey(
-        details.title,
-      );
-      final now = DateTime.now();
-      await _database
-          .into(_database.tracks)
-          .insert(
+      final track = _toTrack(await _client.getTrack(videoId));
+      await saveTracks([track]);
+      return Result.success(track);
+    } on AppFailure catch (failure) {
+      return Result.failure(failure);
+    }
+  }
+
+  Future<void> saveTracks(List<Track> tracks) async {
+    final now = DateTime.now();
+    try {
+      await _database.batch((batch) {
+        for (final track in tracks) {
+          final artist = track.artistName == null
+              ? const Value<String?>.absent()
+              : Value(track.artistName);
+          final duration = track.durationMs == 0
+              ? const Value<int>.absent()
+              : Value(track.durationMs);
+          final artwork = track.artworkUrl == null
+              ? const Value<String?>.absent()
+              : Value(track.artworkUrl);
+          batch.insert(
+            _database.tracks,
             TracksCompanion.insert(
-              id: id,
-              youtubeVideoId: Value(videoId),
-              sourceId: sourceId,
-              title: details.title,
-              normalizedTitle: normalizedTitle,
-              artistName: Value(details.artist),
-              durationMs: Value(details.durationMs),
-              artworkUrl: Value(details.artworkUrl),
+              id: track.id,
+              sourceId: track.sourceId,
+              youtubeVideoId: Value(track.youtubeVideoId),
+              title: track.title,
+              normalizedTitle: track.normalizedTitle,
+              artistName: artist,
+              durationMs: duration,
+              artworkUrl: artwork,
               createdAt: now,
               updatedAt: now,
             ),
             onConflict: DoUpdate(
               (_) => TracksCompanion(
-                title: Value(details.title),
-                normalizedTitle: Value(normalizedTitle),
-                artistName: Value(details.artist),
-                durationMs: Value(details.durationMs),
-                artworkUrl: Value(details.artworkUrl),
+                title: Value(track.title),
+                normalizedTitle: Value(track.normalizedTitle),
+                artistName: artist,
+                durationMs: duration,
+                artworkUrl: artwork,
                 updatedAt: Value(now),
               ),
             ),
           );
-      return Result.success(
-        Track(
-          id: id,
-          youtubeVideoId: videoId,
-          sourceId: sourceId,
-          title: details.title,
-          normalizedTitle: normalizedTitle,
-          artistName: details.artist,
-          durationMs: details.durationMs,
-          artworkUrl: details.artworkUrl,
-        ),
-      );
-    } on AppFailure catch (failure) {
-      return Result.failure(failure);
+        }
+      });
     } catch (error) {
-      return Result.failure(
-        DatabaseFailure('Could not save the YouTube track.', cause: error),
-      );
+      throw DatabaseFailure('Could not save the YouTube tracks.', cause: error);
     }
   }
+
+  Track _toTrack(YouTubeTrackInfo details) => Track(
+    id: 'youtube_${details.videoId}',
+    sourceId: 'source_youtube_music',
+    youtubeVideoId: details.videoId,
+    title: details.title,
+    normalizedTitle: MetadataNormalizationService.searchKey(details.title),
+    artistName: details.artist,
+    durationMs: details.durationMs,
+    artworkUrl: details.artworkUrl,
+  );
 }

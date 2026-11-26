@@ -9,6 +9,7 @@ import '../../../google_drive/presentation/pages/drive_connect_page.dart';
 import '../../../google_drive/presentation/pages/drive_folder_picker_page.dart';
 import '../../../playback/presentation/pages/now_playing_page.dart';
 import '../../../playlists/presentation/pages/playlist_detail_page.dart';
+import '../../../youtube_music/presentation/youtube_music_discovery_sliver.dart';
 import '../../domain/entities/music_entities.dart';
 import '../widgets/account_info_sheet.dart';
 import '../widgets/album_artwork.dart';
@@ -22,15 +23,22 @@ import 'library_page.dart';
 import 'album_detail_page.dart';
 import 'artist_detail_page.dart';
 
-class HomePage extends ConsumerWidget {
+class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
+
+  @override
+  ConsumerState<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends ConsumerState<HomePage> {
+  bool _youtubeSelected = false;
 
   void _openCollection(BuildContext context, Widget page) {
     Navigator.of(context).push(CupertinoPageRoute<void>(builder: (_) => page));
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final greeting = AppGreeting.getGreeting();
     final isDark = CupertinoTheme.brightnessOf(context) == Brightness.dark;
 
@@ -46,19 +54,22 @@ class HomePage extends ConsumerWidget {
 
     final userAsync = ref.watch(currentUserProvider);
     final user = userAsync.value;
+    final showYouTube = _youtubeSelected || (!userAsync.isLoading && user == null);
 
-    final recentlyPlayed = recentlyPlayedAsync.value ?? [];
-    final favorites = favoritesAsync.value ?? [];
+    final recentlyPlayed = _driveTracks(recentlyPlayedAsync.value);
+    final favorites = _driveTracks(favoritesAsync.value);
     final albums = albumsAsync.value ?? [];
     final artists = artistsAsync.value ?? [];
     final playlists = playlistsAsync.value ?? [];
-    final recentTracks = recentTracksAsync.value ?? [];
+    final recentTracks = _driveTracks(recentTracksAsync.value);
 
     // Derive track for Continue Listening:
     // 1. Currently active track
     // 2. Most recent track from recently played
     // 3. First track from recent tracks if available
-    Track? continueListeningTrack = currentPlayingTrack;
+    Track? continueListeningTrack = currentPlayingTrack?.driveFileId == null
+        ? null
+        : currentPlayingTrack;
     if (continueListeningTrack == null && recentlyPlayed.isNotEmpty) {
       continueListeningTrack = recentlyPlayed.first;
     } else if (continueListeningTrack == null && recentTracks.isNotEmpty) {
@@ -229,7 +240,35 @@ class HomePage extends ConsumerWidget {
                 ),
               ),
 
-              if (!hasAnyData)
+              if (user != null)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.md, AppSpacing.sm, AppSpacing.md, AppSpacing.sm,
+                    ),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: CupertinoSlidingSegmentedControl<bool>(
+                        groupValue: showYouTube,
+                        children: const {
+                          false: Text('Google Drive'),
+                          true: Text('YouTube Music'),
+                        },
+                        onValueChanged: (value) {
+                          if (value != null) setState(() => _youtubeSelected = value);
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+
+              if (showYouTube && user == null)
+                const SliverToBoxAdapter(
+                  child: SectionHeader(title: 'YouTube Music'),
+                ),
+              if (showYouTube)
+                const YouTubeMusicDiscoverySliver(browse: true)
+              else if (!hasAnyData)
                 SliverFillRemaining(
                   child: EmptyState(
                     icon: CupertinoIcons.music_albums,
@@ -570,6 +609,9 @@ class HomePage extends ConsumerWidget {
   }
 }
 
+List<Track> _driveTracks(List<Track>? tracks) =>
+    tracks?.where((track) => track.driveFileId != null).toList() ?? [];
+
 class _HomeSongList extends ConsumerWidget {
   final String title;
   final StreamProvider<List<Track>> tracksProvider;
@@ -592,9 +634,10 @@ class _HomeSongList extends ConsumerWidget {
             loading: () => const Center(child: CupertinoActivityIndicator()),
             error: (error, _) =>
                 Center(child: Text('Could not load songs: $error')),
-            data: (tracks) => tracks.isEmpty
-                ? const Center(child: Text('No songs'))
-                : ListView.builder(
+            data: (allTracks) {
+              final tracks = _driveTracks(allTracks);
+              if (tracks.isEmpty) return const Center(child: Text('No songs'));
+              return ListView.builder(
                     padding: MediaQuery.paddingOf(context)
                         .copyWith(bottom: 120),
                     itemCount: tracks.length,
@@ -613,7 +656,8 @@ class _HomeSongList extends ConsumerWidget {
                         ),
                       );
                     },
-                  ),
+                  );
+            },
           ),
     );
   }

@@ -1,6 +1,6 @@
 # Musii — AI Engineering Handoff Document
 
-> **Document Version**: 1.20.0
+> **Document Version**: 1.21.0
 > **Target Audience**: Incoming AI Coding Assistants & Human Software Engineers  
 > **Last Verified**: November 2026
 > **App Identifier**: `com.blackpirateapps.musii`  
@@ -63,6 +63,8 @@ The music library regressions cover Unicode identity repair on incremental sync,
 
 ### 1. Home Screen Experience (Visual Authority)
 Located in `lib/features/library/presentation/pages/home_page.dart` and `lib/features/library/presentation/widgets/`:
+- **YouTube Music discovery**: Home displays a source switch when Drive is connected and opens the YouTube Music feed when signed out. The Android bridge loads public song shelves using the device region and the YouTube Music home browse response. The Search tab offers Library and YouTube Music. Song search uses NewPipe's Music Songs filter and passes the service's continuation back for additional results.
+- **Discovery playback**: Home and Search use `YouTubeMusicDiscoverySliver`. Results stay in memory while browsing. Tapping a song saves its queue's track rows together and hands the queue to the existing audio handler. The overflow menu saves the selected track before queue or playlist actions. Discovery requires no YouTube credentials or database migration.
 - **Atmospheric Twilight Backdrop**: Rich twilight and warm sunset gradient glow (`RadialGradient`) with 90px Gaussian blur, giving Cupertino dark mode depth and warmth without visual noise.
 - **Dynamic Header & Subtitle**: Time-of-day greeting (`AppGreeting.getGreeting()`) paired with the subtitle *"Your music, your way."* in clean Cupertino typography.
 - **Upper-Right Account Control (`AccountInfoSheet`)**: Subtle 38px circular avatar with Google profile photo or fallback avatar. Tapping opens a Cupertino modal sheet displaying Google account info, live music library statistics (song, album, artist counts), Google Drive connection state, and last sync timestamp.

@@ -24,6 +24,7 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 final class YouTubeMusicResolver {
@@ -37,12 +38,16 @@ final class YouTubeMusicResolver {
         metadata.put("title", track.getName());
         metadata.put("artist", track.getUploaderName());
         metadata.put("durationMs", Math.max(0, track.getLength()) * 1000L);
-        track.getThumbnails().stream()
+        metadata.put("artworkUrl", artworkUrl(track.getThumbnails()));
+        return metadata;
+    }
+
+    static String artworkUrl(List<Image> thumbnails) {
+        return thumbnails.stream()
             .filter(image -> image.getUrl().startsWith("https://"))
             .min(Comparator.comparingInt(image -> Math.abs(image.getWidth() - 480)))
             .map(Image::getUrl)
-            .ifPresent(url -> metadata.put("artworkUrl", url));
-        return metadata;
+            .orElse(null);
     }
 
     String resolveAudio(String videoId) throws IOException, ExtractionException {

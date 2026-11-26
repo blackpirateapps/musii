@@ -16,6 +16,7 @@ import '../../../library/presentation/widgets/song_row.dart';
 import '../../../library/presentation/widgets/track_overflow_sheet.dart';
 import '../../../playlists/presentation/pages/playlist_detail_page.dart';
 import '../../../youtube_music/presentation/youtube_music_link_page.dart';
+import '../../../youtube_music/presentation/youtube_music_discovery_sliver.dart';
 
 class SearchPage extends ConsumerStatefulWidget {
   const SearchPage({super.key});
@@ -27,6 +28,7 @@ class SearchPage extends ConsumerStatefulWidget {
 class _SearchPageState extends ConsumerState<SearchPage> {
   final TextEditingController _searchController = TextEditingController();
   Timer? _debounceTimer;
+  bool _youtubeSelected = false;
 
   @override
   void dispose() {
@@ -66,13 +68,37 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                 horizontal: AppSpacing.md,
                 vertical: AppSpacing.xs,
               ),
-              child: CupertinoSearchTextField(
-                controller: _searchController,
-                onChanged: _onSearchChanged,
-                placeholder: 'Songs, Albums, Artists, Playlists',
+              child: SizedBox(
+                width: double.infinity,
+                child: CupertinoSlidingSegmentedControl<bool>(
+                  groupValue: _youtubeSelected,
+                  children: const {
+                    false: Text('Library'),
+                    true: Text('YouTube Music'),
+                  },
+                  onValueChanged: (value) {
+                    if (value == null) return;
+                    FocusScope.of(context).unfocus();
+                    setState(() => _youtubeSelected = value);
+                  },
+                ),
               ),
             ),
           ),
+          if (!_youtubeSelected)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.xs,
+                ),
+                child: CupertinoSearchTextField(
+                  controller: _searchController,
+                  onChanged: _onSearchChanged,
+                  placeholder: 'Songs, Albums, Artists, Playlists',
+                ),
+              ),
+            ),
           SliverToBoxAdapter(
             child: Align(
               alignment: AlignmentDirectional.centerStart,
@@ -86,7 +112,9 @@ class _SearchPageState extends ConsumerState<SearchPage> {
               ),
             ),
           ),
-          if (query.trim().isEmpty)
+          if (_youtubeSelected)
+            const YouTubeMusicDiscoverySliver()
+          else if (query.trim().isEmpty)
             const SliverFillRemaining(
               child: EmptyState(
                 icon: CupertinoIcons.search,

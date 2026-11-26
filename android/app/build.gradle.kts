@@ -60,6 +60,7 @@ android {
 
 dependencies {
     implementation("com.github.TeamNewPipe:NewPipeExtractor:v0.27.1")
+    implementation("com.github.TeamNewPipe:nanojson:e9d656ddb49a412a5a0a5d5ef20ca7ef09549996")
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs_nio:2.1.5")
 }
 

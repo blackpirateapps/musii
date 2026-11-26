@@ -15,30 +15,43 @@ internal class YouTubeMusicPlugin : FlutterPlugin, MethodChannel.MethodCallHandl
     private val videoIdPattern = Regex("[A-Za-z0-9_-]{11}")
     private lateinit var channel: MethodChannel
     private lateinit var worker: ExecutorService
-    private val resolver by lazy { YouTubeMusicResolver() }
+    private lateinit var catalogWorker: ExecutorService
+    private val resolver = YouTubeMusicResolver()
+    private val catalog = YouTubeMusicCatalog()
 
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         worker = Executors.newFixedThreadPool(2)
+        catalogWorker = Executors.newFixedThreadPool(2)
         channel = MethodChannel(binding.binaryMessenger, "musii/youtube_music")
         channel.setMethodCallHandler(this)
     }
 
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
-        if (call.method != "getTrack" && call.method != "resolveAudio") {
+        if (call.method !in setOf("getTrack", "resolveAudio", "getHome", "searchSongs")) {
             result.notImplemented()
             return
         }
         val videoId = call.argument<String>("videoId")
-        if (videoId == null || !videoIdPattern.matches(videoId)) {
+        if ((call.method == "getTrack" || call.method == "resolveAudio") &&
+            (videoId == null || !videoIdPattern.matches(videoId))) {
             result.error("invalid_id", "Invalid video ID", null)
             return
         }
-        val executor = worker
+        val executor = if (call.method == "getHome" || call.method == "searchSongs") {
+            catalogWorker
+        } else {
+            worker
+        }
         executor.execute {
             val reply = runCatching {
                 when (call.method) {
-                    "getTrack" -> resolver.getTrack(videoId)
-                    else -> mapOf("url" to resolver.resolveAudio(videoId))
+                    "getTrack" -> resolver.getTrack(videoId!!)
+                    "resolveAudio" -> mapOf("url" to resolver.resolveAudio(videoId!!))
+                    "getHome" -> catalog.getHome()
+                    else -> catalog.searchSongs(
+                        call.argument<String>("query").orEmpty(),
+                        call.argument<String>("nextPage"),
+                    )
                 }
             }
             main.post {
@@ -62,5 +75,6 @@ internal class YouTubeMusicPlugin : FlutterPlugin, MethodChannel.MethodCallHandl
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         channel.setMethodCallHandler(null)
         worker.shutdownNow()
+        catalogWorker.shutdownNow()
     }
 }
