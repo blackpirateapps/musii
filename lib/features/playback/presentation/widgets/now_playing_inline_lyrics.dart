@@ -275,6 +275,9 @@ class _NowPlayingInlineLyricsState
   Widget build(BuildContext context) {
     final track = widget.track;
     final enabled = ref.watch(inlineLyricsEnabledProvider);
+    if (enabled && !widget.isCompactScreen && track?.youtubeVideoId != null) {
+      ref.watch(youtubeMusicLyricsProvider(track!));
+    }
     final lyrics = enabled && !widget.isCompactScreen && track != null
         ? ref.watch(trackLyricsProvider(track.id)).value
         : null;

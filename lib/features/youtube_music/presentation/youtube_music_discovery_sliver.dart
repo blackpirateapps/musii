@@ -5,12 +5,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/bootstrap/providers.dart';
 import '../../../core/constants/app_constants.dart';
-import '../../../core/error/failures.dart';
 import '../../library/domain/entities/music_entities.dart';
 import '../../library/presentation/widgets/empty_state.dart';
 import '../../library/presentation/widgets/section_header.dart';
-import '../../library/presentation/widgets/song_row.dart';
-import '../../library/presentation/widgets/track_overflow_sheet.dart';
+import '../domain/youtube_music_collection.dart';
+import 'youtube_music_catalog_widgets.dart';
 
 class YouTubeMusicDiscoverySliver extends ConsumerStatefulWidget {
   const YouTubeMusicDiscoverySliver({super.key, this.browse = false});
@@ -27,11 +26,12 @@ class _YouTubeMusicDiscoverySliverState
   Timer? _debounce;
   String _query = '';
   List<Track> _results = const [];
+  List<YouTubeMusicCollection> _collections = const [];
+  YouTubeMusicCategory _category = YouTubeMusicCategory.songs;
   String? _nextPage;
   String? _error;
   bool _loading = false;
   int _searchGeneration = 0;
-  int _playGeneration = 0;
 
   @override
   void dispose() {
@@ -41,12 +41,17 @@ class _YouTubeMusicDiscoverySliverState
 
   void _searchChanged(String value) {
     final query = value.trim();
-    if (_query == query) return;
+    if (_query != query) _resetSearch(query, _category);
+  }
+
+  void _resetSearch(String query, YouTubeMusicCategory category) {
     _debounce?.cancel();
     _searchGeneration++;
     setState(() {
       _query = query;
+      _category = category;
       _results = const [];
+      _collections = const [];
       _nextPage = null;
       _error = null;
       _loading = query.isNotEmpty;
@@ -63,80 +68,42 @@ class _YouTubeMusicDiscoverySliverState
       _error = null;
     });
     try {
-      final page = await ref
-          .read(youtubeMusicRepositoryProvider)
-          .searchSongs(_query, nextPage: nextPage);
-      if (!mounted || generation != _searchGeneration) return;
-      final seen = _results.map((song) => song.id).toSet();
-      setState(() {
+      final repository = ref.read(youtubeMusicRepositoryProvider);
+      if (_category == YouTubeMusicCategory.songs) {
+        final page = await repository.searchSongs(_query, nextPage: nextPage);
+        if (!mounted || generation != _searchGeneration) return;
+        final seen = _results.map((song) => song.id).toSet();
         _results = [
           ..._results,
           ...page.tracks.where((song) => seen.add(song.id)),
         ];
         _nextPage = page.nextPage == nextPage ? null : page.nextPage;
-        _loading = false;
-      });
+      } else {
+        final page = await repository.searchCollections(
+          _query,
+          _category,
+          nextPage: nextPage,
+        );
+        if (!mounted || generation != _searchGeneration) return;
+        final seen = _collections.map((item) => item.browseId).toSet();
+        _collections = [
+          ..._collections,
+          ...page.collections.where((item) => seen.add(item.browseId)),
+        ];
+        _nextPage = page.nextPage == nextPage ? null : page.nextPage;
+      }
+      setState(() => _loading = false);
     } catch (error) {
       if (!mounted || generation != _searchGeneration) return;
       setState(() {
-        _error = _message(error);
+        _error = youtubeMusicErrorMessage(error);
         _loading = false;
       });
     }
   }
 
-  Future<void> _play(List<Track> tracks, int index) async {
-    final generation = ++_playGeneration;
-    try {
-      await ref.read(youtubeMusicRepositoryProvider).saveTracks(tracks);
-      if (!mounted || generation != _playGeneration) return;
-      await ref
-          .read(playbackRepositoryProvider)
-          .playTrack(tracks[index], queue: tracks, queueIndex: index);
-    } catch (error) {
-      if (mounted && generation == _playGeneration) _showError(error);
-    }
-  }
-
-  Future<void> _options(Track track) async {
-    try {
-      await ref.read(youtubeMusicRepositoryProvider).saveTracks([track]);
-      if (!mounted) return;
-      await showTrackActionSheet(
-        context: context,
-        track: track,
-        ref: ref,
-        trackContext: TrackActionContext.search,
-      );
-    } catch (error) {
-      if (mounted) _showError(error);
-    }
-  }
-
-  void _showError(Object error) {
-    showCupertinoDialog<void>(
-      context: context,
-      builder: (context) => CupertinoAlertDialog(
-        content: Text(_message(error)),
-        actions: [
-          CupertinoDialogAction(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _message(Object error) => error is AppFailure
-      ? error.message
-      : 'Could not load YouTube Music. Try again.';
-
   @override
   Widget build(BuildContext context) {
-    final currentId = ref.watch(
-      playerStateProvider.select((state) => state.value?.currentTrack?.id),
-    );
     final showHome = widget.browse && _query.isEmpty;
     return SliverMainAxisGroup(
       slivers: [
@@ -161,16 +128,41 @@ class _YouTubeMusicDiscoverySliverState
             ),
           ),
         ),
-        if (showHome)
-          ..._home(currentId)
-        else if (_query.isNotEmpty)
-          ..._search(currentId),
-        const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.lg)),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.md,
+              0,
+              AppSpacing.md,
+              AppSpacing.sm,
+            ),
+            child: SizedBox(
+              width: double.infinity,
+              child: CupertinoSlidingSegmentedControl<YouTubeMusicCategory>(
+                groupValue: _category,
+                children: {
+                  for (final category in YouTubeMusicCategory.values)
+                    category: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      child: Text(category.label),
+                    ),
+                },
+                onValueChanged: (category) {
+                  if (category != null && category != _category) {
+                    _resetSearch(_query, category);
+                  }
+                },
+              ),
+            ),
+          ),
+        ),
+        if (showHome) ..._home() else if (_query.isNotEmpty) ..._search(),
+        const SliverToBoxAdapter(child: SizedBox(height: 110)),
       ],
     );
   }
 
-  List<Widget> _home(String? currentId) {
+  List<Widget> _home() {
     return ref
         .watch(youtubeMusicHomeProvider)
         .when(
@@ -180,33 +172,57 @@ class _YouTubeMusicDiscoverySliverState
               child: EmptyState(
                 icon: CupertinoIcons.music_note_2,
                 title: 'Could not load YouTube Music',
-                subtitle: _message(error),
+                subtitle: youtubeMusicErrorMessage(error),
                 actionLabel: 'Retry',
                 onAction: () => ref.invalidate(youtubeMusicHomeProvider),
               ),
             ),
           ],
-          data: (sections) => [
-            if (sections.isEmpty)
-              const SliverToBoxAdapter(
-                child: EmptyState(
-                  icon: CupertinoIcons.music_note_2,
-                  title: 'No recommendations available',
-                  subtitle: 'Search YouTube Music to find a song.',
+          data: (sections) {
+            final songs = _category == YouTubeMusicCategory.songs;
+            final visible = sections.where(
+              (section) => songs
+                  ? section.tracks.isNotEmpty
+                  : section.collections.any(
+                      (item) => item.category == _category,
+                    ),
+            );
+            return [
+              if (visible.isEmpty)
+                const SliverToBoxAdapter(
+                  child: EmptyState(
+                    icon: CupertinoIcons.music_note_2,
+                    title: 'No recommendations available',
+                    subtitle: 'Try searching YouTube Music.',
+                  ),
                 ),
-              ),
-            for (final section in sections) ...[
-              SliverToBoxAdapter(child: SectionHeader(title: section.title)),
-              _songList(section.tracks, currentId),
-            ],
-          ],
+              for (final section in visible) ...[
+                if (section.title.isNotEmpty)
+                  SliverToBoxAdapter(
+                    child: SectionHeader(title: section.title),
+                  ),
+                if (songs)
+                  YouTubeMusicTrackSliver(tracks: section.tracks)
+                else
+                  YouTubeMusicCollectionSliver(
+                    collections: section.collections
+                        .where((item) => item.category == _category)
+                        .toList(),
+                  ),
+              ],
+            ];
+          },
         );
   }
 
-  List<Widget> _search(String? currentId) {
+  List<Widget> _search() {
     final error = _error;
+    final songs = _category == YouTubeMusicCategory.songs;
     return [
-      _songList(_results, currentId),
+      if (songs)
+        YouTubeMusicTrackSliver(tracks: _results)
+      else
+        YouTubeMusicCollectionSliver(collections: _collections),
       if (_loading)
         _progress()
       else if (error != null)
@@ -223,32 +239,19 @@ class _YouTubeMusicDiscoverySliverState
         SliverToBoxAdapter(
           child: CupertinoButton(
             onPressed: () => _requestPage(nextPage: _nextPage),
-            child: const Text('Load More Songs'),
+            child: Text('Load More ${_category.label}'),
           ),
         )
-      else if (_results.isEmpty)
-        const SliverToBoxAdapter(
+      else if (songs ? _results.isEmpty : _collections.isEmpty)
+        SliverToBoxAdapter(
           child: EmptyState(
             icon: CupertinoIcons.search,
-            title: 'No songs found',
-            subtitle: 'Try another song title or artist.',
+            title: 'No ${_category.name} found',
+            subtitle: 'Try a different search.',
           ),
         ),
     ];
   }
-
-  Widget _songList(List<Track> tracks, String? currentId) => SliverList.builder(
-    itemCount: tracks.length,
-    itemBuilder: (context, index) {
-      final track = tracks[index];
-      return SongRow(
-        track: track,
-        isPlaying: track.id == currentId,
-        onTap: () => _play(tracks, index),
-        onMore: () => _options(track),
-      );
-    },
-  );
 
   Widget _progress() => const SliverToBoxAdapter(
     child: Padding(

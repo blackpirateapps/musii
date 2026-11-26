@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart' show TableUpdateQuery;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:http/http.dart' as http;
 
 import '../../core/database/app_database.dart';
 import '../../core/filesystem/app_file_system.dart';
@@ -17,6 +18,7 @@ import '../../features/library/domain/entities/sync_progress.dart';
 import '../../features/metadata/data/datasources/artist_artwork_downloader.dart';
 import '../../features/metadata/data/repositories/metadata_extractor_impl.dart';
 import '../../features/lyrics/data/repositories/lyrics_repository_impl.dart';
+import '../../features/lyrics/data/youtube_music_lyrics_loader.dart';
 import '../../features/lyrics/domain/entities/lyric_model.dart';
 import '../../features/lyrics/domain/repositories/lyrics_repository.dart';
 import '../../features/playback/data/repositories/playback_repository_impl.dart';
@@ -253,6 +255,28 @@ final lyricsRepositoryProvider = Provider<LyricsRepository>((ref) {
   final db = ref.watch(appDatabaseProvider);
   return LyricsRepositoryImpl(database: db);
 });
+
+final youtubeMusicLyricsLoaderProvider = Provider<YouTubeMusicLyricsLoader>((ref) {
+  final httpClient = http.Client();
+  ref.onDispose(httpClient.close);
+  return YouTubeMusicLyricsLoader(
+    lyrics: ref.watch(lyricsRepositoryProvider),
+    youtube: ref.watch(youtubeMusicClientProvider),
+    httpClient: httpClient,
+  );
+});
+
+final youtubeMusicLyricsProvider = FutureProvider.autoDispose.family<void, Track>(
+  (ref, track) async {
+    final player = ref.read(playerStateProvider).value;
+    await ref.watch(youtubeMusicLyricsLoaderProvider).load(
+      track,
+      playbackDuration: player?.currentTrack?.id == track.id
+          ? player?.duration
+          : null,
+    );
+  },
+);
 
 final trackLyricsProvider = StreamProvider.autoDispose
     .family<TrackLyrics?, String>((ref, trackId) {

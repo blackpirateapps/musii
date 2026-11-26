@@ -105,6 +105,8 @@ enum LyricSource {
   embeddedSynced('embedded_synced'),
   embeddedPlain('embedded_plain'),
   sidecarLrc('sidecar_lrc'),
+  lrclib('lrclib'),
+  youtubeMusic('youtube_music'),
   none('none');
 
   final String value;

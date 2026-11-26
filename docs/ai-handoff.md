@@ -1,6 +1,6 @@
 # Musii — AI Engineering Handoff Document
 
-> **Document Version**: 1.21.0
+> **Document Version**: 1.22.0
 > **Target Audience**: Incoming AI Coding Assistants & Human Software Engineers  
 > **Last Verified**: November 2026
 > **App Identifier**: `com.blackpirateapps.musii`  
@@ -63,7 +63,7 @@ The music library regressions cover Unicode identity repair on incremental sync,
 
 ### 1. Home Screen Experience (Visual Authority)
 Located in `lib/features/library/presentation/pages/home_page.dart` and `lib/features/library/presentation/widgets/`:
-- **YouTube Music discovery**: Home displays a source switch when Drive is connected and opens the YouTube Music feed when signed out. The Android bridge loads public song shelves using the device region and the YouTube Music home browse response. It uses Explore when Home has no playable song shelves. The Search tab offers Library and YouTube Music. Song search uses NewPipe's Music Songs filter and passes the service's continuation back for additional results.
+- **YouTube Music discovery**: Home displays a source switch when Drive is connected and opens the YouTube Music feed when signed out. Home and Search expose Songs, Albums, Artists, and Playlists. The Android bridge reads regional Home shelves and fills missing categories from Explore and Charts. Search uses NewPipe's corresponding Music filters. Album and playlist pages list playable tracks with continuation when available. Artist pages show songs and related releases.
 - **Discovery playback**: Home and Search use `YouTubeMusicDiscoverySliver`. Results stay in memory while browsing. Tapping a song saves its queue's track rows together and hands the queue to the existing audio handler. The overflow menu saves the selected track before queue or playlist actions. Discovery requires no YouTube credentials or database migration.
 - **Atmospheric Twilight Backdrop**: Rich twilight and warm sunset gradient glow (`RadialGradient`) with 90px Gaussian blur, giving Cupertino dark mode depth and warmth without visual noise.
 - **Dynamic Header & Subtitle**: Time-of-day greeting (`AppGreeting.getGreeting()`) paired with the subtitle *"Your music, your way."* in clean Cupertino typography.
@@ -87,6 +87,8 @@ Located in `lib/features/library/presentation/pages/home_page.dart` and `lib/fea
 ### 2. Now Playing Experience (Visual Authority)
 
 **YouTube Music links.** Search → Play a YouTube Music Link accepts public, on-demand song links for signed-out playback. Play Next and Add to Queue can mix them with Drive tracks. The Android Flutter plugin uses NewPipe Extractor v0.27.1 for metadata and HTTPS audio resolution. `MusiiAudioHandler` keeps the queue and media session and loads audio through `just_audio`. Confirmed stream positions are used for a single automatic retry after a player error.
+
+**YouTube Music lyrics.** Now Playing and the lyrics sheet check the local lyrics repository before requesting LRCLIB by title, artist, and known duration. When LRCLIB has no usable lyrics, the Android bridge follows the song's YouTube Music Lyrics tab to fetch plain text. Both sources are cached through the existing LRC parser and Drift lyrics tables. Synced lyrics can appear inline and plain lyrics open in the sheet.
 
 Schema v13 keeps existing Drive track IDs and adds a unique YouTube video ID and remote artwork URL. Each track has exactly one provider ID. Playback queue restoration joins those track rows and resolves the stream on demand when the user resumes. Drive sync and offline caching only process Drive tracks. Temporary audio URLs are held in memory. The pinned extractor and Android NIO desugaring are declared in `android/app/build.gradle.kts`.
 

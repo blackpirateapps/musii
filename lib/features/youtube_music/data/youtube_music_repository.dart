@@ -5,10 +5,15 @@ import '../../../core/error/failures.dart';
 import '../../../core/result/result.dart';
 import '../../library/domain/entities/music_entities.dart';
 import '../../metadata/domain/services/metadata_normalization_service.dart';
+import '../domain/youtube_music_collection.dart';
 import '../domain/youtube_music_link.dart';
 import 'youtube_music_client.dart';
 
-typedef YouTubeMusicSection = ({String title, List<Track> tracks});
+typedef YouTubeMusicSection = ({
+  String title,
+  List<Track> tracks,
+  List<YouTubeMusicCollection> collections,
+});
 typedef YouTubeMusicSearchPage = ({List<Track> tracks, String? nextPage});
 
 class YouTubeMusicRepository {
@@ -19,13 +24,23 @@ class YouTubeMusicRepository {
 
   Future<List<YouTubeMusicSection>> browseHome() async {
     final shelves = await _client.getHome();
-    return shelves
-        .map(
-          (shelf) =>
-              (title: shelf.title, tracks: shelf.tracks.map(_toTrack).toList()),
-        )
-        .toList();
+    return shelves.map(_toSection).toList();
   }
+
+  Future<({List<YouTubeMusicSection> sections, String? nextPage})>
+  browseCollection(String browseId, {String? nextPage}) async {
+    final page = await _client.getCollection(browseId, nextPage: nextPage);
+    return (
+      sections: page.sections.map(_toSection).toList(),
+      nextPage: page.nextPage,
+    );
+  }
+
+  Future<YouTubeCollectionSearchPage> searchCollections(
+    String query,
+    YouTubeMusicCategory category, {
+    String? nextPage,
+  }) => _client.searchCollections(query, category, nextPage: nextPage);
 
   Future<YouTubeMusicSearchPage> searchSongs(
     String query, {
@@ -110,5 +125,11 @@ class YouTubeMusicRepository {
     artistName: details.artist,
     durationMs: details.durationMs,
     artworkUrl: details.artworkUrl,
+  );
+
+  YouTubeMusicSection _toSection(YouTubeHomeShelf shelf) => (
+    title: shelf.title,
+    tracks: shelf.tracks.map(_toTrack).toList(),
+    collections: shelf.collections,
   );
 }

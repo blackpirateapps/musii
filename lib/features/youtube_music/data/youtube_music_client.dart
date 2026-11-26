@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 
 import '../../../core/error/failures.dart';
+import '../domain/youtube_music_collection.dart';
 
 typedef YouTubeTrackInfo = ({
   String videoId,
@@ -12,8 +13,16 @@ typedef YouTubeTrackInfo = ({
   String? artworkUrl,
 });
 
-typedef YouTubeHomeShelf = ({String title, List<YouTubeTrackInfo> tracks});
+typedef YouTubeHomeShelf = ({
+  String title,
+  List<YouTubeTrackInfo> tracks,
+  List<YouTubeMusicCollection> collections,
+});
 typedef YouTubeSongPage = ({List<YouTubeTrackInfo> tracks, String? nextPage});
+typedef YouTubeCollectionSearchPage = ({
+  List<YouTubeMusicCollection> collections,
+  String? nextPage,
+});
 
 class YouTubeMusicClient {
   const YouTubeMusicClient([
@@ -34,20 +43,93 @@ class YouTubeMusicClient {
 
   Future<List<YouTubeHomeShelf>> getHome() async {
     final response = await _request('getHome', const {});
-    final sections = response['sections'];
+    return _sections(response['sections']);
+  }
+
+  Future<({List<YouTubeHomeShelf> sections, String? nextPage})> getCollection(
+    String browseId, {
+    String? nextPage,
+  }) async {
+    final response = await _request('getCollection', {
+      'browseId': browseId,
+      'nextPage': ?nextPage,
+    });
+    return (
+      sections: _sections(response['sections']),
+      nextPage: response['nextPage'] as String?,
+    );
+  }
+
+  Future<YouTubeCollectionSearchPage> searchCollections(
+    String query,
+    YouTubeMusicCategory category, {
+    String? nextPage,
+  }) async {
+    final response = await _request('searchCollections', {
+      'query': query,
+      'kind': category.name,
+      'nextPage': ?nextPage,
+    });
+    return (
+      collections: _collections(response['collections']),
+      nextPage: response['nextPage'] as String?,
+    );
+  }
+
+  Future<String?> getLyrics(String videoId) async {
+    final response = await _request('getLyrics', {'videoId': videoId});
+    return response['lyrics'] as String?;
+  }
+
+  List<YouTubeHomeShelf> _sections(Object? sections) {
     if (sections is! List) return [];
     return sections
         .whereType<Map>()
         .map((section) {
           final title = section['title'];
           return (
-            title: title is String && title.isNotEmpty
-                ? title
-                : 'Discover songs',
+            title: title is String && title.isNotEmpty ? title : '',
             tracks: _tracks(section['tracks']),
+            collections: _collections(section['collections']),
           );
         })
-        .where((section) => section.tracks.isNotEmpty)
+        .where(
+          (section) =>
+              section.tracks.isNotEmpty || section.collections.isNotEmpty,
+        )
+        .toList();
+  }
+
+  List<YouTubeMusicCollection> _collections(Object? items) {
+    if (items is! List) return [];
+    return items
+        .whereType<Map>()
+        .map((item) {
+          final browseId = item['browseId'];
+          final title = item['title'];
+          final category = YouTubeMusicCategory.values
+              .where((kind) => kind.name == item['kind'])
+              .firstOrNull;
+          if (browseId is! String ||
+              browseId.isEmpty ||
+              title is! String ||
+              title.trim().isEmpty ||
+              category == null ||
+              category == YouTubeMusicCategory.songs) {
+            return null;
+          }
+          final subtitle = item['subtitle'];
+          return (
+            browseId: browseId,
+            category: category,
+            title: title,
+            subtitle: subtitle is String && subtitle.isNotEmpty
+                ? subtitle
+                : null,
+            artworkUrl: _httpsUri(item['artworkUrl'])?.toString(),
+          );
+        })
+        .nonNulls
         .toList();
   }
 

@@ -27,29 +27,36 @@ internal class YouTubeMusicPlugin : FlutterPlugin, MethodChannel.MethodCallHandl
     }
 
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
-        if (call.method !in setOf("getTrack", "resolveAudio", "getHome", "searchSongs")) {
+        val isPlayback = call.method == "getTrack" || call.method == "resolveAudio"
+        val needsVideo = isPlayback || call.method == "getLyrics"
+        if (!needsVideo && call.method !in setOf("getHome", "searchSongs", "searchCollections", "getCollection")) {
             result.notImplemented()
             return
         }
         val videoId = call.argument<String>("videoId")
-        if ((call.method == "getTrack" || call.method == "resolveAudio") &&
-            (videoId == null || !videoIdPattern.matches(videoId))) {
+        if (needsVideo && (videoId == null || !videoIdPattern.matches(videoId))) {
             result.error("invalid_id", "Invalid video ID", null)
             return
         }
-        val executor = if (call.method == "getHome" || call.method == "searchSongs") {
-            catalogWorker
-        } else {
-            worker
-        }
+        val executor = if (isPlayback) worker else catalogWorker
         executor.execute {
             val reply = runCatching {
                 when (call.method) {
                     "getTrack" -> resolver.getTrack(videoId!!)
                     "resolveAudio" -> mapOf("url" to resolver.resolveAudio(videoId!!))
                     "getHome" -> catalog.getHome()
-                    else -> catalog.searchSongs(
+                    "getLyrics" -> catalog.getLyrics(videoId!!)
+                    "getCollection" -> catalog.getCollection(
+                        call.argument<String>("browseId").orEmpty(),
+                        call.argument<String>("nextPage"),
+                    )
+                    "searchSongs" -> catalog.searchSongs(
                         call.argument<String>("query").orEmpty(),
+                        call.argument<String>("nextPage"),
+                    )
+                    else -> catalog.search(
+                        call.argument<String>("query").orEmpty(),
+                        call.argument<String>("kind").orEmpty(),
                         call.argument<String>("nextPage"),
                     )
                 }

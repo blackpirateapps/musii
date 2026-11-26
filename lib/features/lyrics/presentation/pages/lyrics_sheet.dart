@@ -232,6 +232,9 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet> {
 
     final lyricsAsync = ref.watch(trackLyricsProvider(track.id));
     final lyrics = lyricsAsync.value;
+    final onlineLyrics = track.youtubeVideoId == null
+        ? null
+        : ref.watch(youtubeMusicLyricsProvider(track));
 
     final isDark = CupertinoTheme.brightnessOf(context) == Brightness.dark;
     final isCurrentTrack = ref.watch(
@@ -428,6 +431,21 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet> {
                     ),
                     data: (data) {
                       if (data == null || !data.hasLyrics) {
+                        if (onlineLyrics?.isLoading == true) {
+                          return const Center(
+                            child: CupertinoActivityIndicator(radius: 14),
+                          );
+                        }
+                        if (onlineLyrics?.hasError == true) {
+                          return Center(
+                            child: CupertinoButton(
+                              onPressed: () => ref.invalidate(
+                                youtubeMusicLyricsProvider(track),
+                              ),
+                              child: const Text('Retry Lyrics'),
+                            ),
+                          );
+                        }
                         return Center(
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,

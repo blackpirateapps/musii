@@ -12,6 +12,7 @@ import 'package:musii/features/playback/domain/entities/playback_repository.dart
 import 'package:musii/features/playback/domain/entities/playback_state.dart';
 import 'package:musii/features/search/presentation/pages/search_page.dart';
 import 'package:musii/features/youtube_music/data/youtube_music_repository.dart';
+import 'package:musii/features/youtube_music/domain/youtube_music_collection.dart';
 
 class _Catalog extends Mock implements YouTubeMusicRepository {}
 
@@ -32,6 +33,14 @@ const _second = Track(
   normalizedTitle: 'second song',
 );
 
+const YouTubeMusicCollection _playlist = (
+  browseId: 'VLPLU_O2trV7TDCISxt7rHHlTKcAHyZ-DESd',
+  category: YouTubeMusicCategory.playlists,
+  title: 'Featured playlist',
+  subtitle: 'YouTube Music',
+  artworkUrl: null,
+);
+
 void main() {
   late _Catalog catalog;
   late _Playback playback;
@@ -43,7 +52,11 @@ void main() {
     playback = _Playback();
     when(() => catalog.browseHome()).thenAnswer(
       (_) async => [
-        (title: 'Quick picks', tracks: [_first, _second]),
+        (
+          title: 'Quick picks',
+          tracks: [_first, _second],
+          collections: const <YouTubeMusicCollection>[],
+        ),
       ],
     );
     when(() => catalog.saveTracks(any())).thenAnswer((_) async {});
@@ -116,6 +129,58 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Quick picks'), findsNothing);
     expect(find.text('No Music Indexed Yet'), findsOneWidget);
+  });
+
+  testWidgets('Home playlist loads more songs and plays the visible queue', (
+    tester,
+  ) async {
+    when(() => catalog.browseHome()).thenAnswer(
+      (_) async => [
+        (title: 'Featured', tracks: <Track>[], collections: [_playlist]),
+      ],
+    );
+    when(() => catalog.browseCollection(_playlist.browseId)).thenAnswer(
+      (_) async => (
+        sections: [
+          (
+            title: '',
+            tracks: [_first],
+            collections: <YouTubeMusicCollection>[],
+          ),
+        ],
+        nextPage: 'more',
+      ),
+    );
+    when(() => catalog.browseCollection(_playlist.browseId, nextPage: 'more'))
+        .thenAnswer(
+          (_) async => (
+            sections: [
+              (
+                title: '',
+                tracks: [_second],
+                collections: <YouTubeMusicCollection>[],
+              ),
+            ],
+            nextPage: null,
+          ),
+        );
+    await tester.pumpWidget(home());
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Playlists'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(_playlist.title));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Load More'));
+    await tester.tap(find.text('Load More'));
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('Second song'));
+    await tester.tap(find.text('Second song'));
+    await tester.pumpAndSettle();
+    verify(
+      () =>
+          playback.playTrack(_second, queue: [_first, _second], queueIndex: 1),
+    ).called(1);
   });
 
   testWidgets(
